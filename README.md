@@ -27,9 +27,17 @@ To set it up:
 
 Check your DAW's documentation for multi-output plugin routing.
 
+> [!NOTE]
+> Set your DAW to 44.1 kHz, the model only works at this sample rate.
+
 ## Downloads
 
-Coming soon.
+- [StemgenRT-macOS-AU.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-AU.zip)
+- [StemgenRT-macOS-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-VST3.zip)
+- [StemgenRT-Windows-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-Windows-VST3.zip)
+
+> [!NOTE]
+> The macOS plugin is not signed (yet). You need to sign it yourself: `codesign --force --deep --sign - StemgenRT.component`
 
 ## Building
 
