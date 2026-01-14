@@ -2,6 +2,10 @@
 #include "StemgenRT/OnnxRuntime.h"
 #include <juce_core/juce_core.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 namespace audio_plugin {
 
 void InferenceRequest::allocate() {
