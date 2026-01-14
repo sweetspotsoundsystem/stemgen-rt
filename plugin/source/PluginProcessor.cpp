@@ -449,7 +449,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // Neural networks output small non-zero values even for silent input. These errors
       // are often correlated across stems (sum≈0) but individually audible. The gate
       // attenuates all stems when input is very quiet, eliminating this noise.
-      constexpr float kResidualEpsilon = 1e-8f;  // Avoid division by zero
+      constexpr float kEnergyEpsilon = ResidualProcessor::kResidualEpsilon;  // Avoid division by zero
 
       // Compute base write position once, then increment with branch
       size_t writePos = overlapAdd_.getOutputWritePos();
@@ -486,7 +486,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float totalStemEnergy = drums_L * drums_L + drums_R * drums_R +
                                 bass_L * bass_L + bass_R * bass_R +
                                 vocalsEnergy +
-                                other_L * other_L + other_R * other_R + kResidualEpsilon;
+                                other_L * other_L + other_R * other_R + kEnergyEpsilon;
         float vocalsPeak = std::max(std::abs(vocals_L), std::abs(vocals_R));
 
         // Process through vocals gate (handles smoothing internally)

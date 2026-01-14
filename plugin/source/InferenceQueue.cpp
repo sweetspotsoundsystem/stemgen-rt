@@ -56,6 +56,11 @@ void InferenceQueue::startThread(OnnxRuntime* runtime) {
     pthread_setschedparam(nativeHandle, SCHED_FIFO, &param);
 #elif defined(_WIN32)
     SetThreadPriority(thread_->native_handle(), THREAD_PRIORITY_HIGHEST);
+#elif defined(__linux__)
+    pthread_t nativeHandle = thread_->native_handle();
+    struct sched_param param;
+    param.sched_priority = sched_get_priority_max(SCHED_RR) / 2;
+    pthread_setschedparam(nativeHandle, SCHED_RR, &param);
 #endif
 }
 
