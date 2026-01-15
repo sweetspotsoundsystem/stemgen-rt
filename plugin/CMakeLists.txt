@@ -43,9 +43,33 @@ else()
 endif()
 
 # Sets the source files of the plugin project.
-set(SOURCE_FILES source/PluginEditor.cpp source/PluginProcessor.cpp)
+set(SOURCE_FILES
+  source/PluginEditor.cpp
+  source/PluginProcessor.cpp
+  source/Crossover.cpp
+  source/VocalsGate.cpp
+  source/InputNormalizer.cpp
+  source/OnnxRuntime.cpp
+  source/InferenceQueue.cpp
+  source/OverlapAddProcessor.cpp
+  source/OutputWriter.cpp
+  source/ResidualProcessor.cpp
+)
 # Optional; includes header files in the project file tree in Visual Studio
-set(HEADER_FILES ${INCLUDE_DIR}/PluginEditor.h ${INCLUDE_DIR}/PluginProcessor.h)
+set(HEADER_FILES
+  ${INCLUDE_DIR}/PluginEditor.h
+  ${INCLUDE_DIR}/PluginProcessor.h
+  ${INCLUDE_DIR}/Constants.h
+  ${INCLUDE_DIR}/Crossover.h
+  ${INCLUDE_DIR}/SoftGate.h
+  ${INCLUDE_DIR}/VocalsGate.h
+  ${INCLUDE_DIR}/InputNormalizer.h
+  ${INCLUDE_DIR}/OnnxRuntime.h
+  ${INCLUDE_DIR}/InferenceQueue.h
+  ${INCLUDE_DIR}/OverlapAddProcessor.h
+  ${INCLUDE_DIR}/OutputWriter.h
+  ${INCLUDE_DIR}/ResidualProcessor.h
+)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
 # Sets the include directories of the plugin project.
