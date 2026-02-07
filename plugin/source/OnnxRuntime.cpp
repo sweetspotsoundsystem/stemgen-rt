@@ -393,6 +393,13 @@ bool OnnxRuntime::runInference(
         return false;
     }
 
+    if (!std::isfinite(normalizationGain) ||
+        normalizationGain <= std::numeric_limits<float>::epsilon()) {
+        DBG("[ORT] Invalid normalization gain: " << normalizationGain);
+        if (outputTensor) api->ReleaseValue(outputTensor);
+        return false;
+    }
+
     float invNormGain = 1.0f / normalizationGain;
 
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {

@@ -250,7 +250,7 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                 // Stale request - discard
                 request->ready.store(false, std::memory_order_release);
                 readIdx_.store((idx + 1) % kNumInferenceBuffers, std::memory_order_release);
-                lastSeenEpoch = currentEpoch;
+                // Keep lastSeenEpoch unchanged so outer loop executes epoch jump logic.
                 continue;
             }
 
@@ -280,7 +280,7 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                 request->ready.store(false, std::memory_order_release);
                 request->processed.store(false, std::memory_order_release);
                 readIdx_.store((idx + 1) % kNumInferenceBuffers, std::memory_order_release);
-                lastSeenEpoch = currentEpoch;
+                // Keep lastSeenEpoch unchanged so outer loop executes epoch jump logic.
                 continue;
             }
 
