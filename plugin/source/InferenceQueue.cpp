@@ -78,7 +78,19 @@ InferenceRequest* InferenceQueue::getWriteSlot() {
     size_t idx = writeIdx_.load(std::memory_order_acquire);
     auto& slot = queue_[idx];
 
-    if (!slot || slot->ready.load(std::memory_order_acquire) ||
+    if (!slot) {
+        return nullptr;
+    }
+
+    // Reclaim stale processed slots from previous epochs when safe.
+    // Do not touch stale ready slots here: they may still be in-flight on inference thread.
+    const uint32_t currentEpoch = resetEpoch_.load(std::memory_order_acquire);
+    if (slot->epoch != currentEpoch &&
+        !slot->ready.load(std::memory_order_acquire)) {
+        slot->processed.store(false, std::memory_order_release);
+    }
+
+    if (slot->ready.load(std::memory_order_acquire) ||
         slot->processed.load(std::memory_order_acquire)) {
         return nullptr;  // Slot not available
     }
@@ -115,22 +127,24 @@ void InferenceQueue::submitForWarmup() {
 }
 
 InferenceRequest* InferenceQueue::getOutputSlot(uint32_t currentEpoch) {
-    size_t idx = consumeIdx_.load(std::memory_order_acquire);
-    auto& slot = queue_[idx];
+    while (true) {
+        size_t idx = consumeIdx_.load(std::memory_order_acquire);
+        auto& slot = queue_[idx];
 
-    if (!slot || !slot->processed.load(std::memory_order_acquire)) {
-        return nullptr;  // No output ready
+        if (!slot || !slot->processed.load(std::memory_order_acquire)) {
+            return nullptr;  // No output ready
+        }
+
+        // Skip stale results from previous epochs and continue scanning.
+        if (slot->epoch != currentEpoch) {
+            slot->processed.store(false, std::memory_order_release);
+            consumeIdx_.store((idx + 1) % kNumInferenceBuffers,
+                              std::memory_order_release);
+            continue;
+        }
+
+        return slot.get();
     }
-
-    // Check if stale (from before reset)
-    if (slot->epoch != currentEpoch) {
-        // Discard stale result
-        slot->processed.store(false, std::memory_order_release);
-        consumeIdx_.store((idx + 1) % kNumInferenceBuffers, std::memory_order_release);
-        return nullptr;
-    }
-
-    return slot.get();
 }
 
 InferenceRequest* InferenceQueue::getCurrentOutputSlot() {
@@ -149,6 +163,13 @@ void InferenceQueue::releaseOutputSlot() {
 }
 
 uint32_t InferenceQueue::reset() {
+    // Capture where new-epoch writes will begin.
+    const size_t startIdx = writeIdx_.load(std::memory_order_acquire);
+    epochStartIdx_.store(startIdx, std::memory_order_release);
+
+    // Skip old-epoch output consumption immediately.
+    consumeIdx_.store(startIdx, std::memory_order_release);
+
     return resetEpoch_.fetch_add(1, std::memory_order_acq_rel) + 1;
 }
 
@@ -165,6 +186,7 @@ void InferenceQueue::fullReset() {
     writeIdx_.store(0, std::memory_order_release);
     readIdx_.store(0, std::memory_order_release);
     consumeIdx_.store(0, std::memory_order_release);
+    epochStartIdx_.store(0, std::memory_order_release);
 }
 
 void InferenceQueue::notifyThread() {
@@ -180,7 +202,22 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
         // Check for epoch change (reset occurred)
         uint32_t currentEpoch = resetEpoch_.load(std::memory_order_acquire);
         if (currentEpoch != lastSeenEpoch) {
-            readIdx_.store(0, std::memory_order_release);
+            // Jump to the slot where new-epoch writes started to avoid
+            // waiting on old non-ready holes.
+            const size_t startIdx =
+                epochStartIdx_.load(std::memory_order_acquire);
+            readIdx_.store(startIdx, std::memory_order_release);
+
+            // Clear stale flags from previous epochs so they can't block ring reuse.
+            for (auto& slot : queue_) {
+                if (!slot) {
+                    continue;
+                }
+                if (slot->epoch != currentEpoch) {
+                    slot->ready.store(false, std::memory_order_release);
+                    slot->processed.store(false, std::memory_order_release);
+                }
+            }
             lastSeenEpoch = currentEpoch;
         }
 
@@ -212,13 +249,14 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                 // Stale request - discard
                 request->ready.store(false, std::memory_order_release);
                 readIdx_.store((idx + 1) % kNumInferenceBuffers, std::memory_order_release);
-                lastSeenEpoch = currentEpoch;
+                // Keep lastSeenEpoch unchanged so outer loop executes epoch jump logic.
                 continue;
             }
 
             // Run inference
+            bool inferenceOk = false;
             if (runtime) {
-                runtime->runInference(
+                inferenceOk = runtime->runInference(
                     request->contextSnapshot,
                     request->inputChunk,
                     request->lowFreqChunk,
@@ -226,12 +264,22 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                     request->outputChunk);
             }
 
+            // Treat inference errors as dropped chunks (fallback path will crossfade to dry).
+            if (!inferenceOk) {
+                request->ready.store(false, std::memory_order_release);
+                request->processed.store(false, std::memory_order_release);
+                readIdx_.store((idx + 1) % kNumInferenceBuffers,
+                               std::memory_order_release);
+                continue;
+            }
+
             // Check if reset occurred during inference
             currentEpoch = resetEpoch_.load(std::memory_order_acquire);
             if (requestEpoch != currentEpoch) {
                 request->ready.store(false, std::memory_order_release);
+                request->processed.store(false, std::memory_order_release);
                 readIdx_.store((idx + 1) % kNumInferenceBuffers, std::memory_order_release);
-                lastSeenEpoch = currentEpoch;
+                // Keep lastSeenEpoch unchanged so outer loop executes epoch jump logic.
                 continue;
             }
 
