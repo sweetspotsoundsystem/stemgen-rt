@@ -381,31 +381,41 @@ bool OnnxRuntime::runInference(
     float* separatedData = nullptr;
     status = api->GetTensorMutableData(outputTensor, reinterpret_cast<void**>(&separatedData));
 
-    if (status == nullptr && separatedData != nullptr) {
-        float invNormGain = 1.0f / normalizationGain;
+    if (status != nullptr || separatedData == nullptr) {
+        if (status != nullptr) {
+            DBG("[ORT] Failed to get output tensor data: "
+                << api->GetErrorMessage(status));
+            api->ReleaseStatus(status);
+        } else {
+            DBG("[ORT] Output tensor data pointer was null");
+        }
+        if (outputTensor) api->ReleaseValue(outputTensor);
+        return false;
+    }
 
-        for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-            for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-                size_t dataOffset = stem * static_cast<size_t>(kNumChannels * kInternalChunkSize)
-                                  + ch * static_cast<size_t>(kInternalChunkSize)
-                                  + static_cast<size_t>(kContextSize);
+    float invNormGain = 1.0f / normalizationGain;
 
-                for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-                    float sample = separatedData[dataOffset + i];
-                    if (std::isnan(sample) || std::isinf(sample)) {
-                        sample = 0.0f;
-                    }
-                    outputChunks[stem][ch][i] = sample * invNormGain;
+    for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+            size_t dataOffset = stem * static_cast<size_t>(kNumChannels * kInternalChunkSize)
+                              + ch * static_cast<size_t>(kInternalChunkSize)
+                              + static_cast<size_t>(kContextSize);
+
+            for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+                float sample = separatedData[dataOffset + i];
+                if (std::isnan(sample) || std::isinf(sample)) {
+                    sample = 0.0f;
                 }
+                outputChunks[stem][ch][i] = sample * invNormGain;
             }
         }
+    }
 
-        // Add LP to bass stem
-        constexpr size_t kBassStemIndex = 1;
-        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-            for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-                outputChunks[kBassStemIndex][ch][i] += lowFreqChunk[ch][i];
-            }
+    // Add LP to bass stem
+    constexpr size_t kBassStemIndex = 1;
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+            outputChunks[kBassStemIndex][ch][i] += lowFreqChunk[ch][i];
         }
     }
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include <chrono>
 #include <cstring>
 #include <limits>
 #include <thread>
@@ -263,9 +264,9 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
     // Report latency to host for Plugin Delay Compensation (PDC)
     setLatencySamples(kOutputChunkSize);
 
-    // Warm up ORT: queue a dummy inference to trigger lazy initialization
-    // Use submitForWarmup() which doesn't advance indices, then reset() to
-    // increment epoch and cause inference thread to reset its readIdx back to 0.
+    // Warm up ORT: queue a dummy inference to trigger lazy initialization.
+    // Use submitForWarmup() which doesn't advance write index, then reset()
+    // to invalidate the warmup slot and re-synchronize queue epoch state.
     if (auto* warmup = inferenceQueue_.getWriteSlot()) {
       for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         std::memset(warmup->inputChunk[ch].data(), 0,
@@ -278,19 +279,32 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       warmup->normalizationGain = 1.0f;
       inferenceQueue_.submitForWarmup();
 
-      // Wait for completion (blocking OK in prepareToPlay)
-      // Check processed flag directly since we're doing a special warmup flow
-      while (!warmup->processed.load(std::memory_order_acquire)) {
+      // Wait for completion (blocking is acceptable in prepareToPlay), but
+      // never indefinitely in case inference thread is stalled.
+      constexpr auto kWarmupTimeout = std::chrono::seconds(2);
+      const auto deadline = std::chrono::steady_clock::now() + kWarmupTimeout;
+      bool warmupCompleted = false;
+      while (!(warmupCompleted =
+                   warmup->processed.load(std::memory_order_acquire))) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+          break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      // Clear processed flag directly (don't use releaseOutputSlot which advances consumeIdx)
-      warmup->processed.store(false, std::memory_order_release);
 
-      // Increment epoch to reset inference thread's readIdx back to 0.
-      // Warmup advanced inferenceReadIdx to 1, but writeIdx stayed at 0.
-      // The epoch change causes inference thread to reset readIdx on next wakeup.
+      if (warmupCompleted) {
+        // Clear processed flag directly (don't use releaseOutputSlot which advances consumeIdx)
+        warmup->processed.store(false, std::memory_order_release);
+        DBG("[HS-TasNet] ORT warmup complete");
+      } else {
+        DBG("[HS-TasNet] ORT warmup timed out after "
+            << static_cast<int>(kWarmupTimeout.count())
+            << "s; continuing without blocking.");
+      }
+
+      // Always advance epoch after warmup attempt to invalidate any late warmup
+      // result and re-sync queue indices for real-time processing.
       inferenceQueue_.reset();
-      DBG("[HS-TasNet] ORT warmup complete");
     }
   }
 #else

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -106,6 +107,9 @@ private:
 
     // Epoch counter for stale detection
     std::atomic<uint32_t> resetEpoch_{0};
+    // Starting write index captured at reset time for the new epoch.
+    // Inference thread jumps readIdx_ here on epoch change to avoid scanning old holes.
+    std::atomic<size_t> epochStartIdx_{0};
 
     // Thread management
     std::unique_ptr<std::thread> thread_;
