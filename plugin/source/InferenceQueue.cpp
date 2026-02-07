@@ -205,8 +205,7 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
             // Jump to the slot where new-epoch writes started to avoid
             // waiting on old non-ready holes.
             const size_t startIdx =
-                epochStartIdx_.load(std::memory_order_acquire) %
-                static_cast<size_t>(kNumInferenceBuffers);
+                epochStartIdx_.load(std::memory_order_acquire);
             readIdx_.store(startIdx, std::memory_order_release);
 
             // Clear stale flags from previous epochs so they can't block ring reuse.
