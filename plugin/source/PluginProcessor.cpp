@@ -710,15 +710,40 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // ===== Write separated stems to output buses =====
     const int numOutputBuses = getBusCount(false /* isInput */);
 
-    // Bus 0 (Main): sum of all stems
+    // Bus 0 (Main): dry passthrough. Do not assume in-place aliasing between
+    // input bus 0 and output bus 0; some hosts/tests provide distinct buffers.
     float* mainWrite[kNumChannels] = {nullptr, nullptr};
-    int mainNumCh = 0;
+    auto mainBus = getBusBuffer(buffer, false /* isInput */, 0);
+    int mainNumCh = mainBus.getNumChannels();
+    for (int ch = 0; ch < std::min(kNumChannels, mainNumCh); ++ch)
+      mainWrite[ch] = mainBus.getWritePointer(ch);
+
+#if !JucePlugin_IsSynth
     {
-        auto mainBus = getBusBuffer(buffer, false /* isInput */, 0);
-        mainNumCh = mainBus.getNumChannels();
-        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh); ++ch)
-            mainWrite[ch] = mainBus.getWritePointer(ch);
+      const int channelsToCopy = std::min(kNumChannels, mainNumCh);
+      for (int ch = 0; ch < channelsToCopy; ++ch) {
+        float* outPtr = mainWrite[ch];
+        const float* inPtr = inputChannelPtrs[ch];
+        if (outPtr == nullptr) {
+          continue;
+        }
+        if (inPtr == nullptr) {
+          std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
+          continue;
+        }
+        // Avoid undefined behavior with memcpy on overlapping regions.
+        if (outPtr != inPtr) {
+          std::memmove(outPtr, inPtr, static_cast<size_t>(numSamples) * sizeof(float));
+        }
+      }
+
+      // If the main output bus has extra channels, clear them deterministically.
+      for (int ch = channelsToCopy; ch < mainNumCh; ++ch) {
+        float* outPtr = mainBus.getWritePointer(ch);
+        std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
+      }
     }
+#endif
 
     // Buses 1-4: individual stems
     float* stemWrite[4][kNumChannels] = {{nullptr, nullptr}, {nullptr, nullptr},

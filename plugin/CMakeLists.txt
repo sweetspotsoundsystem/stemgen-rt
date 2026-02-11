@@ -286,4 +286,4 @@ endif()
 set_source_files_properties(${SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
 
 # In Visual Studio this command provides a nice grouping of source files in "filters".
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/.. FILES ${SOURCE_FILES} ${HEADER_FILES})

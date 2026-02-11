@@ -488,6 +488,39 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
   }
 }
 
+TEST_F(ProcessBlockTest, MainBusIsDryPassthroughWithLoadedModel) {
+  auto buffer = createBuffer(512);
+  buffer.clear();
+  juce::MidiBuffer midiBuffer;
+
+  auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
+  auto mainBus = processor->getBusBuffer(buffer, false /* isInput */, 0);
+
+  std::vector<float> inputL(static_cast<size_t>(buffer.getNumSamples()));
+  std::vector<float> inputR(static_cast<size_t>(buffer.getNumSamples()));
+  for (int i = 0; i < buffer.getNumSamples(); ++i) {
+    float sampleL = 0.8f * std::sin(2.0f * 3.14159f * 440.0f *
+                                    static_cast<float>(i) / 44100.0f);
+    float sampleR = 0.5f * std::sin(2.0f * 3.14159f * 220.0f *
+                                    static_cast<float>(i) / 44100.0f);
+    inputBus.setSample(0, i, sampleL);
+    inputBus.setSample(1, i, sampleR);
+    inputL[static_cast<size_t>(i)] = sampleL;
+    inputR[static_cast<size_t>(i)] = sampleR;
+  }
+
+  processor->processBlock(buffer, midiBuffer);
+
+  const int channelsToCheck = std::min(2, mainBus.getNumChannels());
+  ASSERT_EQ(channelsToCheck, 2);
+  for (int i = 0; i < buffer.getNumSamples(); ++i) {
+    EXPECT_NEAR(mainBus.getSample(0, i), inputL[static_cast<size_t>(i)], 1e-6f)
+        << "Main L diverged from dry input at sample " << i;
+    EXPECT_NEAR(mainBus.getSample(1, i), inputR[static_cast<size_t>(i)], 1e-6f)
+        << "Main R diverged from dry input at sample " << i;
+  }
+}
+
 TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
   juce::MidiBuffer midiBuffer;
   
