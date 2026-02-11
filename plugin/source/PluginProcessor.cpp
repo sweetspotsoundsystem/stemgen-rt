@@ -696,10 +696,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           // Submit the request (handles epoch stamping and index advancement)
           inferenceQueue_.submitWriteSlot(inferenceQueue_.getEpoch());
         }
-        // Queue is full, chunk is dropped. Invalidate crossfade state so the next
-        // successful chunk does not blend with stale overlap tail audio.
         else {
-          overlapAdd_.setHasPrevOverlapTail(false);
+          // Queue is full, chunk is dropped.
+          // Do not invalidate overlap-tail state here; defer to consume-side
+          // chunkSequence gap detection so contiguous already-buffered chunks
+          // still crossfade correctly under backpressure.
         }
 
         overlapAdd_.clearInputAccum();
