@@ -56,7 +56,8 @@ public:
     // inputChunk: [channel][kInternalChunkSize] - padded input
     // outputChunks: [stem][channel] - vectors to receive kOutputChunkSize samples each
     // normalizationGain: gain that was applied to input (inverse is applied to output)
-    // lowFreqChunk: [channel][kOutputChunkSize] - LP component to add to bass
+    // lowFreqChunk: [channel][kOutputChunkSize] - LP component carried with the request
+    // (reinjected on the audio thread after boundary crossfade)
     //
     // Returns true on success
     bool runInference(
@@ -64,7 +65,8 @@ public:
         const std::array<std::vector<float>, kNumChannels>& inputChunk,
         const std::array<std::vector<float>, kNumChannels>& lowFreqChunk,
         float normalizationGain,
-        std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputChunks);
+        std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputChunks,
+        std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& overlapTail);
 
     // Get a status string suitable for display
     juce::String getStatusString() const;

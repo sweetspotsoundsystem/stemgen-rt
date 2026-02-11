@@ -18,6 +18,7 @@ void InferenceRequest::allocate() {
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
         for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
             outputChunk[stem][ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
+            overlapTail[stem][ch].resize(static_cast<size_t>(kCrossfadeSamples), 0.0f);
         }
     }
 }
@@ -261,7 +262,8 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                     request->inputChunk,
                     request->lowFreqChunk,
                     request->normalizationGain,
-                    request->outputChunk);
+                    request->outputChunk,
+                    request->overlapTail);
             }
 
             // Treat inference errors as dropped chunks (fallback path will crossfade to dry).

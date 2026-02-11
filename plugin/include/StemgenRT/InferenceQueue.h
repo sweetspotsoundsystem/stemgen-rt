@@ -27,12 +27,20 @@ struct InferenceRequest {
     // Output data (filled by inference thread)
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> outputChunk;
 
+    // Overlap tail: kCrossfadeSamples of model output beyond the center region.
+    // Used for crossfading between adjacent chunks to eliminate boundary discontinuities.
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> overlapTail;
+
     // State flags
     std::atomic<bool> ready{false};      // True when input data is ready for inference
     std::atomic<bool> processed{false};  // True when inference is complete
 
     // Epoch when request was created (for stale detection after reset)
     uint32_t epoch{0};
+
+    // Monotonic input chunk index assigned by the audio thread.
+    // Used to detect dropped/failed chunks at output consume time.
+    uint64_t chunkSequence{0};
 
     // Allocate buffers to expected sizes
     void allocate();

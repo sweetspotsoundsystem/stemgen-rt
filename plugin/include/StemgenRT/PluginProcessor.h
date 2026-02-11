@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include "Constants.h"
 #include "Crossover.h"
 #include "InferenceQueue.h"
@@ -14,9 +15,10 @@
 #include "OnnxRuntime.h"
 #include "OutputWriter.h"
 #include "OverlapAddProcessor.h"
-#include "ResidualProcessor.h"
 #include "SoftGate.h"
+#include "StemPostProcessor.h"
 #include "VocalsGate.h"
+#include "LowBandStabilizer.h"
 
 namespace audio_plugin {
 
@@ -81,8 +83,16 @@ private:
   // Vocals gate with smoothing
   VocalsGate vocalsGate_;
 
+  // Stabilizes low-frequency stem content using dry-signal-constrained redistribution.
+  LowBandStabilizer lowBandStabilizer_;
+
   // Background inference queue (handles thread, requests, and epoch tracking)
   InferenceQueue inferenceQueue_;
+
+  // Chunk sequence tracking for contiguous-only boundary crossfades.
+  uint64_t nextInputChunkSequence_{0};
+  uint64_t lastOutputChunkSequence_{0};
+  bool hasLastOutputChunkSequence_{false};
 
   // LR4 crossover for low-frequency bypass (splits input into LP + HP)
   Crossover crossover_;

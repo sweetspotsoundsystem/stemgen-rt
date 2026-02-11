@@ -35,6 +35,14 @@ public:
         return calculateGain(ptrs.data(), N, numSamples);
     }
 
+    // Calculate normalization gain from context + input combined.
+    // Prevents extreme normGain when levels differ between context and input
+    // (e.g., loud kick tail in context, silence in input → normGain would
+    // amplify context to insane levels if computed from input alone).
+    static float calculateGainFromContextAndInput(
+        const std::array<std::vector<float>, kNumChannels>& contextBuffer,
+        const std::array<std::vector<float>, kNumChannels>& inputAccumBuffer);
+
     // Apply normalization gain to a buffer (in-place)
     static void applyGain(float* buffer, size_t numSamples, float gain);
 

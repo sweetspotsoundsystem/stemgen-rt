@@ -96,6 +96,16 @@ public:
     // Advance dry delay positions (call once per sample after reading)
     void advanceDryDelayPos();
 
+    // === Chunk boundary crossfade state ===
+
+    // Previous chunk's overlap tail for crossfading at chunk boundaries.
+    // Eliminates discontinuities between adjacent model output chunks.
+    bool hasPrevOverlapTail() const { return hasPrevOverlapTail_; }
+    void setHasPrevOverlapTail(bool v) { hasPrevOverlapTail_ = v; }
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& getPrevOverlapTail() {
+        return prevOverlapTail_;
+    }
+
     // === Pending chunk state (for amortized copying) ===
 
     bool hasPendingChunk() const { return hasPendingChunk_; }
@@ -125,6 +135,10 @@ private:
     std::array<std::vector<float>, kNumChannels> dryDelayLine_;
     size_t dryDelayWritePos_{0};
     size_t dryDelayReadPos_{0};
+
+    // Chunk boundary crossfade state
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> prevOverlapTail_;
+    bool hasPrevOverlapTail_{false};
 
     // Amortized chunk copying state
     bool hasPendingChunk_{false};
