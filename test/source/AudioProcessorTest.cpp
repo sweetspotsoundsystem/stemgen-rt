@@ -743,6 +743,39 @@ protected:
   bool isModelLoaded() {
     return processor->getLatencySamples() > 0;
   }
+
+  // Iterate stem output samples using JUCE bus mapping (buses 1..4).
+  template <typename Fn>
+  void forEachStemOutputSample(juce::AudioBuffer<float>& buffer, Fn&& fn) {
+    const int numOutputBuses = processor->getBusCount(false /* isInput */);
+    for (int busIdx = 1; busIdx < numOutputBuses; ++busIdx) {
+      auto stemBus = processor->getBusBuffer(buffer, false /* isInput */, busIdx);
+      for (int ch = 0; ch < stemBus.getNumChannels(); ++ch) {
+        const float* readPtr = stemBus.getReadPointer(ch);
+        for (int i = 0; i < stemBus.getNumSamples(); ++i) {
+          fn(readPtr[i]);
+        }
+      }
+    }
+  }
+
+  bool stemOutputsHaveNaNOrInf(juce::AudioBuffer<float>& buffer) {
+    bool hasInvalid = false;
+    forEachStemOutputSample(buffer, [&hasInvalid](float sample) {
+      if (std::isnan(sample) || std::isinf(sample)) {
+        hasInvalid = true;
+      }
+    });
+    return hasInvalid;
+  }
+
+  float getStemOutputsMaxAmplitude(juce::AudioBuffer<float>& buffer) {
+    float maxAmp = 0.0f;
+    forEachStemOutputSample(buffer, [&maxAmp](float sample) {
+      maxAmp = std::max(maxAmp, std::abs(sample));
+    });
+    return maxAmp;
+  }
 };
 
 // --------------------------------------------------------------------------
@@ -756,8 +789,8 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithSineInput) {
   generateSineWave(buffer, 440.0f, 0.5f, 0, 2);  // Input channels
   processor->processBlock(buffer, midiBuffer);
   
-  // Check all output channels (2-11) for NaN/Inf
-  EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Output contains NaN or Inf values";
+  EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+      << "Stem output contains NaN or Inf values";
 }
 
 TEST_F(AudioQualityTest, OutputHasNoNaNWithNoiseInput) {
@@ -767,7 +800,8 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithNoiseInput) {
   generateNoise(buffer, 0.5f, 0, 2);  // Input channels
   processor->processBlock(buffer, midiBuffer);
   
-  EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Output contains NaN or Inf values with noise input";
+  EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+      << "Stem output contains NaN or Inf values with noise input";
 }
 
 TEST_F(AudioQualityTest, OutputHasNoNaNWithSilentInput) {
@@ -777,7 +811,8 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithSilentInput) {
   
   processor->processBlock(buffer, midiBuffer);
   
-  EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Output contains NaN or Inf with silent input";
+  EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+      << "Stem output contains NaN or Inf with silent input";
 }
 
 TEST_F(AudioQualityTest, OutputHasNoNaNWithImpulse) {
@@ -787,7 +822,8 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithImpulse) {
   generateImpulse(buffer, 100, 1.0f, 0, 2);  // Full-scale impulse
   processor->processBlock(buffer, midiBuffer);
   
-  EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Output contains NaN or Inf with impulse input";
+  EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+      << "Stem output contains NaN or Inf with impulse input";
 }
 
 TEST_F(AudioQualityTest, OutputHasNoNaNAfterManyBlocks) {
@@ -799,7 +835,7 @@ TEST_F(AudioQualityTest, OutputHasNoNaNAfterManyBlocks) {
     generateSineWave(buffer, 440.0f, 0.8f, 0, 2);
     processor->processBlock(buffer, midiBuffer);
     
-    if (hasNaNOrInf(buffer, 2, 10)) {
+    if (stemOutputsHaveNaNOrInf(buffer)) {
       FAIL() << "Output contains NaN or Inf at block " << block;
     }
   }
@@ -818,7 +854,7 @@ TEST_F(AudioQualityTest, OutputAmplitudeIsReasonable) {
   processor->processBlock(buffer, midiBuffer);
   
   // Output should not exceed reasonable bounds (allow some headroom for processing)
-  float maxOut = getMaxAmplitude(buffer, 2, 10);
+  float maxOut = getStemOutputsMaxAmplitude(buffer);
   EXPECT_LE(maxOut, 2.0f) << "Output amplitude " << maxOut << " exceeds reasonable bounds";
 }
 
@@ -831,7 +867,7 @@ TEST_F(AudioQualityTest, FullScaleInputProducesReasonableOutput) {
   processor->processBlock(buffer, midiBuffer);
   
   // Output shouldn't explode even with full-scale input
-  float maxOut = getMaxAmplitude(buffer, 2, 10);
+  float maxOut = getStemOutputsMaxAmplitude(buffer);
   EXPECT_LE(maxOut, 4.0f) << "Full-scale input caused output explosion: " << maxOut;
 }
 
@@ -844,7 +880,8 @@ TEST_F(AudioQualityTest, HotInputDoesNotCauseClipping) {
   processor->processBlock(buffer, midiBuffer);
   
   // Should not produce inf/nan even with hot input
-  EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Hot input caused numerical issues";
+  EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+      << "Hot input caused numerical issues";
 }
 
 // --------------------------------------------------------------------------
@@ -867,7 +904,7 @@ TEST_F(AudioQualityTest, SilentInputProducesSilentOutput) {
   processor->processBlock(buffer, midiBuffer);
   
   // Output should be silent (or nearly silent - threshold for numerical noise)
-  float maxOut = getMaxAmplitude(buffer, 2, 10);
+  float maxOut = getStemOutputsMaxAmplitude(buffer);
   EXPECT_LT(maxOut, 1e-4f) << "Silent input produced non-silent output: " << maxOut;
 }
 
@@ -887,7 +924,7 @@ TEST_F(AudioQualityTest, TransitionToSilenceDecaysCleanly) {
     buffer.clear();
     processor->processBlock(buffer, midiBuffer);
     
-    float currentMax = getMaxAmplitude(buffer, 2, 10);
+    float currentMax = getStemOutputsMaxAmplitude(buffer);
     
     // After some blocks, should be essentially silent
     if (block > 20) {
@@ -1180,7 +1217,8 @@ TEST_F(AudioQualityTest, StableUnderRapidInputChanges) {
     
     processor->processBlock(buffer, midiBuffer);
     
-    EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "Numerical issues at block " << block;
+    EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+        << "Numerical issues at block " << block;
   }
 }
 
@@ -1194,7 +1232,8 @@ TEST_F(AudioQualityTest, StableWithIntermittentResets) {
       generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
       processor->processBlock(buffer, midiBuffer);
       
-      EXPECT_FALSE(hasNaNOrInf(buffer, 2, 10)) << "NaN/Inf after reset cycle " << cycle << " block " << block;
+      EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
+          << "NaN/Inf after reset cycle " << cycle << " block " << block;
     }
     
     // Reset buffers (simulating transport stop/start)
