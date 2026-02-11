@@ -23,7 +23,7 @@ To set it up:
 
 1. Insert StemgenRT on your source track (e.g., a DJ mix or full song)
 2. Create 4 auxiliary/bus tracks to receive each stem
-3. Route each of the plugin's outputs to its corresponding aux track
+3. Route each of the plugin's stem outputs to its corresponding aux track
 
 Check your DAW's documentation for multi-output plugin routing.
 
@@ -77,10 +77,14 @@ If inference can't keep up, the plugin gracefully crossfades to the dry signal r
 
 A few DSP tricks help the model out:
 
-- **80Hz crossover** — Low frequencies bypass the network entirely. The model struggles with sub-bass, and this keeps the low end tight.
-- **Input normalization** — Quiet signals are boosted to a consistent level before inference, then scaled back after. This pushes the model's noise floor below the signal level, dramatically improving quality on quiet passages.
+- **HP/LP split + LP reinjection** — Input is split by LR4 crossover. HP goes to the model; LP bypasses inference and is reinjected after model output (currently bass-biased) to keep low end stable.
+- **Chunk boundary crossfade** — The model outputs more samples than the 512-sample center region. Extra samples from the right context are crossfaded with the next chunk's start, eliminating discontinuities at chunk boundaries.
+- **Input normalization** — Context-aware: RMS is computed over both the context window and the current input chunk, then normalized to a consistent level before inference. This avoids extreme gain swings at transients (e.g., loud kick tail in context, silence in input) and pushes the model's noise floor below the signal level.
 - **Vocals gate** — Detects spurious low-level content in the vocals stem (common on instrumentals) using both energy ratio and absolute level thresholds. Gated content is transferred to the "other" stem to preserve total energy. Asymmetric attack/release smoothing prevents pumping.
 - **Soft gating** — When input is silent, output is silent. Prevents the model from hallucinating noise.
+- **Low-band stabilizer** — Reconstructs low-band stem balance using dry-constrained low-frequency energy and suppresses synthetic high-frequency leakage on low-only inputs.
+
+The main bus is dry passthrough. The stem buses carry model output with LP reinjection, low-band stabilization, and gates applied.
 
 ## A note on GPU acceleration
 

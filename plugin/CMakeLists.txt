@@ -53,7 +53,8 @@ set(SOURCE_FILES
   source/InferenceQueue.cpp
   source/OverlapAddProcessor.cpp
   source/OutputWriter.cpp
-  source/ResidualProcessor.cpp
+  source/StemPostProcessor.cpp
+  source/LowBandStabilizer.cpp
 )
 # Optional; includes header files in the project file tree in Visual Studio
 set(HEADER_FILES
@@ -68,7 +69,8 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/InferenceQueue.h
   ${INCLUDE_DIR}/OverlapAddProcessor.h
   ${INCLUDE_DIR}/OutputWriter.h
-  ${INCLUDE_DIR}/ResidualProcessor.h
+  ${INCLUDE_DIR}/StemPostProcessor.h
+  ${INCLUDE_DIR}/LowBandStabilizer.h
 )
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
@@ -284,4 +286,4 @@ endif()
 set_source_files_properties(${SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
 
 # In Visual Studio this command provides a nice grouping of source files in "filters".
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/.. FILES ${SOURCE_FILES} ${HEADER_FILES})

@@ -163,9 +163,15 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
 
   // Reset output writer (crossfade state)
   outputWriter_.reset();
+  lowBandStabilizer_.reset();
 
   // Reset inference queue state (full reset: clears flags and indices)
   inferenceQueue_.fullReset();
+
+  // Reset chunk sequence tracking used by chunk-boundary crossfade continuity checks.
+  nextInputChunkSequence_ = 0;
+  lastOutputChunkSequence_ = 0;
+  hasLastOutputChunkSequence_ = false;
 
   DBG("[HS-TasNet] Streaming buffers reset");
 #endif
@@ -194,9 +200,15 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
   // Reset LR4 crossover filter states to avoid clicks from stale filter memory
   crossover_.reset();
   vocalsGate_.reset();
+  lowBandStabilizer_.reset();
 
   // Reset inference queue - increments epoch and invalidates in-flight requests.
   inferenceQueue_.reset();
+
+  // Start a new contiguous sequence after transport resets.
+  nextInputChunkSequence_ = 0;
+  lastOutputChunkSequence_ = 0;
+  hasLastOutputChunkSequence_ = false;
 #endif
 }
 
@@ -208,6 +220,7 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
 
   // Initialize vocals gate with sample rate
   vocalsGate_.prepare(sampleRate);
+  lowBandStabilizer_.prepare(sampleRate);
 
   DBG("[HS-TasNet] LR4 crossover initialized at " << kCrossoverFreqHz << " Hz (HP to model, LP to bass)");
 
@@ -436,6 +449,58 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           overlapAdd_.setOutputSamplesAvailable(avail - overflow);
         }
 
+        const bool contiguousWithPreviousChunk =
+            hasLastOutputChunkSequence_ &&
+            outputSlot->chunkSequence == (lastOutputChunkSequence_ + 1);
+
+        // Only crossfade when chunks are temporally adjacent; if any chunk was dropped
+        // (queue full/inference fail), invalidate stale overlap-tail state.
+        if (!contiguousWithPreviousChunk) {
+          overlapAdd_.setHasPrevOverlapTail(false);
+        }
+
+        // Crossfade the first kCrossfadeSamples of this chunk with the previous
+        // chunk's overlap tail to eliminate boundary discontinuities.
+        // The overlap tail contains the model's prediction for these temporal positions
+        // from the previous chunk's extended output (right context region).
+        if (overlapAdd_.hasPrevOverlapTail()) {
+          auto& prevTail = overlapAdd_.getPrevOverlapTail();
+          constexpr float kHalfPi = 1.57079632679f;
+          constexpr float kInvCrossfadeDenom =
+              (kCrossfadeSamples > 1)
+                  ? (1.0f / static_cast<float>(kCrossfadeSamples - 1))
+                  : 1.0f;
+
+          for (size_t j = 0; j < static_cast<size_t>(kCrossfadeSamples); ++j) {
+            const float t = static_cast<float>(j) * kInvCrossfadeDenom;
+            const float prevGain = std::cos(kHalfPi * t);
+            const float currGain = std::sin(kHalfPi * t);
+            for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+              for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+                outputSlot->outputChunk[stem][ch][j] =
+                    prevTail[stem][ch][j] * prevGain +
+                    outputSlot->outputChunk[stem][ch][j] * currGain;
+              }
+            }
+          }
+        }
+
+        // Save this chunk's overlap tail for crossfading with the next chunk
+        {
+          auto& prevTail = overlapAdd_.getPrevOverlapTail();
+          for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+            for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+              std::memcpy(prevTail[stem][ch].data(),
+                          outputSlot->overlapTail[stem][ch].data(),
+                          static_cast<size_t>(kCrossfadeSamples) * sizeof(float));
+            }
+          }
+          overlapAdd_.setHasPrevOverlapTail(true);
+        }
+
+        lastOutputChunkSequence_ = outputSlot->chunkSequence;
+        hasLastOutputChunkSequence_ = true;
+
         // We have a valid pending chunk to copy
         overlapAdd_.setHasPendingChunk(true);
         overlapAdd_.setPendingChunkOffset(0);
@@ -448,22 +513,17 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       size_t samplesToCopy = std::min(samplesToProcess, remainingInChunk);
       
       // ===== Optimized ring buffer write (avoids modulo in hot loop) =====
-      // Copy output to ring buffer and compute residuals for lossless reconstruction.
-      // Residual = original_input - sum(all_stems)
+      // Copy output to ring buffer and apply post-model stem processing.
       //
-      // We distribute residual using energy-weighted mixture consistency among
-      // drums, bass, and other stems. Vocals receives NO residual to keep it clean
-      // when there are no vocals in the track (avoids pollution from bleed).
+      // Vocals gate: when vocals energy is tiny relative to total mix (likely
+      // spurious output on instrumental tracks), transfer that content to "other"
+      // so vocals stay clean.
       //
-      // VOCALS GATE: When vocals energy is tiny relative to the total mix (likely
-      // spurious output on instrumental tracks), we transfer that energy to "other"
-      // instead. This keeps the vocals stem silent on instrumental content.
-      //
-      // Additionally, we apply an INPUT-FOLLOWING SOFT GATE to eliminate model noise floor:
+      // Input-following soft gate eliminates model noise floor:
       // Neural networks output small non-zero values even for silent input. These errors
       // are often correlated across stems (sum≈0) but individually audible. The gate
       // attenuates all stems when input is very quiet, eliminating this noise.
-      // Epsilon for vocals gate energy ratio (larger than residual epsilon for numerical stability)
+      // Epsilon for vocals gate energy ratio.
       constexpr float kVocalsGateEpsilon = 1e-8f;
 
       // Compute base write position once, then increment with branch
@@ -473,6 +533,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // Get raw pointers for source data (avoid repeated operator[] on unique_ptr)
       const float* origL = consumeRequest->originalInput[0].data() + srcBase;
       const float* origR = consumeRequest->originalInput[1].data() + srcBase;
+      const float* lowL = consumeRequest->lowFreqChunk[0].data() + srcBase;
+      const float* lowR = consumeRequest->lowFreqChunk[1].data() + srcBase;
       const float* stemData[kNumStems][kNumChannels];
       for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
         stemData[stem][0] = consumeRequest->outputChunk[stem][0].data() + srcBase;
@@ -494,6 +556,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float vocals_R = stemData[2][1][i];
         float other_L = stemData[3][0][i];
         float other_R = stemData[3][1][i];
+
+        // Reinject LP bypass after chunk boundary crossfade so low-band remains continuous.
+        constexpr float kDrumsLpShare = 0.30f;
+        constexpr float kBassLpShare = 0.70f;
+        drums_L += lowL[i] * kDrumsLpShare;
+        drums_R += lowR[i] * kDrumsLpShare;
+        bass_L += lowL[i] * kBassLpShare;
+        bass_R += lowR[i] * kBassLpShare;
 
         // ===== Vocals gate =====
         // Detect spurious vocals content and transfer to "other" stem
@@ -518,18 +588,21 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         delayedInputBuffer[0][writePos] = origLSample;
         delayedInputBuffer[1][writePos] = origRSample;
 
-        // Process residual calculation and distribution using ResidualProcessor
-        ResidualProcessor::StemSamples stemsL{drums_L, bass_L, vocals_L, other_L};
-        ResidualProcessor::StemSamples stemsR{drums_R, bass_R, vocals_R, other_R};
-        ResidualProcessor::StemSamples outL, outR;
+        // Apply stem post-processing (vocals transfer + soft gate).
+        StemPostProcessor::StemSamples stemsL{drums_L, bass_L, vocals_L, other_L};
+        StemPostProcessor::StemSamples stemsR{drums_R, bass_R, vocals_R, other_R};
+        StemPostProcessor::StemSamples outL, outR;
 
-        ResidualProcessor::processStereo(
-            origLSample, origRSample,
+        StemPostProcessor::processStereo(
             stemsL, stemsR,
             vocalsGated_L, vocalsGated_R,
             vocalsToOther_L, vocalsToOther_R,
             gateGain,
             outL, outR);
+
+        // Re-stabilize low-band distribution and suppress low-passed buzz
+        // leaking into vocals/other.
+        lowBandStabilizer_.processStereo(origLSample, origRSample, outL, outR);
 
         // Write processed stems to output ring buffers
         outputRingBuffers[0][0][writePos] = outL.drums;
@@ -561,10 +634,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // Accumulate input samples until we have kOutputChunkSize
-    // Strategy: Split input into LP + HP using LR4 crossover.
-    //   - HP goes to model (model struggles with low frequencies in chunked inference)
-    //   - LP is stored and added to bass stem after inference
-    // This keeps the crossover coherent: LP + HP = original (LR4 property)
+    // Split input into HP + LP. Feed HP to the model and carry LP separately
+    // for low-band reconstruction after inference.
     for (int i = 0; i < numSamples; ++i) {
       for (int ch = 0; ch < kNumChannels; ++ch) {
 #if !JucePlugin_IsSynth
@@ -572,34 +643,35 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 #else
         float sample = 0.0f;
 #endif
-        // Process through LR4 crossover (splits into LP + HP)
         auto filtered = crossover_.processSample(ch, sample);
-
-        // Push HP, LP, and dry samples to overlap-add processor
-        // - HP goes to model (model struggles with low frequencies in chunked inference)
-        // - LP is stored and added to bass stem after inference
-        // - Dry is for underrun fallback (latency-aligned input)
         overlapAdd_.pushInputSample(ch, filtered.highPass, filtered.lowPass, sample);
       }
 
       // When we have enough samples, queue for inference
       if (overlapAdd_.readyForInference()) {
+        const uint64_t chunkSequence = nextInputChunkSequence_++;
+
         // Get the next write slot (nullptr if queue is full)
         InferenceRequest* request = inferenceQueue_.getWriteSlot();
 
         if (request) {
+          request->chunkSequence = chunkSequence;
+
           // Get references to accumulated buffers
           const auto& inputAccumBuffer = overlapAdd_.getInputAccumBuffer();
           const auto& lowFreqAccumBuffer = overlapAdd_.getLowFreqAccumBuffer();
           const auto& contextBuffer = overlapAdd_.getContextBuffer();
 
-          // Calculate normalization gain from HP input
-          const float* inputPtrs[kNumChannels] = {inputAccumBuffer[0].data(), inputAccumBuffer[1].data()};
-          float normGain = InputNormalizer::calculateGain(inputPtrs, kNumChannels,
-                                                          static_cast<size_t>(kOutputChunkSize));
+          // Normalize HP input to consistent RMS level before model inference.
+          // This pushes the model's noise floor below the signal for quiet input.
+          // Uses combined context + input RMS to avoid extreme gains when levels
+          // differ between context and input (e.g., loud kick tail → silence).
+          float normGain = InputNormalizer::calculateGainFromContextAndInput(
+              contextBuffer, inputAccumBuffer);
           request->normalizationGain = normGain;
 
-          // Copy and normalize HP input for model, HP context, LP for bass, and fullband for residual.
+          // Copy and normalize HP input for model, HP context, LP bypass chunk,
+          // and fullband input for downstream stem post-processing.
           for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
             // HP-filtered input for model (normalized)
             for (size_t j = 0; j < static_cast<size_t>(kOutputChunkSize); ++j) {
@@ -609,11 +681,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             for (size_t j = 0; j < static_cast<size_t>(kContextSize); ++j) {
               request->contextSnapshot[ch][j] = contextBuffer[ch][j] * normGain;
             }
-            // LP-filtered samples for bass stem (NOT normalized - added after inference)
+            // LP chunk bypassed around the model (not normalized).
             std::memcpy(request->lowFreqChunk[ch].data(), lowFreqAccumBuffer[ch].data(),
                         static_cast<size_t>(kOutputChunkSize) * sizeof(float));
-            // Fullband input for residual calculation: HP + LP = original (LR4 property)
-            // NOT normalized - residual calc uses original levels
+            // Fullband input for downstream processing: HP + LP.
             for (size_t j = 0; j < static_cast<size_t>(kOutputChunkSize); ++j) {
               request->originalInput[ch][j] = inputAccumBuffer[ch][j] + lowFreqAccumBuffer[ch][j];
             }
@@ -625,7 +696,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           // Submit the request (handles epoch stamping and index advancement)
           inferenceQueue_.submitWriteSlot(inferenceQueue_.getEpoch());
         }
-        // else: queue is full, drop this chunk (will cause audio dropout)
+        else {
+          // Queue is full, chunk is dropped.
+          // Do not invalidate overlap-tail state here; defer to consume-side
+          // chunkSequence gap detection so contiguous already-buffered chunks
+          // still crossfade correctly under backpressure.
+        }
 
         overlapAdd_.clearInputAccum();
       }
@@ -634,15 +710,40 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // ===== Write separated stems to output buses =====
     const int numOutputBuses = getBusCount(false /* isInput */);
 
-    // Bus 0 (Main): sum of all stems
+    // Bus 0 (Main): dry passthrough. Do not assume in-place aliasing between
+    // input bus 0 and output bus 0; some hosts/tests provide distinct buffers.
     float* mainWrite[kNumChannels] = {nullptr, nullptr};
-    int mainNumCh = 0;
+    auto mainBus = getBusBuffer(buffer, false /* isInput */, 0);
+    int mainNumCh = mainBus.getNumChannels();
+    for (int ch = 0; ch < std::min(kNumChannels, mainNumCh); ++ch)
+      mainWrite[ch] = mainBus.getWritePointer(ch);
+
+#if !JucePlugin_IsSynth
     {
-        auto mainBus = getBusBuffer(buffer, false /* isInput */, 0);
-        mainNumCh = mainBus.getNumChannels();
-        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh); ++ch)
-            mainWrite[ch] = mainBus.getWritePointer(ch);
+      const int channelsToCopy = std::min(kNumChannels, mainNumCh);
+      for (int ch = 0; ch < channelsToCopy; ++ch) {
+        float* outPtr = mainWrite[ch];
+        const float* inPtr = inputChannelPtrs[ch];
+        if (outPtr == nullptr) {
+          continue;
+        }
+        if (inPtr == nullptr) {
+          std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
+          continue;
+        }
+        // Avoid undefined behavior with memcpy on overlapping regions.
+        if (outPtr != inPtr) {
+          std::memmove(outPtr, inPtr, static_cast<size_t>(numSamples) * sizeof(float));
+        }
+      }
+
+      // If the main output bus has extra channels, clear them deterministically.
+      for (int ch = channelsToCopy; ch < mainNumCh; ++ch) {
+        float* outPtr = mainBus.getWritePointer(ch);
+        std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
+      }
     }
+#endif
 
     // Buses 1-4: individual stems
     float* stemWrite[4][kNumChannels] = {{nullptr, nullptr}, {nullptr, nullptr},

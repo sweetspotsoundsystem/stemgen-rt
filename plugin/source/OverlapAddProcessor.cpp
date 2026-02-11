@@ -22,6 +22,7 @@ void OverlapAddProcessor::allocate() {
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
         for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
             outputRingBuffers_[stem][ch].resize(ringSize, 0.0f);
+            prevOverlapTail_[stem][ch].resize(static_cast<size_t>(kCrossfadeSamples), 0.0f);
         }
     }
 
@@ -52,6 +53,13 @@ void OverlapAddProcessor::reset() {
     delayedInputWritePos_ = 0;
     hasPendingChunk_ = false;
     pendingChunkCopyOffset_ = 0;
+    hasPrevOverlapTail_ = false;
+
+    for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+            std::fill(prevOverlapTail_[stem][ch].begin(), prevOverlapTail_[stem][ch].end(), 0.0f);
+        }
+    }
 
     // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
     dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
@@ -66,6 +74,7 @@ void OverlapAddProcessor::resetIndices() {
     delayedInputWritePos_ = 0;
     hasPendingChunk_ = false;
     pendingChunkCopyOffset_ = 0;
+    hasPrevOverlapTail_ = false;
 
     // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
     dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);

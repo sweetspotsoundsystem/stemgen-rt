@@ -36,7 +36,8 @@ void OutputWriter::writeBlock(
 
     // Local crossfade gain for smooth transitions
     float xfadeGain = crossfadeGain_;
-    constexpr float xfadeDelta = 1.0f / static_cast<float>(kCrossfadeSamples);
+    constexpr float xfadeDelta =
+        1.0f / static_cast<float>(kUnderrunCrossfadeSamples);
 
     for (int i = 0; i < numSamples; ++i) {
         const bool have = (avail > 0);
@@ -56,22 +57,8 @@ void OutputWriter::writeBlock(
             dry[ch] = overlapAdd.readDryDelaySample(ch);
         }
 
-        // Get separated signal (sum of stems) when available
-        float separated[kNumChannels] = {0.0f, 0.0f};
-        if (have) {
-            for (int ch = 0; ch < kNumChannels; ++ch) {
-                for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-                    separated[ch] += outputRingBuffers[stem][static_cast<size_t>(ch)][readPos];
-                }
-            }
-        }
-
-        // Main bus = crossfade between separated and dry
-        // When xfadeGain=1.0: output=separated, When xfadeGain=0.0: output=dry
-        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh_); ++ch) {
-            float output = xfadeGain * separated[ch] + (1.0f - xfadeGain) * dry[ch];
-            mainWrite_[ch][i] = output;
-        }
+        // Main bus: don't write — input passes through unmodified via
+        // JUCE in-place buffer sharing.
 
         // Stem buses (if enabled)
         // During underrun, output dry/4 to each stem (approximate equal split)

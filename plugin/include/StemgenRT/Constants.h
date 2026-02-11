@@ -26,7 +26,7 @@ constexpr int kInternalChunkSize = kContextSize + kOutputChunkSize + kContextSiz
 //   2. Feed only HP to the model (avoids sub-bass artifacts from chunked processing)
 //   3. Add LP to bass stem (and optionally drums) to reconstruct full-spectrum output
 // This ensures the crossover is coherent: both LP and HP are derived from the same signal.
-constexpr float kCrossoverFreqHz = 80.0f;  // Crossover frequency in Hz
+constexpr float kCrossoverFreqHz = 250.0f;  // Crossover frequency in Hz
 
 // ========== Input-following soft gate constants ==========
 // Neural network models have a noise floor - they output small values even for silent input.
@@ -87,6 +87,14 @@ constexpr float kNormMinInputRms = 0.000251f;   // -72dB RMS - below this, don't
 constexpr int kNumInferenceBuffers = 8;  // Allow some buffering for timing variations
 
 // ========== Crossfade constants ==========
-constexpr int kCrossfadeSamples = 64;  // ~1.5ms at 44.1kHz for underrun crossfade
+// Chunk-boundary overlap-add smoothing window.
+constexpr int kCrossfadeSamples = 256;  // ~5.8ms at 44.1kHz
+// Dry/separated fallback transition window during underruns.
+constexpr int kUnderrunCrossfadeSamples = 64;  // ~1.5ms at 44.1kHz
+
+// ========== Low-band stabilization ==========
+// Keep model fullband, but stabilize stem low-end by redistributing low frequencies
+// from the dry signal based on each stem's low-band energy.
+constexpr float kLowBandStabilizerCutoffHz = 250.0f;
 
 }  // namespace audio_plugin

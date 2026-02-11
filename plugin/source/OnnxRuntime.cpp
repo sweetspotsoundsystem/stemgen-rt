@@ -309,9 +309,11 @@ bool OnnxRuntime::runInference(
     const std::array<std::vector<float>, kNumChannels>& inputChunk,
     const std::array<std::vector<float>, kNumChannels>& lowFreqChunk,
     float normalizationGain,
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputChunks) {
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputChunks,
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& overlapTail) {
 
     if (!modelLoaded_ || !ortSession_ || !ortMemoryInfo_) return false;
+    juce::ignoreUnused(lowFreqChunk);
 
     const OrtApi* api = getSafeOrtApi();
     if (api == nullptr) return false;
@@ -418,11 +420,22 @@ bool OnnxRuntime::runInference(
         }
     }
 
-    // Add LP to bass stem
-    constexpr size_t kBassStemIndex = 1;
-    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-            outputChunks[kBassStemIndex][ch][i] += lowFreqChunk[ch][i];
+    // Extract overlap tail: kCrossfadeSamples beyond the center for chunk crossfading.
+    // These samples represent the model's prediction for temporal positions that will be
+    // the start of the next chunk's center region.
+    for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+            size_t tailOffset = stem * static_cast<size_t>(kNumChannels * kInternalChunkSize)
+                              + ch * static_cast<size_t>(kInternalChunkSize)
+                              + static_cast<size_t>(kContextSize + kOutputChunkSize);
+
+            for (size_t i = 0; i < static_cast<size_t>(kCrossfadeSamples); ++i) {
+                float sample = separatedData[tailOffset + i];
+                if (std::isnan(sample) || std::isinf(sample)) {
+                    sample = 0.0f;
+                }
+                overlapTail[stem][ch][i] = sample * invNormGain;
+            }
         }
     }
 
@@ -459,6 +472,7 @@ bool OnnxRuntime::runInference(
     const std::array<std::vector<float>, kNumChannels>&,
     const std::array<std::vector<float>, kNumChannels>&,
     float,
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&,
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&) {
     return false;
 }
