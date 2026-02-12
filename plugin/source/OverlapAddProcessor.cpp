@@ -169,11 +169,18 @@ void OverlapAddProcessor::primeDryDelayFromInput(
         return;
 
     const size_t targetFill = static_cast<size_t>(kOutputChunkSize);
-    for (size_t i = 0; i < targetFill; ++i) {
-        const size_t sampleIdx = i % static_cast<size_t>(numSamples);
-        for (int ch = 0; ch < kNumChannels; ++ch) {
-            const float sample = inputPointers[ch] ? inputPointers[ch][sampleIdx] : 0.0f;
-            dryDelayLine_[static_cast<size_t>(ch)][i] = sample;
+    const size_t inputCount = static_cast<size_t>(numSamples);
+    const size_t copyCount = std::min(targetFill, inputCount);
+    const size_t srcOffset = inputCount - copyCount;
+
+    for (int ch = 0; ch < kNumChannels; ++ch) {
+        auto& dryDelay = dryDelayLine_[static_cast<size_t>(ch)];
+        std::fill_n(dryDelay.begin(), targetFill, 0.0f);
+
+        if (inputPointers[ch] != nullptr) {
+            std::memcpy(dryDelay.data(),
+                        inputPointers[ch] + srcOffset,
+                        copyCount * sizeof(float));
         }
     }
 
