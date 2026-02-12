@@ -57,8 +57,8 @@ void OutputWriter::writeBlock(
             dry[ch] = overlapAdd.readDryDelaySample(ch);
         }
 
-        // Main bus: don't write — input passes through unmodified via
-        // JUCE in-place buffer sharing.
+        // Main bus is copied from live input in PluginProcessor before this call.
+        // Keep it untouched here so bus 0 remains true dry passthrough.
 
         // Stem buses (if enabled)
         // During underrun, output dry/4 to each stem (approximate equal split)

@@ -707,6 +707,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
+    // Prime dry delay line before main output takes a sample so the first block
+    // isn't silent due to the initial zeroed buffer.
+    if (!overlapAdd_.isDryDelayPrimed()) {
+      overlapAdd_.primeDryDelayFromInput(inputChannelPtrs, numSamples);
+    }
+
     // ===== Write separated stems to output buses =====
     const int numOutputBuses = getBusCount(false /* isInput */);
 

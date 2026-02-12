@@ -43,19 +43,19 @@ constexpr float kSoftGateFloor = 0.000016f;     // -96dB in linear (16-bit noise
 // On instrumental tracks, the model often outputs spurious low-level content in the vocals stem.
 // This gate detects when vocals energy is very low relative to the mix and transfers it to "other".
 // Two criteria: (1) ratio of vocals to total energy, (2) absolute vocals level.
-// Real vocals are typically above -25dB; be aggressive about gating quiet content.
+// Keep gating conservative enough to avoid suppressing quiet but valid vocals.
 //
 // Ratio-based gating: when vocals are a tiny fraction of the mix, they're likely noise
-constexpr float kVocalsGateRatioThreshold = 0.01f;   // Below 1% of mix energy, start gating
-constexpr float kVocalsGateRatioFloor = 0.003f;      // Below 0.3%, fully gate (transfer to other)
+constexpr float kVocalsGateRatioThreshold = 0.0040f;  // Below 0.40% of mix energy, start gating
+constexpr float kVocalsGateRatioFloor = 0.0008f;      // Below 0.08%, fully gate (transfer to other)
 //
 // Level-based gating: absolute vocals level threshold (real vocals are rarely this quiet)
 // Uses peak amplitude (max of L/R) rather than RMS for faster response
-constexpr float kVocalsGateLevelThresholdDb = -28.0f;  // Above this, vocals pass through
-constexpr float kVocalsGateLevelFloorDb = -32.0f;      // Below this, fully gate
+constexpr float kVocalsGateLevelThresholdDb = -39.0f;  // Above this, vocals pass through
+constexpr float kVocalsGateLevelFloorDb = -50.0f;      // Below this, fully gate
 // Precomputed linear values: 10^(dB/20)
-constexpr float kVocalsGateLevelThreshold = 0.04f;     // -28dB in linear
-constexpr float kVocalsGateLevelFloor = 0.025f;        // -32dB in linear
+constexpr float kVocalsGateLevelThreshold = 0.0112f;   // -39dB in linear
+constexpr float kVocalsGateLevelFloor = 0.0032f;       // -50dB in linear
 //
 // Asymmetric attack/release time constants for vocals gate (in seconds)
 // Fast attack so vocals come in quickly, slow release to avoid pumping on gaps

@@ -6,7 +6,10 @@ project(AudioPluginTest)
 enable_testing()
 
 # Creates the test console application.
-set(SOURCE_FILES source/AudioProcessorTest.cpp)
+set(SOURCE_FILES
+  source/AudioProcessorTest.cpp
+  source/OverlapAddProcessorTest.cpp
+)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Sets the necessary include directories of googletest.
