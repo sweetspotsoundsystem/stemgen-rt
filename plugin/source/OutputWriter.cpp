@@ -57,8 +57,12 @@ void OutputWriter::writeBlock(
             dry[ch] = overlapAdd.readDryDelaySample(ch);
         }
 
-        // Main bus: don't write — input passes through unmodified via
-        // JUCE in-place buffer sharing.
+        // Main bus: delayed dry passthrough so main stays aligned with stem buses.
+        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh_); ++ch) {
+            if (mainWrite_[ch] != nullptr) {
+                mainWrite_[ch][i] = dry[ch];
+            }
+        }
 
         // Stem buses (if enabled)
         // During underrun, output dry/4 to each stem (approximate equal split)
