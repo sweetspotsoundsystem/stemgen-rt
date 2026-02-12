@@ -96,6 +96,10 @@ public:
     // Advance dry delay positions (call once per sample after reading)
     void advanceDryDelayPos();
 
+    // Dry delay priming helpers
+    bool isDryDelayPrimed() const { return dryDelayPrimed_; }
+    void primeDryDelayFromInput(const float* inputPointers[kNumChannels], int numSamples);
+
     // === Chunk boundary crossfade state ===
 
     // Previous chunk's overlap tail for crossfading at chunk boundaries.
@@ -135,6 +139,7 @@ private:
     std::array<std::vector<float>, kNumChannels> dryDelayLine_;
     size_t dryDelayWritePos_{0};
     size_t dryDelayReadPos_{0};
+    bool dryDelayPrimed_{false};
 
     // Chunk boundary crossfade state
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> prevOverlapTail_;

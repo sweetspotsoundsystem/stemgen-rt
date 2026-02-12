@@ -64,6 +64,7 @@ void OverlapAddProcessor::reset() {
     // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
     dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
     dryDelayReadPos_ = 0;
+    dryDelayPrimed_ = false;
 }
 
 void OverlapAddProcessor::resetIndices() {
@@ -79,6 +80,7 @@ void OverlapAddProcessor::resetIndices() {
     // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
     dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
     dryDelayReadPos_ = 0;
+    dryDelayPrimed_ = false;
 }
 
 void OverlapAddProcessor::pushInputSample(int channel, float hpSample, float lpSample, float drySample) {
@@ -159,6 +161,23 @@ float OverlapAddProcessor::readDryDelaySample(int channel) const {
 void OverlapAddProcessor::advanceDryDelayPos() {
     const size_t dryDelaySize = dryDelayLine_[0].size();
     dryDelayReadPos_ = (dryDelayReadPos_ + 1) % dryDelaySize;
+}
+
+void OverlapAddProcessor::primeDryDelayFromInput(
+    const float* inputPointers[kNumChannels], int numSamples) {
+    if (numSamples <= 0)
+        return;
+
+    const size_t targetFill = static_cast<size_t>(kOutputChunkSize);
+    for (size_t i = 0; i < targetFill; ++i) {
+        const size_t sampleIdx = i % static_cast<size_t>(numSamples);
+        for (int ch = 0; ch < kNumChannels; ++ch) {
+            const float sample = inputPointers[ch] ? inputPointers[ch][sampleIdx] : 0.0f;
+            dryDelayLine_[static_cast<size_t>(ch)][i] = sample;
+        }
+    }
+
+    dryDelayPrimed_ = true;
 }
 
 }  // namespace audio_plugin
