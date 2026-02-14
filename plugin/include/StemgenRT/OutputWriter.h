@@ -16,6 +16,16 @@ class OutputWriter {
 public:
     OutputWriter() = default;
 
+    struct WriteResult {
+        size_t underrunSamples{0};
+        bool hadUnderrun{false};
+        bool isUnderrunNow{false};
+        // Diagnostics (debug builds only)
+        size_t ringAvailAtStart{0};   // Ring buffer samples available at block start
+        float crossfadeGainAtStart{0.0f};  // Crossfade gain at block start
+        bool underrunTransition{false};  // True when transitioning into underrun state
+    };
+
     // Reset crossfade state (call on transport start)
     void reset();
 
@@ -30,9 +40,11 @@ public:
     // Write output samples for the block
     // Handles crossfade between separated and dry signal
     // Returns the number of separated samples consumed from ring buffer
-    void writeBlock(
+    // and underrun statistics for debug visibility.
+    WriteResult writeBlock(
         OverlapAddProcessor& overlapAdd,
         const std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputRingBuffers,
+        const std::array<std::vector<float>, kNumChannels>& delayedInputBuffer,
         size_t ringSize,
         int numSamples);
 
@@ -48,7 +60,8 @@ private:
     int stemNumCh_[4] = {0, 0, 0, 0};
 
     // Crossfade state (persists across blocks)
-    float crossfadeGain_{1.0f};  // 1.0 = full separated, 0.0 = full dry
+    float crossfadeGain_{0.0f};  // 1.0 = full separated, 0.0 = full dry
+    bool wasUnderrun_{false};     // Track underrun transitions for diagnostics
 
     // Model output order: 0=drums, 1=bass, 2=vocals, 3=other
     // Bus order: 1=Drums, 2=Bass, 3=Other, 4=Vocals

@@ -44,13 +44,13 @@ Key DSP components:
 - **Vocals gate**: Dual-criteria gate (energy ratio + absolute level) with asymmetric attack/release to eliminate spurious vocals content on instrumentals. Gated content transfers to "other" stem.
 - **Soft input gating**: Eliminates noise floor artifacts when input is silent
 - **Low-band stabilizer**: Rebuilds stable low-frequency stem distribution from dry-constrained low-band energy and suppresses synthetic high-band leakage on low-only material (e.g., LPF kick buzz in other/vocals/drums)
-- **Dry signal fallback**: Crossfades to input signal on inference underruns
+- **Dry signal fallback**: Crossfades to latency-aligned dry signal on inference underruns
 
-Main bus is dry passthrough (in-place input/main channel sharing). Stem outputs are model output with LP reinjection, stabilizer, and gates applied (no residual redistribution).
+Main bus is delayed dry passthrough (delayed by `kOutputChunkSize` so it is latency-aligned with the stems and matches PDC). Stem outputs are model output with LP reinjection, stabilizer, and gates applied (no residual redistribution).
 
 ### Output Bus Layout
 
-5 output buses total: Main (dry passthrough), then 4 stereo stem buses:
+5 output buses total: Main (delayed dry passthrough), then 4 stereo stem buses:
 Drums (model index 0), Bass (model index 1), Other (model index 3), Vocals (model index 2)
 
 ### Model

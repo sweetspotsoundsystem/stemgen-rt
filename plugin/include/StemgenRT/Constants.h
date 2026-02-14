@@ -84,7 +84,12 @@ constexpr float kNormMaxGain = 100.0f;          // 40dB in linear
 constexpr float kNormMinInputRms = 0.000251f;   // -72dB RMS - below this, don't normalize (too quiet)
 
 // ========== Inference queue constants ==========
-constexpr int kNumInferenceBuffers = 8;  // Allow some buffering for timing variations
+constexpr int kNumInferenceBuffers = 16;  // Allow more buffering for timing variations
+
+// Ring buffer sizing: keep enough capacity for the inference queue plus a few extra
+// host blocks so that the audio thread can keep reading even when inference is late.
+constexpr int kOutputRingBufferSlackChunks = 8;  // Extra chunks beyond full queue depth
+constexpr int kOutputRingBufferChunks = kNumInferenceBuffers + kOutputRingBufferSlackChunks;
 
 // ========== Crossfade constants ==========
 // Chunk-boundary overlap-add smoothing window.

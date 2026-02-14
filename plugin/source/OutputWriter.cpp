@@ -6,7 +6,8 @@
 namespace audio_plugin {
 
 void OutputWriter::reset() {
-    crossfadeGain_ = 1.0f;
+    crossfadeGain_ = 0.0f;
+    wasUnderrun_ = false;
 }
 
 void OutputWriter::setOutputPointers(float* mainWrite[kNumChannels], int mainNumCh,
@@ -24,15 +25,22 @@ void OutputWriter::setOutputPointers(float* mainWrite[kNumChannels], int mainNum
     }
 }
 
-void OutputWriter::writeBlock(
+OutputWriter::WriteResult OutputWriter::writeBlock(
     OverlapAddProcessor& overlapAdd,
     const std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputRingBuffers,
+    const std::array<std::vector<float>, kNumChannels>& delayedInputBuffer,
     size_t ringSize,
     int numSamples) {
+
+    WriteResult result;
 
     // Use locals for ring state (audio thread owns these, so no atomics needed)
     size_t readPos = overlapAdd.getOutputReadPos();
     size_t avail = overlapAdd.getOutputSamplesAvailable();
+
+    // Capture diagnostic state at block start
+    result.ringAvailAtStart = avail;
+    result.crossfadeGainAtStart = crossfadeGain_;
 
     // Local crossfade gain for smooth transitions
     float xfadeGain = crossfadeGain_;
@@ -41,6 +49,10 @@ void OutputWriter::writeBlock(
 
     for (int i = 0; i < numSamples; ++i) {
         const bool have = (avail > 0);
+        if (!have) {
+            result.hadUnderrun = true;
+            ++result.underrunSamples;
+        }
 
         // Update crossfade gain: ramp toward 1.0 (separated) or 0.0 (dry)
         // When separated audio is available (have=true), ramp up toward 1.0
@@ -57,8 +69,13 @@ void OutputWriter::writeBlock(
             dry[ch] = overlapAdd.readDryDelaySample(ch);
         }
 
-        // Main bus is copied from live input in PluginProcessor before this call.
-        // Keep it untouched here so bus 0 remains true dry passthrough.
+        // Main bus: read from delayedInputBuffer at ring readPos (aligned with stems).
+        // During underruns, crossfade to dry delay so main bus and stems stay in sync.
+        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh_); ++ch) {
+            if (mainWrite_[ch] == nullptr) continue;
+            float delayedSample = have ? delayedInputBuffer[static_cast<size_t>(ch)][readPos] : 0.0f;
+            mainWrite_[ch][i] = xfadeGain * delayedSample + (1.0f - xfadeGain) * dry[ch];
+        }
 
         // Stem buses (if enabled)
         // During underrun, output dry/4 to each stem (approximate equal split)
@@ -96,6 +113,15 @@ void OutputWriter::writeBlock(
     overlapAdd.setOutputReadPos(readPos);
     overlapAdd.setOutputSamplesAvailable(avail);
     crossfadeGain_ = xfadeGain;
+
+    // If we are in/near fallback, mark underrun as active for UI visibility.
+    result.isUnderrunNow = (result.hadUnderrun || xfadeGain < 1.0f);
+
+    // Detect underrun transition (entering underrun state)
+    result.underrunTransition = (result.hadUnderrun && !wasUnderrun_);
+    wasUnderrun_ = result.hadUnderrun;
+
+    return result;
 }
 
 }  // namespace audio_plugin
