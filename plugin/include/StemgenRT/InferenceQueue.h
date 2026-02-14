@@ -20,7 +20,8 @@ struct InferenceRequest {
     // Input data (filled by audio thread)
     std::array<std::vector<float>, kNumChannels> inputChunk;     // kOutputChunkSize HP-filtered samples
     std::array<std::vector<float>, kNumChannels> contextSnapshot; // kContextSize HP-filtered samples
-    std::array<std::vector<float>, kNumChannels> originalInput;   // kOutputChunkSize fullband samples
+    std::array<std::vector<float>, kNumChannels> originalInput;   // kOutputChunkSize fullband (HP+LP) samples
+    std::array<std::vector<float>, kNumChannels> fullbandInput;   // kOutputChunkSize raw pre-crossover samples
     std::array<std::vector<float>, kNumChannels> lowFreqChunk;    // kOutputChunkSize LP-filtered samples
     float normalizationGain{1.0f};
 
