@@ -16,6 +16,12 @@ class OutputWriter {
 public:
     OutputWriter() = default;
 
+    struct WriteResult {
+        size_t underrunSamples{0};
+        bool hadUnderrun{false};
+        bool isUnderrunNow{false};
+    };
+
     // Reset crossfade state (call on transport start)
     void reset();
 
@@ -30,7 +36,8 @@ public:
     // Write output samples for the block
     // Handles crossfade between separated and dry signal
     // Returns the number of separated samples consumed from ring buffer
-    void writeBlock(
+    // and underrun statistics for debug visibility.
+    WriteResult writeBlock(
         OverlapAddProcessor& overlapAdd,
         const std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputRingBuffers,
         size_t ringSize,

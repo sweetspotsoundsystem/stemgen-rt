@@ -9,11 +9,20 @@ enable_testing()
 set(SOURCE_FILES
   source/AudioProcessorTest.cpp
   source/OverlapAddProcessorTest.cpp
+  source/OrtRunBenchmarkTest.cpp
+  source/RealtimeStemSanityTest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Sets the necessary include directories of googletest.
 target_include_directories(${PROJECT_NAME} PRIVATE ${GOOGLETEST_SOURCE_DIR}/googletest/include)
+
+# ONNX Runtime headers are PRIVATE on the plugin target (to avoid exposing ORT in public headers),
+# but benchmark tests compile against the ORT C API directly, so we add the include path here.
+set(_ORT_LOCAL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/libs/onnxruntime/include")
+if(EXISTS "${_ORT_LOCAL_INCLUDE_DIR}")
+  target_include_directories(${PROJECT_NAME} PRIVATE "${_ORT_LOCAL_INCLUDE_DIR}")
+endif()
 
 # Thanks to the fact that we link against the gtest_main library, we don't have to write the main function ourselves.
 target_link_libraries(${PROJECT_NAME} PRIVATE AudioPlugin GTest::gtest_main)

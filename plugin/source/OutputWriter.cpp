@@ -24,11 +24,13 @@ void OutputWriter::setOutputPointers(float* mainWrite[kNumChannels], int mainNum
     }
 }
 
-void OutputWriter::writeBlock(
+OutputWriter::WriteResult OutputWriter::writeBlock(
     OverlapAddProcessor& overlapAdd,
     const std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputRingBuffers,
     size_t ringSize,
     int numSamples) {
+
+    WriteResult result;
 
     // Use locals for ring state (audio thread owns these, so no atomics needed)
     size_t readPos = overlapAdd.getOutputReadPos();
@@ -41,6 +43,10 @@ void OutputWriter::writeBlock(
 
     for (int i = 0; i < numSamples; ++i) {
         const bool have = (avail > 0);
+        if (!have) {
+            result.hadUnderrun = true;
+            ++result.underrunSamples;
+        }
 
         // Update crossfade gain: ramp toward 1.0 (separated) or 0.0 (dry)
         // When separated audio is available (have=true), ramp up toward 1.0
@@ -96,6 +102,10 @@ void OutputWriter::writeBlock(
     overlapAdd.setOutputReadPos(readPos);
     overlapAdd.setOutputSamplesAvailable(avail);
     crossfadeGain_ = xfadeGain;
+
+    // If we are in/near fallback, mark underrun as active for UI visibility.
+    result.isUnderrunNow = (result.hadUnderrun || xfadeGain < 1.0f);
+    return result;
 }
 
 }  // namespace audio_plugin

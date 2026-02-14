@@ -7,7 +7,7 @@
 
 namespace audio_plugin {
 
-#ifdef NDEBUG
+#if !STEMGENRT_DEBUG_UI
 // =============================================================================
 // Release build - just display logo
 // =============================================================================
@@ -92,6 +92,23 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       "Latency: %.1f ms (%d samples)", latencyMs, latencySamples);
   g.drawFittedText(latencyText, area.removeFromTop(24),
                    juce::Justification::centred, 1);
+
+  const bool underrunActive = processorRef.isUnderrunActive();
+  const uint64_t underrunBlocks = processorRef.getUnderrunBlockCount();
+  const uint64_t underrunSamples = processorRef.getUnderrunSampleCount();
+  const size_t lastUnderrunSamples = processorRef.getUnderrunSamplesInLastBlock();
+
+  g.setColour(underrunActive ? juce::Colours::orange : juce::Colours::white);
+  g.drawFittedText(
+      juce::String("Underrun: ") +
+          (underrunActive ? "active" : "inactive"),
+      area.removeFromTop(24), juce::Justification::centred, 1);
+  g.setColour(juce::Colours::white);
+  g.drawFittedText("Underrun events: " + juce::String(underrunBlocks),
+                   area.removeFromTop(24), juce::Justification::centred, 1);
+  g.drawFittedText("Underrun samples: " + juce::String(underrunSamples) +
+                       " (last: " + juce::String(lastUnderrunSamples) + ")",
+                   area.removeFromTop(24), juce::Justification::centred, 1);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {}

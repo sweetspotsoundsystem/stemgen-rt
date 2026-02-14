@@ -38,6 +38,12 @@ public:
   // Returns the current plugin latency in milliseconds based on sample rate.
   double getLatencyMs() const;
 
+  // Underrun debug telemetry exposed for the editor overlay.
+  size_t getUnderrunSamplesInLastBlock() const;
+  uint64_t getUnderrunSampleCount() const;
+  uint64_t getUnderrunBlockCount() const;
+  bool isUnderrunActive() const;
+
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
 
@@ -104,6 +110,11 @@ private:
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};
+
+  std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
+  std::atomic<uint64_t> totalUnderrunSamples_{0};
+  std::atomic<uint64_t> totalUnderrunBlocks_{0};
+  std::atomic<bool> underrunActive_{false};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

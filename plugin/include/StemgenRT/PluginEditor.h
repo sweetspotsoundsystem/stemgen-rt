@@ -1,10 +1,11 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "BuildConfig.h"
 
 namespace audio_plugin {
 
-#ifdef NDEBUG
+#if !STEMGENRT_DEBUG_UI
 // Release build - just display logo
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:

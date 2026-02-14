@@ -137,6 +137,40 @@ double AudioPluginAudioProcessor::getLatencyMs() const {
 }
 
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+size_t AudioPluginAudioProcessor::getUnderrunSamplesInLastBlock() const {
+  return lastUnderrunSamplesInLastBlock_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunSampleCount() const {
+  return totalUnderrunSamples_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunBlockCount() const {
+  return totalUnderrunBlocks_.load(std::memory_order_acquire);
+}
+
+bool AudioPluginAudioProcessor::isUnderrunActive() const {
+  return underrunActive_.load(std::memory_order_acquire);
+}
+#else
+size_t AudioPluginAudioProcessor::getUnderrunSamplesInLastBlock() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunSampleCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunBlockCount() const {
+  return 0;
+}
+
+bool AudioPluginAudioProcessor::isUnderrunActive() const {
+  return false;
+}
+#endif
+
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 void AudioPluginAudioProcessor::allocateStreamingBuffers() {
   // Allocate overlap-add processor buffers
   overlapAdd_.allocate();
@@ -196,6 +230,8 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
 
   // Reset output writer (crossfade state)
   outputWriter_.reset();
+  underrunActive_.store(false, std::memory_order_release);
+  lastUnderrunSamplesInLastBlock_.store(0, std::memory_order_release);
 
   // Reset LR4 crossover filter states to avoid clicks from stale filter memory
   crossover_.reset();
@@ -767,7 +803,17 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // Set up output writer and write the block
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
-    outputWriter_.writeBlock(overlapAdd_, outputRingBuffers, outRingSize, numSamples);
+    const auto writeStats =
+        outputWriter_.writeBlock(overlapAdd_, outputRingBuffers, outRingSize, numSamples);
+    underrunActive_.store(writeStats.isUnderrunNow,
+                          std::memory_order_release);
+    lastUnderrunSamplesInLastBlock_.store(writeStats.underrunSamples,
+                                          std::memory_order_release);
+    if (writeStats.hadUnderrun) {
+      totalUnderrunBlocks_.fetch_add(1, std::memory_order_acq_rel);
+      totalUnderrunSamples_.fetch_add(writeStats.underrunSamples,
+                                     std::memory_order_acq_rel);
+    }
 
     return;
   }
