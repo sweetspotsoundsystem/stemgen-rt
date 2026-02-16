@@ -1820,8 +1820,9 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   EXPECT_LE(energyRatio, 2.0f) << "Kick drum: energy ratio too high: " << energyRatio;
   // Main bus reads from delayedInputBuffer aligned with stems. The pipeline
   // delay varies with inference timing jitter, so the best-lag RMS won't be
-  // near-zero. Check that it's reasonable (energy is preserved, not garbled).
-  EXPECT_LT(reconErrorRms, 0.5f) << "Kick drum: reconstruction error RMS too high: " << reconErrorRms;
+  // near-zero. Keep this tight enough to catch obvious regressions while
+  // allowing expected jitter-related residual.
+  EXPECT_LT(reconErrorRms, 0.35f) << "Kick drum: reconstruction error RMS too high: " << reconErrorRms;
 }
 
 TEST_F(BassDiagnosticTest, SampleLevelVerification) {

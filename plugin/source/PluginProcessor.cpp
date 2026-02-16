@@ -156,6 +156,18 @@ bool AudioPluginAudioProcessor::isUnderrunActive() const {
 size_t AudioPluginAudioProcessor::getRingFillLevel() const {
   return ringFillLevel_.load(std::memory_order_acquire);
 }
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowEventCount() const {
+  return totalRingOverflowEvents_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowSampleDropCount() const {
+  return totalRingOverflowSamplesDropped_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getQueueFullChunkDropCount() const {
+  return totalQueueFullChunkDrops_.load(std::memory_order_acquire);
+}
 #else
 size_t AudioPluginAudioProcessor::getUnderrunSamplesInLastBlock() const {
   return 0;
@@ -174,6 +186,18 @@ bool AudioPluginAudioProcessor::isUnderrunActive() const {
 }
 
 size_t AudioPluginAudioProcessor::getRingFillLevel() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowEventCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowSampleDropCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getQueueFullChunkDropCount() const {
   return 0;
 }
 #endif
@@ -491,6 +515,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     size_t samplesToProcess = (currentRingAvail < targetRingFill)
         ? (targetRingFill - currentRingAvail)
         : 0;
+    uint64_t ringOverflowEventsThisBlock = 0;
+    uint64_t ringOverflowSamplesDroppedThisBlock = 0;
+    uint64_t queueFullDropsThisBlock = 0;
 
     while (samplesToProcess > 0) {
       // If no pending chunk, try to acquire one
@@ -507,6 +534,13 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           size_t overflow = (avail + static_cast<size_t>(kOutputChunkSize)) - outRingSize;
           overlapAdd_.setOutputReadPos((overlapAdd_.getOutputReadPos() + overflow) % outRingSize);
           overlapAdd_.setOutputSamplesAvailable(avail - overflow);
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock += static_cast<uint64_t>(overflow);
+#if JUCE_DEBUG
+          DBG("[HS-TasNet] Output ring overflow: dropped " << overflow
+              << " oldest samples (ringAvail=" << avail
+              << ", ringSize=" << outRingSize << ")");
+#endif
         }
 
         const bool contiguousWithPreviousChunk =
@@ -770,6 +804,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           // Do not invalidate overlap-tail state here; defer to consume-side
           // chunkSequence gap detection so contiguous already-buffered chunks
           // still crossfade correctly under backpressure.
+          ++queueFullDropsThisBlock;
 #if JUCE_DEBUG
           DBG("[HS-TasNet] Queue full, dropping chunk seq=" << chunkSequence
               << " ringAvail=" << overlapAdd_.getOutputSamplesAvailable());
@@ -825,6 +860,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // Report ring fill AFTER the read — this reflects actual excess buffering
     // beyond PDC. Samples consumed in the same block don't add latency.
     ringFillLevel_.store(overlapAdd_.getOutputSamplesAvailable(), std::memory_order_release);
+    if (ringOverflowEventsThisBlock > 0) {
+      totalRingOverflowEvents_.fetch_add(ringOverflowEventsThisBlock, std::memory_order_relaxed);
+      totalRingOverflowSamplesDropped_.fetch_add(ringOverflowSamplesDroppedThisBlock,
+                                                 std::memory_order_relaxed);
+    }
+    if (queueFullDropsThisBlock > 0) {
+      totalQueueFullChunkDrops_.fetch_add(queueFullDropsThisBlock, std::memory_order_relaxed);
+    }
 
     if (pastGracePeriod) {
       underrunActive_.store(writeStats.isUnderrunNow,

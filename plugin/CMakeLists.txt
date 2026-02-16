@@ -95,7 +95,7 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CU
 # NDEBUG (because the config isn't "Debug"), so we key the debug UI off our own
 # macro instead.
 target_compile_definitions(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Debug>:STEMGENRT_DEBUG_UI=1>")
-if(NOT CMAKE_CONFIGURATION_TYPES AND (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL ""))
+if(NOT CMAKE_CONFIGURATION_TYPES AND (NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL ""))
   target_compile_definitions(${PROJECT_NAME} PRIVATE STEMGENRT_DEBUG_UI=1)
 endif()
 
