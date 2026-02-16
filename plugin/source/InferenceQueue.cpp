@@ -13,6 +13,7 @@ void InferenceRequest::allocate() {
         inputChunk[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
         contextSnapshot[ch].resize(static_cast<size_t>(kContextSize), 0.0f);
         originalInput[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
+        fullbandInput[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
         lowFreqChunk[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
     }
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {

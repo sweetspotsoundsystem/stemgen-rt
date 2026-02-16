@@ -38,6 +38,21 @@ public:
   // Returns the current plugin latency in milliseconds based on sample rate.
   double getLatencyMs() const;
 
+  // Underrun debug telemetry exposed for the editor overlay.
+  size_t getUnderrunSamplesInLastBlock() const;
+  uint64_t getUnderrunSampleCount() const;
+  uint64_t getUnderrunBlockCount() const;
+  bool isUnderrunActive() const;
+
+  // Ring buffer fill level (samples available for reading).
+  // Reflects the actual pipeline depth beyond the reported PDC latency.
+  size_t getRingFillLevel() const;
+
+  // Debug telemetry for dropped model output.
+  uint64_t getRingOverflowEventCount() const;
+  uint64_t getRingOverflowSampleDropCount() const;
+  uint64_t getQueueFullChunkDropCount() const;
+
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
 
@@ -104,6 +119,16 @@ private:
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};
+
+  std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
+  std::atomic<uint64_t> totalUnderrunSamples_{0};
+  std::atomic<uint64_t> totalUnderrunBlocks_{0};
+  std::atomic<bool> underrunActive_{false};
+  std::atomic<uint64_t> outputChunksConsumed_{0};  // Grace period: don't count startup underruns
+  std::atomic<size_t> ringFillLevel_{0};           // Ring buffer fill level snapshot
+  std::atomic<uint64_t> totalRingOverflowEvents_{0};
+  std::atomic<uint64_t> totalRingOverflowSamplesDropped_{0};
+  std::atomic<uint64_t> totalQueueFullChunkDrops_{0};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

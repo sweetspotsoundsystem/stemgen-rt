@@ -7,12 +7,13 @@ namespace audio_plugin {
 OverlapAddProcessor::OverlapAddProcessor() = default;
 
 void OverlapAddProcessor::allocate() {
-    // Size output ring buffer for ~16 chunks of buffering (matches PluginProcessor)
-    const size_t ringSize = static_cast<size_t>(kOutputChunkSize) * 16;
+    // Size output ring buffer to match kOutputRingBufferChunks from Constants.h
+    const size_t ringSize = static_cast<size_t>(kOutputChunkSize) * kOutputRingBufferChunks;
 
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         inputAccumBuffer_[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
         lowFreqAccumBuffer_[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
+        fullbandAccumBuffer_[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
         contextBuffer_[ch].resize(static_cast<size_t>(kContextSize), 0.0f);
         delayedInputBuffer_[ch].resize(ringSize, 0.0f);
         // Dry delay line: 2x chunk size for safety margin
@@ -36,6 +37,7 @@ void OverlapAddProcessor::reset() {
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         std::fill(inputAccumBuffer_[ch].begin(), inputAccumBuffer_[ch].end(), 0.0f);
         std::fill(lowFreqAccumBuffer_[ch].begin(), lowFreqAccumBuffer_[ch].end(), 0.0f);
+        std::fill(fullbandAccumBuffer_[ch].begin(), fullbandAccumBuffer_[ch].end(), 0.0f);
         std::fill(contextBuffer_[ch].begin(), contextBuffer_[ch].end(), 0.0f);
         std::fill(delayedInputBuffer_[ch].begin(), delayedInputBuffer_[ch].end(), 0.0f);
         std::fill(dryDelayLine_[ch].begin(), dryDelayLine_[ch].end(), 0.0f);
@@ -88,6 +90,7 @@ void OverlapAddProcessor::pushInputSample(int channel, float hpSample, float lpS
     if (inputAccumCount_ < static_cast<size_t>(kOutputChunkSize)) {
         inputAccumBuffer_[ch][inputAccumCount_] = hpSample;
         lowFreqAccumBuffer_[ch][inputAccumCount_] = lpSample;
+        fullbandAccumBuffer_[ch][inputAccumCount_] = drySample;
     }
 
     // Write to dry delay line (size is 2x kOutputChunkSize)

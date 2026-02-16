@@ -43,6 +43,9 @@ public:
     // Get accumulated LP buffer
     const std::array<std::vector<float>, kNumChannels>& getLowFreqAccumBuffer() const { return lowFreqAccumBuffer_; }
 
+    // Get accumulated fullband (raw, pre-crossover) buffer
+    const std::array<std::vector<float>, kNumChannels>& getFullbandAccumBuffer() const { return fullbandAccumBuffer_; }
+
     // Clear input accumulation after queueing inference
     void clearInputAccum();
 
@@ -121,6 +124,7 @@ private:
     // Input accumulation
     std::array<std::vector<float>, kNumChannels> inputAccumBuffer_;   // HP-filtered
     std::array<std::vector<float>, kNumChannels> lowFreqAccumBuffer_; // LP-filtered
+    std::array<std::vector<float>, kNumChannels> fullbandAccumBuffer_; // Raw pre-crossover
     size_t inputAccumCount_{0};
 
     // Context buffer for model (HP-filtered history)

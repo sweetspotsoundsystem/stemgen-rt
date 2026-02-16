@@ -88,6 +88,17 @@ target_link_libraries(
 # These definitions are recommended by JUCE.
 target_compile_definitions(${PROJECT_NAME} PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
 
+# Debug UI overlay (status/latency/underrun counters).
+#
+# Note: In this repo it's common to configure a dev build without setting
+# CMAKE_BUILD_TYPE. In that case, JUCE's recommended config flags still define
+# NDEBUG (because the config isn't "Debug"), so we key the debug UI off our own
+# macro instead.
+target_compile_definitions(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Debug>:STEMGENRT_DEBUG_UI=1>")
+if(NOT CMAKE_CONFIGURATION_TYPES AND (NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL ""))
+  target_compile_definitions(${PROJECT_NAME} PRIVATE STEMGENRT_DEBUG_UI=1)
+endif()
+
 # Link logo binary data if available
 if(HAS_LOGO_ASSET)
   target_link_libraries(${PROJECT_NAME} PRIVATE PluginAssets)
@@ -267,14 +278,23 @@ set(MODEL_DATA "${MODEL_DIR}/model.onnx.data")
 # Check if model files exist
 if(EXISTS "${MODEL_ONNX}" AND EXISTS "${MODEL_DATA}")
   message(STATUS "Bundling ONNX model from: ${MODEL_DIR}")
+  # NOTE: A TARGET POST_BUILD command only runs when the binary is rebuilt (relinked).
+  # If only the model files change, the plugins may be up-to-date and the post-build
+  # copy will not run, leaving stale model resources in AU/VST3 bundles.
+  #
+  # Use per-format custom targets that run as part of the default build. They depend
+  # on the corresponding plugin target so the bundle exists before we copy files.
   foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AU ${PROJECT_NAME}_AAX)
     if(TARGET ${_fmt_target})
-      add_custom_command(TARGET ${_fmt_target} POST_BUILD
+      set(_bundle_model_target "${_fmt_target}_BundleModel")
+      add_custom_target(${_bundle_model_target} ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_DATA}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
         COMMENT "Bundling ONNX model into ${_fmt_target}"
+        VERBATIM
       )
+      add_dependencies(${_bundle_model_target} ${_fmt_target})
     endif()
   endforeach()
 else()

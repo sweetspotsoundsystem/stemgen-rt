@@ -137,6 +137,72 @@ double AudioPluginAudioProcessor::getLatencyMs() const {
 }
 
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+size_t AudioPluginAudioProcessor::getUnderrunSamplesInLastBlock() const {
+  return lastUnderrunSamplesInLastBlock_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunSampleCount() const {
+  return totalUnderrunSamples_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunBlockCount() const {
+  return totalUnderrunBlocks_.load(std::memory_order_acquire);
+}
+
+bool AudioPluginAudioProcessor::isUnderrunActive() const {
+  return underrunActive_.load(std::memory_order_acquire);
+}
+
+size_t AudioPluginAudioProcessor::getRingFillLevel() const {
+  return ringFillLevel_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowEventCount() const {
+  return totalRingOverflowEvents_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowSampleDropCount() const {
+  return totalRingOverflowSamplesDropped_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getQueueFullChunkDropCount() const {
+  return totalQueueFullChunkDrops_.load(std::memory_order_acquire);
+}
+#else
+size_t AudioPluginAudioProcessor::getUnderrunSamplesInLastBlock() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunSampleCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getUnderrunBlockCount() const {
+  return 0;
+}
+
+bool AudioPluginAudioProcessor::isUnderrunActive() const {
+  return false;
+}
+
+size_t AudioPluginAudioProcessor::getRingFillLevel() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowEventCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getRingOverflowSampleDropCount() const {
+  return 0;
+}
+
+uint64_t AudioPluginAudioProcessor::getQueueFullChunkDropCount() const {
+  return 0;
+}
+#endif
+
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 void AudioPluginAudioProcessor::allocateStreamingBuffers() {
   // Allocate overlap-add processor buffers
   overlapAdd_.allocate();
@@ -173,6 +239,9 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
   lastOutputChunkSequence_ = 0;
   hasLastOutputChunkSequence_ = false;
 
+  // Reset startup grace period counter
+  outputChunksConsumed_.store(0, std::memory_order_release);
+
   DBG("[HS-TasNet] Streaming buffers reset");
 #endif
 }
@@ -196,6 +265,11 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
 
   // Reset output writer (crossfade state)
   outputWriter_.reset();
+  underrunActive_.store(false, std::memory_order_release);
+  lastUnderrunSamplesInLastBlock_.store(0, std::memory_order_release);
+
+  // Reset startup grace period counter
+  outputChunksConsumed_.store(0, std::memory_order_release);
 
   // Reset LR4 crossover filter states to avoid clicks from stale filter memory
   crossover_.reset();
@@ -421,16 +495,29 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto& outputRingBuffers = overlapAdd_.getOutputRingBuffers();
     auto& delayedInputBuffer = overlapAdd_.getDelayedInputBuffer();
 
-    // Amortized chunk consumption: instead of copying full 1024-sample chunks in bursts,
-    // we copy at most numSamples worth of data per callback. This bounds worst-case CPU
-    // work proportionally to the host buffer size, enabling stable operation at small buffers.
+    // Consume inference results into the ring buffer up to a target fill level.
+    // Unlike consuming ALL results, this limits the ring to just enough for the
+    // current host block read. Excess results stay in the inference queue (16 slots)
+    // and are consumed in subsequent blocks. This avoids:
+    //   - Persistent ring buildup from startup bursts (was causing ~60ms latency)
+    //   - Cascading underruns from discarding ring data (cap approach)
     //
     // The algorithm:
     //   1. If no pending chunk, check if a processed result is ready
-    //   2. Copy up to numSamples from the pending chunk to the ring buffer
+    //   2. Copy from the pending chunk to the ring buffer
     //   3. When chunk is fully copied, move to next processed result
-    
-    size_t samplesToProcess = static_cast<size_t>(numSamples);
+    //   4. Stop when ring reaches target fill level
+
+    const size_t targetRingFill = std::max(
+        static_cast<size_t>(kOutputChunkSize),
+        static_cast<size_t>(numSamples));
+    const size_t currentRingAvail = overlapAdd_.getOutputSamplesAvailable();
+    size_t samplesToProcess = (currentRingAvail < targetRingFill)
+        ? (targetRingFill - currentRingAvail)
+        : 0;
+    uint64_t ringOverflowEventsThisBlock = 0;
+    uint64_t ringOverflowSamplesDroppedThisBlock = 0;
+    uint64_t queueFullDropsThisBlock = 0;
 
     while (samplesToProcess > 0) {
       // If no pending chunk, try to acquire one
@@ -447,6 +534,13 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           size_t overflow = (avail + static_cast<size_t>(kOutputChunkSize)) - outRingSize;
           overlapAdd_.setOutputReadPos((overlapAdd_.getOutputReadPos() + overflow) % outRingSize);
           overlapAdd_.setOutputSamplesAvailable(avail - overflow);
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock += static_cast<uint64_t>(overflow);
+#if JUCE_DEBUG
+          DBG("[HS-TasNet] Output ring overflow: dropped " << overflow
+              << " oldest samples (ringAvail=" << avail
+              << ", ringSize=" << outRingSize << ")");
+#endif
         }
 
         const bool contiguousWithPreviousChunk =
@@ -533,6 +627,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // Get raw pointers for source data (avoid repeated operator[] on unique_ptr)
       const float* origL = consumeRequest->originalInput[0].data() + srcBase;
       const float* origR = consumeRequest->originalInput[1].data() + srcBase;
+      const float* fullbandL = consumeRequest->fullbandInput[0].data() + srcBase;
+      const float* fullbandR = consumeRequest->fullbandInput[1].data() + srcBase;
       const float* lowL = consumeRequest->lowFreqChunk[0].data() + srcBase;
       const float* lowR = consumeRequest->lowFreqChunk[1].data() + srcBase;
       const float* stemData[kNumStems][kNumChannels];
@@ -584,9 +680,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         float vocalsToOther_R = vocals_R - vocalsGated_R;
         // ===== end vocals gate =====
 
-        // Store original samples in delayed input buffer
-        delayedInputBuffer[0][writePos] = origLSample;
-        delayedInputBuffer[1][writePos] = origRSample;
+        // Store raw fullband (pre-crossover) samples in delayed input buffer
+        // for main bus output. Use fullband rather than HP+LP to avoid
+        // crossover allpass phase distortion.
+        delayedInputBuffer[0][writePos] = fullbandL[i];
+        delayedInputBuffer[1][writePos] = fullbandR[i];
 
         // Apply stem post-processing (vocals transfer + soft gate).
         StemPostProcessor::StemSamples stemsL{drums_L, bass_L, vocals_L, other_L};
@@ -628,6 +726,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       if (overlapAdd_.getPendingChunkOffset() >= static_cast<size_t>(kOutputChunkSize)) {
         // Release the slot and move to next
         inferenceQueue_.releaseOutputSlot();
+        outputChunksConsumed_.fetch_add(1, std::memory_order_relaxed);
         overlapAdd_.setHasPendingChunk(false);
         overlapAdd_.setPendingChunkOffset(0);
       }
@@ -672,6 +771,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
           // Copy and normalize HP input for model, HP context, LP bypass chunk,
           // and fullband input for downstream stem post-processing.
+          const auto& fullbandAccumBuffer = overlapAdd_.getFullbandAccumBuffer();
           for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
             // HP-filtered input for model (normalized)
             for (size_t j = 0; j < static_cast<size_t>(kOutputChunkSize); ++j) {
@@ -684,10 +784,13 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // LP chunk bypassed around the model (not normalized).
             std::memcpy(request->lowFreqChunk[ch].data(), lowFreqAccumBuffer[ch].data(),
                         static_cast<size_t>(kOutputChunkSize) * sizeof(float));
-            // Fullband input for downstream processing: HP + LP.
+            // Fullband input (HP+LP) for stem post-processing (phase-aligned with stems).
             for (size_t j = 0; j < static_cast<size_t>(kOutputChunkSize); ++j) {
               request->originalInput[ch][j] = inputAccumBuffer[ch][j] + lowFreqAccumBuffer[ch][j];
             }
+            // Raw fullband input (pre-crossover) for main bus output.
+            std::memcpy(request->fullbandInput[ch].data(), fullbandAccumBuffer[ch].data(),
+                        static_cast<size_t>(kOutputChunkSize) * sizeof(float));
           }
 
           // Update context buffer for next chunk (stores HP-filtered samples, NOT normalized)
@@ -701,6 +804,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           // Do not invalidate overlap-tail state here; defer to consume-side
           // chunkSequence gap detection so contiguous already-buffered chunks
           // still crossfade correctly under backpressure.
+          ++queueFullDropsThisBlock;
+#if JUCE_DEBUG
+          DBG("[HS-TasNet] Queue full, dropping chunk seq=" << chunkSequence
+              << " ringAvail=" << overlapAdd_.getOutputSamplesAvailable());
+#endif
         }
 
         overlapAdd_.clearInputAccum();
@@ -724,33 +832,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int ch = 0; ch < std::min(kNumChannels, mainNumCh); ++ch)
       mainWrite[ch] = mainBus.getWritePointer(ch);
 
-#if !JucePlugin_IsSynth
-    {
-      const int channelsToCopy = std::min(kNumChannels, mainNumCh);
-      for (int ch = 0; ch < channelsToCopy; ++ch) {
-        float* outPtr = mainWrite[ch];
-        const float* inPtr = inputChannelPtrs[ch];
-        if (outPtr == nullptr) {
-          continue;
-        }
-        if (inPtr == nullptr) {
-          std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
-          continue;
-        }
-        // Avoid undefined behavior with memcpy on overlapping regions.
-        if (outPtr != inPtr) {
-          std::memmove(outPtr, inPtr, static_cast<size_t>(numSamples) * sizeof(float));
-        }
-      }
-
-      // If the main output bus has extra channels, clear them deterministically.
-      for (int ch = channelsToCopy; ch < mainNumCh; ++ch) {
-        float* outPtr = mainBus.getWritePointer(ch);
-        std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
-      }
-    }
-#endif
-
     // Buses 1-4: individual stems
     float* stemWrite[4][kNumChannels] = {{nullptr, nullptr}, {nullptr, nullptr},
                                          {nullptr, nullptr}, {nullptr, nullptr}};
@@ -767,7 +848,46 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // Set up output writer and write the block
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
-    outputWriter_.writeBlock(overlapAdd_, outputRingBuffers, outRingSize, numSamples);
+    const auto writeStats =
+        outputWriter_.writeBlock(overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize, numSamples);
+
+    // Grace period: don't count underruns until the first inference result has
+    // been consumed. Before that, the pipeline is still filling and underruns
+    // are expected (not a performance problem).
+    const bool pastGracePeriod =
+        outputChunksConsumed_.load(std::memory_order_relaxed) > 0;
+
+    // Report ring fill AFTER the read — this reflects actual excess buffering
+    // beyond PDC. Samples consumed in the same block don't add latency.
+    ringFillLevel_.store(overlapAdd_.getOutputSamplesAvailable(), std::memory_order_release);
+    if (ringOverflowEventsThisBlock > 0) {
+      totalRingOverflowEvents_.fetch_add(ringOverflowEventsThisBlock, std::memory_order_relaxed);
+      totalRingOverflowSamplesDropped_.fetch_add(ringOverflowSamplesDroppedThisBlock,
+                                                 std::memory_order_relaxed);
+    }
+    if (queueFullDropsThisBlock > 0) {
+      totalQueueFullChunkDrops_.fetch_add(queueFullDropsThisBlock, std::memory_order_relaxed);
+    }
+
+    if (pastGracePeriod) {
+      underrunActive_.store(writeStats.isUnderrunNow,
+                            std::memory_order_release);
+      lastUnderrunSamplesInLastBlock_.store(writeStats.underrunSamples,
+                                            std::memory_order_release);
+      if (writeStats.hadUnderrun) {
+        totalUnderrunBlocks_.fetch_add(1, std::memory_order_acq_rel);
+        totalUnderrunSamples_.fetch_add(writeStats.underrunSamples,
+                                       std::memory_order_acq_rel);
+      }
+    }
+
+#if JUCE_DEBUG
+    if (writeStats.underrunTransition) {
+      DBG("[HS-TasNet] Underrun transition: ringAvail=" << writeStats.ringAvailAtStart
+          << " xfadeGain=" << writeStats.crossfadeGainAtStart
+          << " gracePeriod=" << (pastGracePeriod ? "no" : "yes"));
+    }
+#endif
 
     return;
   }
