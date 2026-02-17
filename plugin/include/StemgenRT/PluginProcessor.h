@@ -32,7 +32,7 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // This accounts for input accumulation, inference queue depth, and output buffering.
+  // This accounts for input accumulation and sample-rate adaptation when active.
   int getLatencySamples() const;
   
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -112,9 +112,41 @@ private:
   // LR4 crossover for low-frequency bypass (splits input into LP + HP)
   Crossover crossover_;
 
+  static constexpr double kModelSampleRate = 44100.0;
+  double hostSampleRateHz_{kModelSampleRate};
+  bool downsampleToModelRate_{false};
+  int latencySamplesForHostRate_{kOutputChunkSize};
+
+  // Streaming SRC state for host-rate > 44.1kHz operation.
+  // Downsample path: host HP/LP/fullband -> model-rate accumulators.
+  double downsamplePhase_{0.0};
+  double downsampleStep_{1.0};  // host samples per model sample
+  bool downsampleHasPrev_{false};
+  std::array<float, kNumChannels> downsamplePrevHp_{};
+  std::array<float, kNumChannels> downsamplePrevLp_{};
+  std::array<float, kNumChannels> downsamplePrevFullband_{};
+
+  // Upsample path: model output/original/fullband/LP -> host-rate ring writer.
+  double upsamplePhase_{0.0};
+  double upsampleStep_{1.0};  // model samples per host sample
+  bool upsampleHasPrev_{false};
+  std::array<float, kNumChannels> upsamplePrevOrig_{};
+  std::array<float, kNumChannels> upsamplePrevFullband_{};
+  std::array<float, kNumChannels> upsamplePrevLow_{};
+  std::array<std::array<float, kNumChannels>, kNumStems> upsamplePrevStems_{};
+
+  // Model-rate accumulation/context used only when host sample rate exceeds 44.1kHz.
+  size_t modelInputAccumCount_{0};
+  std::array<std::vector<float>, kNumChannels> modelInputAccumBuffer_;
+  std::array<std::vector<float>, kNumChannels> modelLowFreqAccumBuffer_;
+  std::array<std::vector<float>, kNumChannels> modelFullbandAccumBuffer_;
+  std::array<std::vector<float>, kNumChannels> modelContextBuffer_;
+
   // Internal methods
   void allocateStreamingBuffers();  // Allocate streaming buffers
   void resetStreamingBuffersRT();  // RT-safe reset (O(1), no memory operations)
+  void resetSampleRateAdapters();
+  int computeLatencySamplesForRate(double sampleRate) const;
 #endif
 
   // Track playback state for hidden state reset
