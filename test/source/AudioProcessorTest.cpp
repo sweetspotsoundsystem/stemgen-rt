@@ -276,6 +276,20 @@ TEST_F(AudioProcessorTest, PrepareToPlayWithVariousSampleRates) {
   
   for (double sr : sampleRates) {
     processor->prepareToPlay(sr, 512);
+    if (processor->getLatencySamples() > 0) {
+      const int latencySamples = processor->getLatencySamples();
+      if (sr > 44100.0) {
+        EXPECT_GT(latencySamples, audio_plugin::kOutputChunkSize);
+      } else {
+        EXPECT_EQ(latencySamples, audio_plugin::kOutputChunkSize);
+      }
+
+      const double reportedSampleRate =
+          (processor->getSampleRate() > 0.0) ? processor->getSampleRate() : 44100.0;
+      const double expectedLatencyMs =
+          (static_cast<double>(latencySamples) / reportedSampleRate) * 1000.0;
+      EXPECT_NEAR(processor->getLatencyMs(), expectedLatencyMs, 1.0e-3);
+    }
     processor->releaseResources();
   }
 }
@@ -486,6 +500,62 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
     fillWithTestSignal(buffer, 0.5f);
     processor->processBlock(buffer, midiBuffer);
   }
+}
+
+TEST_F(ProcessBlockTest, ProcessBlockHandlesHostRateAboveModelRate) {
+  processor->releaseResources();
+  processor->prepareToPlay(96000.0, 512);
+
+  if (processor->getLatencySamples() <= 0) {
+    GTEST_SKIP() << "Model not loaded; skipping high sample-rate runtime check";
+  }
+
+  EXPECT_GT(processor->getLatencySamples(), audio_plugin::kOutputChunkSize);
+
+  juce::MidiBuffer midiBuffer;
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr double kSampleRate = 96000.0;
+  constexpr int kBlockSize = 512;
+  constexpr int kWarmupBlocks = 40;
+  constexpr int kMeasureBlocks = 60;
+
+  float maxMainAmplitude = 0.0f;
+  size_t maxRingFill = 0;
+
+  for (int block = 0; block < (kWarmupBlocks + kMeasureBlocks); ++block) {
+    auto buffer = createBuffer(kBlockSize);
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
+    auto mainBus = processor->getBusBuffer(buffer, false /* isInput */, 0);
+
+    for (int i = 0; i < kBlockSize; ++i) {
+      const int64_t sampleIndex = static_cast<int64_t>(block) * kBlockSize + i;
+      const float l = 0.8f * std::sin(2.0f * kPi * 440.0f *
+                                      static_cast<float>(sampleIndex) /
+                                      static_cast<float>(kSampleRate));
+      const float r = 0.6f * std::sin(2.0f * kPi * 220.0f *
+                                      static_cast<float>(sampleIndex) /
+                                      static_cast<float>(kSampleRate));
+      inputBus.setSample(0, i, l);
+      inputBus.setSample(1, i, r);
+    }
+
+    processor->processBlock(buffer, midiBuffer);
+    maxRingFill = std::max(maxRingFill, processor->getRingFillLevel());
+
+    for (int i = 0; i < kBlockSize; ++i) {
+      for (int ch = 0; ch < std::min(2, mainBus.getNumChannels()); ++ch) {
+        const float sample = mainBus.getSample(ch, i);
+        EXPECT_TRUE(std::isfinite(sample));
+        if (block >= kWarmupBlocks) {
+          maxMainAmplitude = std::max(maxMainAmplitude, std::abs(sample));
+        }
+      }
+    }
+  }
+
+  EXPECT_GT(maxMainAmplitude, 0.01f);
+  EXPECT_LT(maxRingFill, static_cast<size_t>(audio_plugin::kOutputChunkSize * 8));
 }
 
 TEST_F(ProcessBlockTest, MainBusIsDryPassthroughWithLoadedModel) {

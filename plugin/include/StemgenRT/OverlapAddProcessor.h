@@ -102,6 +102,8 @@ public:
     // Dry delay priming helpers
     bool isDryDelayPrimed() const { return dryDelayPrimed_; }
     void primeDryDelayFromInput(const float* inputPointers[kNumChannels], int numSamples);
+    void setDryDelaySamples(size_t delaySamples);
+    size_t getDryDelaySamples() const { return dryDelaySamples_; }
 
     // === Chunk boundary crossfade state ===
 
@@ -141,6 +143,7 @@ private:
 
     // Dry delay line for underrun fallback
     std::array<std::vector<float>, kNumChannels> dryDelayLine_;
+    size_t dryDelaySamples_{static_cast<size_t>(kOutputChunkSize)};
     size_t dryDelayWritePos_{0};
     size_t dryDelayReadPos_{0};
     bool dryDelayPrimed_{false};
