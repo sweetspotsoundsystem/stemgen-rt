@@ -9,6 +9,7 @@ OverlapAddProcessor::OverlapAddProcessor() = default;
 void OverlapAddProcessor::allocate() {
     // Size output ring buffer to match kOutputRingBufferChunks from Constants.h
     const size_t ringSize = static_cast<size_t>(kOutputChunkSize) * kOutputRingBufferChunks;
+    const size_t dryDelaySize = dryDelaySamples_ * 2;
 
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         inputAccumBuffer_[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
@@ -16,8 +17,8 @@ void OverlapAddProcessor::allocate() {
         fullbandAccumBuffer_[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
         contextBuffer_[ch].resize(static_cast<size_t>(kContextSize), 0.0f);
         delayedInputBuffer_[ch].resize(ringSize, 0.0f);
-        // Dry delay line: 2x chunk size for safety margin
-        dryDelayLine_[ch].resize(static_cast<size_t>(kOutputChunkSize) * 2, 0.0f);
+        // Dry delay line: 2x configured delay for safety margin.
+        dryDelayLine_[ch].assign(dryDelaySize, 0.0f);
     }
 
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
@@ -27,9 +28,9 @@ void OverlapAddProcessor::allocate() {
         }
     }
 
-    // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
+    // Initialize dry delay positions so readPos lags behind writePos by configured dry delay.
     // This provides latency-aligned dry signal from the start
-    dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
+    dryDelayWritePos_ = dryDelaySamples_;
     dryDelayReadPos_ = 0;
 }
 
@@ -63,8 +64,8 @@ void OverlapAddProcessor::reset() {
         }
     }
 
-    // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
-    dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
+    // Initialize dry delay positions so readPos lags behind writePos by configured dry delay.
+    dryDelayWritePos_ = dryDelaySamples_;
     dryDelayReadPos_ = 0;
     dryDelayPrimed_ = false;
 }
@@ -79,8 +80,8 @@ void OverlapAddProcessor::resetIndices() {
     pendingChunkCopyOffset_ = 0;
     hasPrevOverlapTail_ = false;
 
-    // Initialize dry delay positions so readPos lags behind writePos by kOutputChunkSize
-    dryDelayWritePos_ = static_cast<size_t>(kOutputChunkSize);
+    // Initialize dry delay positions so readPos lags behind writePos by configured dry delay.
+    dryDelayWritePos_ = dryDelaySamples_;
     dryDelayReadPos_ = 0;
     dryDelayPrimed_ = false;
 }
@@ -171,7 +172,7 @@ void OverlapAddProcessor::primeDryDelayFromInput(
     if (numSamples <= 0)
         return;
 
-    const size_t targetFill = static_cast<size_t>(kOutputChunkSize);
+    const size_t targetFill = dryDelaySamples_;
     const size_t inputCount = static_cast<size_t>(numSamples);
     const size_t copyCount = std::min(targetFill, inputCount);
     const size_t srcOffset = inputCount - copyCount;
@@ -188,6 +189,19 @@ void OverlapAddProcessor::primeDryDelayFromInput(
     }
 
     dryDelayPrimed_ = true;
+}
+
+void OverlapAddProcessor::setDryDelaySamples(size_t delaySamples) {
+    dryDelaySamples_ = std::max<size_t>(1, delaySamples);
+    const size_t dryDelaySize = dryDelaySamples_ * 2;
+
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+        dryDelayLine_[ch].assign(dryDelaySize, 0.0f);
+    }
+
+    dryDelayWritePos_ = dryDelaySamples_;
+    dryDelayReadPos_ = 0;
+    dryDelayPrimed_ = false;
 }
 
 }  // namespace audio_plugin
