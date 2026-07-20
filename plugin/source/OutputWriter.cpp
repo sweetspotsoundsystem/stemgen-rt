@@ -69,32 +69,43 @@ OutputWriter::WriteResult OutputWriter::writeBlock(
             dry[ch] = overlapAdd.readDryDelaySample(ch);
         }
 
-        // Main bus: read from delayedInputBuffer at ring readPos (aligned with stems).
-        // During underruns, crossfade to dry delay so main bus and stems stay in sync.
-        for (int ch = 0; ch < std::min(kNumChannels, mainNumCh_); ++ch) {
-            if (mainWrite_[ch] == nullptr) continue;
-            float delayedSample = have ? delayedInputBuffer[static_cast<size_t>(ch)][readPos] : 0.0f;
-            mainWrite_[ch][i] = xfadeGain * delayedSample + (1.0f - xfadeGain) * dry[ch];
+        // Main bus: read the exact mixture aligned with the model output. During
+        // underruns, crossfade to the fixed-latency dry signal.
+        float mainOutput[kNumChannels];
+        for (int ch = 0; ch < kNumChannels; ++ch) {
+            const float delayedSample =
+                have ? delayedInputBuffer[static_cast<size_t>(ch)][readPos] : 0.0f;
+            mainOutput[ch] =
+                xfadeGain * delayedSample + (1.0f - xfadeGain) * dry[ch];
+            if (ch < mainNumCh_ && mainWrite_[ch] != nullptr) {
+                mainWrite_[ch][i] = mainOutput[ch];
+            }
         }
 
-        // Stem buses (if enabled)
-        // During underrun, output dry/4 to each stem (approximate equal split)
-        // During normal operation, output separated stems with crossfade
-        for (int busIdx = 0; busIdx < 4; ++busIdx) {
-            if (stemNumCh_[busIdx] <= 0)
-                continue;
+        // Crossfade every internal stem against an equal dry split, then route
+        // the final floating-point residual to Other. This preserves
+        // Main == Drums + Bass + Vocals + Other through provider differences,
+        // startup, and underrun transitions.
+        for (int ch = 0; ch < kNumChannels; ++ch) {
+            float stems[kNumStems];
+            const float dryStem = dry[ch] * 0.25f;
+            for (int stem = 0; stem < kNumStems; ++stem) {
+                const float separated = have
+                    ? outputRingBuffers[static_cast<size_t>(stem)]
+                                       [static_cast<size_t>(ch)][readPos]
+                    : 0.0f;
+                stems[stem] =
+                    xfadeGain * separated + (1.0f - xfadeGain) * dryStem;
+            }
+            stems[kStemOther] = mainOutput[ch] - stems[kStemDrums]
+                                - stems[kStemBass] - stems[kStemVocals];
 
-            const size_t stemIndex = kBusToStemMap[busIdx];
-            for (int ch = 0; ch < std::min(kNumChannels, stemNumCh_[busIdx]); ++ch) {
-                float stemSample = 0.0f;
-                if (have) {
-                    stemSample = outputRingBuffers[stemIndex][static_cast<size_t>(ch)][readPos];
+            for (int busIdx = 0; busIdx < 4; ++busIdx) {
+                if (ch >= stemNumCh_[busIdx] || stemWrite_[busIdx][ch] == nullptr) {
+                    continue;
                 }
-                // Crossfade: separated stem when available, dry/4 as fallback
-                // The /4 distributes dry signal equally across 4 stems
-                float dryStem = dry[ch] * 0.25f;
-                float output = xfadeGain * stemSample + (1.0f - xfadeGain) * dryStem;
-                stemWrite_[busIdx][ch][i] = output;
+                stemWrite_[busIdx][ch][i] =
+                    stems[kBusToStemMap[busIdx]];
             }
         }
 

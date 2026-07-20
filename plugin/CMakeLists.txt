@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # Version is needed by JUCE.
-project(AudioPlugin VERSION 0.1.0)
+project(AudioPlugin VERSION 0.2.0)
 
 # Adding a directory with the library/application name as a subfolder of the
 # include folder is a good practice. It helps avoid name clashes later on.
@@ -46,31 +46,20 @@ endif()
 set(SOURCE_FILES
   source/PluginEditor.cpp
   source/PluginProcessor.cpp
-  source/Crossover.cpp
-  source/VocalsGate.cpp
-  source/InputNormalizer.cpp
   source/OnnxRuntime.cpp
   source/InferenceQueue.cpp
   source/OverlapAddProcessor.cpp
   source/OutputWriter.cpp
-  source/StemPostProcessor.cpp
-  source/LowBandStabilizer.cpp
 )
 # Optional; includes header files in the project file tree in Visual Studio
 set(HEADER_FILES
   ${INCLUDE_DIR}/PluginEditor.h
   ${INCLUDE_DIR}/PluginProcessor.h
   ${INCLUDE_DIR}/Constants.h
-  ${INCLUDE_DIR}/Crossover.h
-  ${INCLUDE_DIR}/SoftGate.h
-  ${INCLUDE_DIR}/VocalsGate.h
-  ${INCLUDE_DIR}/InputNormalizer.h
   ${INCLUDE_DIR}/OnnxRuntime.h
   ${INCLUDE_DIR}/InferenceQueue.h
   ${INCLUDE_DIR}/OverlapAddProcessor.h
   ${INCLUDE_DIR}/OutputWriter.h
-  ${INCLUDE_DIR}/StemPostProcessor.h
-  ${INCLUDE_DIR}/LowBandStabilizer.h
 )
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
@@ -79,7 +68,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/in
 
 # Links to all necessary dependencies. The present ones are recommended by JUCE.
 # If you use one of the additional modules, like the DSP module, you need to specify it here.
-target_link_libraries_system(${PROJECT_NAME} PUBLIC juce::juce_audio_utils juce::juce_dsp)
+target_link_libraries_system(
+  ${PROJECT_NAME} PUBLIC juce::juce_audio_utils juce::juce_cryptography juce::juce_dsp
+)
 target_link_libraries(
   ${PROJECT_NAME} PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_lto_flags
                          juce::juce_recommended_warning_flags
@@ -194,8 +185,10 @@ endif()
 # Configure local ONNX Runtime if found
 if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
   target_include_directories(${PROJECT_NAME} PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
-  target_link_libraries(${PROJECT_NAME} PUBLIC ${ONNXRUNTIME_LIBRARY})
   target_compile_definitions(${PROJECT_NAME} PRIVATE STEMGENRT_USE_ONNXRUNTIME=1)
+  if(NOT WIN32)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${ONNXRUNTIME_LIBRARY})
+  endif()
   
   if(APPLE)
     get_filename_component(_ort_lib_dir "${ONNXRUNTIME_LIBRARY}" DIRECTORY)
@@ -219,18 +212,9 @@ if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
       endif()
     endforeach()
   elseif(WIN32)
-    # On Windows, use delay loading so we can load the bundled DLL before the system one.
-    # Without this, Windows finds onnxruntime.dll in System32 before our bundled version.
-    # Delay loading defers DLL resolution until the first function call, giving our
-    # ensureOrtDllLoaded() function a chance to load the correct DLL first.
-    foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AAX)
-      if(TARGET ${_fmt_target})
-        target_link_options(${_fmt_target} PRIVATE "/DELAYLOAD:onnxruntime.dll")
-        target_link_libraries(${_fmt_target} PRIVATE delayimp.lib)
-      endif()
-    endforeach()
-    
-    # Bundle the DLL next to the plugin executable
+    # On Windows the wrapper resolves OrtGetApiBase directly from this exact
+    # bundled DLL path, avoiding collisions with another ORT already loaded by
+    # the host or a different plugin.
     if(ONNXRUNTIME_DLL)
       foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AAX)
         if(TARGET ${_fmt_target})
@@ -242,26 +226,6 @@ if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
       endforeach()
     endif()
     
-    # Check for GPU build (marker file created by download script)
-    # If GPU build, also copy CUDA provider DLLs
-    if(EXISTS "${_ORT_LOCAL_DIR}/.gpu_build")
-      message(STATUS "ONNX Runtime GPU build detected - will bundle CUDA provider DLLs")
-      
-      # Find all provider-related DLLs (onnxruntime_providers_*.dll)
-      file(GLOB ONNXRUNTIME_PROVIDER_DLLS "${_ORT_LOCAL_DIR}/lib/onnxruntime_providers_*.dll")
-      
-      foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AAX)
-        if(TARGET ${_fmt_target})
-          foreach(_provider_dll IN LISTS ONNXRUNTIME_PROVIDER_DLLS)
-            get_filename_component(_dll_name "${_provider_dll}" NAME)
-            add_custom_command(TARGET ${_fmt_target} POST_BUILD
-              COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_provider_dll}" "$<TARGET_FILE_DIR:${_fmt_target}>"
-              COMMENT "Bundling ${_dll_name} into ${_fmt_target}"
-            )
-          endforeach()
-        endif()
-      endforeach()
-    endif()
   endif()
 endif()
 
@@ -270,36 +234,50 @@ if(NOT _ORT_FOUND)
   message(STATUS "To enable: ./scripts/download-onnxruntime.sh")
 endif()
 
-# Bundle ONNX model files into plugin Resources folder
+# Bundle the immutable, single-file ONNX model into each plugin's Resources folder.
 set(MODEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../model")
 set(MODEL_ONNX "${MODEL_DIR}/model.onnx")
-set(MODEL_DATA "${MODEL_DIR}/model.onnx.data")
+set(EXPECTED_MODEL_ONNX_SHA256 "52fdc46d015819821dae19ef272b6bc4ccf441a0274d7d9c8bb44af50eafef8c")
+set(EXPECTED_MODEL_ONNX_SIZE "129088022")
 
-# Check if model files exist
-if(EXISTS "${MODEL_ONNX}" AND EXISTS "${MODEL_DATA}")
-  message(STATUS "Bundling ONNX model from: ${MODEL_DIR}")
-  # NOTE: A TARGET POST_BUILD command only runs when the binary is rebuilt (relinked).
-  # If only the model files change, the plugins may be up-to-date and the post-build
-  # copy will not run, leaving stale model resources in AU/VST3 bundles.
-  #
-  # Use per-format custom targets that run as part of the default build. They depend
-  # on the corresponding plugin target so the bundle exists before we copy files.
-  foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AU ${PROJECT_NAME}_AAX)
-    if(TARGET ${_fmt_target})
-      set(_bundle_model_target "${_fmt_target}_BundleModel")
-      add_custom_target(${_bundle_model_target} ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_DATA}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
-        COMMENT "Bundling ONNX model into ${_fmt_target}"
-        VERBATIM
-      )
-      add_dependencies(${_bundle_model_target} ${_fmt_target})
-    endif()
-  endforeach()
-else()
-  message(WARNING "ONNX model files not found at ${MODEL_DIR}. Plugin will not include bundled model.")
+if(NOT EXISTS "${MODEL_ONNX}")
+  message(FATAL_ERROR "Required ONNX model not found: ${MODEL_ONNX}")
 endif()
+
+# Re-run configuration if the model is replaced so the immutable artifact
+# checks cannot be bypassed by an incremental build.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MODEL_ONNX}")
+
+file(SIZE "${MODEL_ONNX}" MODEL_ONNX_SIZE)
+if(NOT "${MODEL_ONNX_SIZE}" STREQUAL "${EXPECTED_MODEL_ONNX_SIZE}")
+  message(FATAL_ERROR
+    "Unexpected ONNX model size at ${MODEL_ONNX}: expected ${EXPECTED_MODEL_ONNX_SIZE} bytes, got ${MODEL_ONNX_SIZE} bytes")
+endif()
+
+file(SHA256 "${MODEL_ONNX}" MODEL_ONNX_SHA256)
+if(NOT "${MODEL_ONNX_SHA256}" STREQUAL "${EXPECTED_MODEL_ONNX_SHA256}")
+  message(FATAL_ERROR
+    "Unexpected ONNX model SHA-256 at ${MODEL_ONNX}: expected ${EXPECTED_MODEL_ONNX_SHA256}, got ${MODEL_ONNX_SHA256}")
+endif()
+
+message(STATUS
+  "Bundling verified ONNX model: ${MODEL_ONNX} (${MODEL_ONNX_SIZE} bytes, SHA-256 ${MODEL_ONNX_SHA256})")
+
+# A TARGET POST_BUILD command only runs when the binary is rebuilt. These
+# per-format ALL targets also refresh the model after a model-only change.
+foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AU ${PROJECT_NAME}_AAX)
+  if(TARGET ${_fmt_target})
+    set(_bundle_model_target "${_fmt_target}_BundleModel")
+    add_custom_target(${_bundle_model_target} ALL
+      COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
+      COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
+      COMMENT "Bundling verified ONNX model into ${_fmt_target}"
+      VERBATIM
+    )
+    add_dependencies(${_bundle_model_target} ${_fmt_target})
+  endif()
+endforeach()
 
 # Enables strict C++ warnings and treats warnings as errors.
 # This needs to be set up only for your projects, not 3rd party

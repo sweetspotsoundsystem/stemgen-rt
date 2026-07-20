@@ -1,418 +1,349 @@
 #include <StemgenRT/Constants.h>
+#include <StemgenRT/OnnxRuntime.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <memory>
-#include <random>
+#include <numeric>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include <juce_core/juce_core.h>
 
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-#if __has_include(<onnxruntime_c_api.h>)
-#include <onnxruntime_c_api.h>
-#elif __has_include(<onnxruntime/core/session/onnxruntime_c_api.h>)
-#include <onnxruntime/core/session/onnxruntime_c_api.h>
-#else
-#error "ONNX Runtime headers not found. Ensure include paths are set."
-#endif
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
 #endif
 
 namespace {
 
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 
-const OrtApiBase* ortApiBase() noexcept {
-  return OrtGetApiBase();
-}
-
-const OrtApi* ortApi() noexcept {
-  const OrtApiBase* base = ortApiBase();
-  return (base != nullptr) ? base->GetApi(ORT_API_VERSION) : nullptr;
-}
-
-struct OrtEnvDeleter {
-  void operator()(OrtEnv* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = ortApi();
-    if (api == nullptr) return;
-    api->ReleaseEnv(p);
-  }
-};
-
-struct OrtSessionOptionsDeleter {
-  void operator()(OrtSessionOptions* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = ortApi();
-    if (api == nullptr) return;
-    api->ReleaseSessionOptions(p);
-  }
-};
-
-struct OrtSessionDeleter {
-  void operator()(OrtSession* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = ortApi();
-    if (api == nullptr) return;
-    api->ReleaseSession(p);
-  }
-};
-
-struct OrtMemoryInfoDeleter {
-  void operator()(OrtMemoryInfo* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = ortApi();
-    if (api == nullptr) return;
-    api->ReleaseMemoryInfo(p);
-  }
-};
-
-struct OrtValueDeleter {
-  void operator()(OrtValue* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = ortApi();
-    if (api == nullptr) return;
-    api->ReleaseValue(p);
-  }
-};
-
-using OrtEnvPtr = std::unique_ptr<OrtEnv, OrtEnvDeleter>;
-using OrtSessionOptionsPtr =
-    std::unique_ptr<OrtSessionOptions, OrtSessionOptionsDeleter>;
-using OrtSessionPtr = std::unique_ptr<OrtSession, OrtSessionDeleter>;
-using OrtMemoryInfoPtr = std::unique_ptr<OrtMemoryInfo, OrtMemoryInfoDeleter>;
-using OrtValuePtr = std::unique_ptr<OrtValue, OrtValueDeleter>;
-
-bool ortCheckOk(const OrtApi* api, OrtStatus* status, const char* what) {
-  if (status == nullptr) return true;
-  const char* msg = (api != nullptr) ? api->GetErrorMessage(status) : nullptr;
-  const std::string msgStr = (msg != nullptr) ? msg : "unknown";
-  if (api != nullptr) api->ReleaseStatus(status);
-  ADD_FAILURE() << "[ORT] " << what << " failed: " << msgStr;
-  return false;
-}
-
-double percentileFromSorted(const std::vector<double>& sorted, double pct) {
-  if (sorted.empty()) return 0.0;
-  if (pct <= 0.0) return sorted.front();
-  if (pct >= 1.0) return sorted.back();
-
-  const double idx = pct * static_cast<double>(sorted.size() - 1);
-  const size_t lo = static_cast<size_t>(std::floor(idx));
-  const size_t hi = static_cast<size_t>(std::ceil(idx));
-  const double frac = idx - static_cast<double>(lo);
-  if (hi <= lo) return sorted[lo];
-  return sorted[lo] * (1.0 - frac) + sorted[hi] * frac;
-}
+using AudioChunk =
+    std::array<std::vector<float>, audio_plugin::kNumChannels>;
+using SeparatedChunk = std::array<
+    std::array<std::vector<float>, audio_plugin::kNumChannels>,
+    audio_plugin::kNumStems>;
 
 juce::File resolveModelPathForTestBinary() {
   // Keep in sync with PluginProcessor::prepareToPlay() model lookup contract.
-  const juce::File exe =
+  const juce::File executable =
       juce::File::getSpecialLocation(juce::File::currentExecutableFile);
-  return exe.getParentDirectory()
+  return executable.getParentDirectory()
       .getParentDirectory()
       .getChildFile("Resources/model.onnx");
 }
 
-#endif  // STEMGENRT_USE_ONNXRUNTIME
+bool prepareRuntime(audio_plugin::OnnxRuntime& runtime,
+                    std::string& failureMessage) {
+  if (!runtime.isInitialized()) {
+    failureMessage = "ONNX Runtime did not initialize";
+    return false;
+  }
+
+  const juce::File modelFile = resolveModelPathForTestBinary();
+  if (!modelFile.existsAsFile()) {
+    failureMessage =
+        "Model file not found: " + modelFile.getFullPathName().toStdString();
+    return false;
+  }
+
+  juce::String loadError;
+  if (!runtime.loadModel(modelFile.getFullPathName(), loadError)) {
+    failureMessage = "Model load failed: " + loadError.toStdString();
+    return false;
+  }
+
+  runtime.prepareForInference();
+  return true;
+}
+
+AudioChunk makeAudioChunk(std::int64_t firstSample) {
+  AudioChunk chunk;
+  for (auto& channel : chunk) {
+    channel.resize(static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  }
+
+  constexpr double kTwoPi = 6.28318530717958647692;
+  constexpr double kSampleRate =
+      static_cast<double>(audio_plugin::kModelSampleRate);
+  for (int i = 0; i < audio_plugin::kOutputChunkSize; ++i) {
+    const double sample = static_cast<double>(firstSample + i);
+    const double time = sample / kSampleRate;
+    chunk[0][static_cast<size_t>(i)] = static_cast<float>(
+        0.17 * std::sin(kTwoPi * 173.0 * time) +
+        0.09 * std::cos(kTwoPi * 997.0 * time));
+    chunk[1][static_cast<size_t>(i)] = static_cast<float>(
+        -0.13 * std::cos(kTwoPi * 251.0 * time) +
+        0.07 * std::sin(kTwoPi * 1301.0 * time));
+  }
+  return chunk;
+}
+
+AudioChunk makeZeroAudioChunk() {
+  AudioChunk chunk;
+  for (auto& channel : chunk) {
+    channel.assign(static_cast<size_t>(audio_plugin::kOutputChunkSize),
+                   0.0f);
+  }
+  return chunk;
+}
+
+SeparatedChunk makeSeparatedChunk() {
+  SeparatedChunk chunk;
+  for (auto& stem : chunk) {
+    for (auto& channel : stem) {
+      channel.resize(static_cast<size_t>(audio_plugin::kOutputChunkSize));
+    }
+  }
+  return chunk;
+}
+
+float maxAbsoluteValue(const AudioChunk& chunk) {
+  float maximum = 0.0f;
+  for (const auto& channel : chunk) {
+    for (const float value : channel) {
+      maximum = std::max(maximum, std::abs(value));
+    }
+  }
+  return maximum;
+}
+
+float maxAbsoluteValue(const SeparatedChunk& chunk) {
+  float maximum = 0.0f;
+  for (const auto& stem : chunk) {
+    for (const auto& channel : stem) {
+      for (const float value : channel) {
+        maximum = std::max(maximum, std::abs(value));
+      }
+    }
+  }
+  return maximum;
+}
+
+float maxChunkDifference(const AudioChunk& lhs, const AudioChunk& rhs) {
+  float maximum = 0.0f;
+  for (size_t ch = 0; ch < lhs.size(); ++ch) {
+    EXPECT_EQ(lhs[ch].size(), rhs[ch].size());
+    const size_t count = std::min(lhs[ch].size(), rhs[ch].size());
+    for (size_t i = 0; i < count; ++i) {
+      maximum = std::max(maximum, std::abs(lhs[ch][i] - rhs[ch][i]));
+    }
+  }
+  return maximum;
+}
+
+float maxChunkDifference(const SeparatedChunk& lhs,
+                         const SeparatedChunk& rhs) {
+  float maximum = 0.0f;
+  for (size_t stem = 0; stem < lhs.size(); ++stem) {
+    for (size_t ch = 0; ch < lhs[stem].size(); ++ch) {
+      EXPECT_EQ(lhs[stem][ch].size(), rhs[stem][ch].size());
+      const size_t count =
+          std::min(lhs[stem][ch].size(), rhs[stem][ch].size());
+      for (size_t i = 0; i < count; ++i) {
+        maximum = std::max(
+            maximum, std::abs(lhs[stem][ch][i] - rhs[stem][ch][i]));
+      }
+    }
+  }
+  return maximum;
+}
+
+float maxMixtureReconstructionError(const SeparatedChunk& separated,
+                                    const AudioChunk& alignedInput) {
+  float maximum = 0.0f;
+  for (size_t ch = 0; ch < alignedInput.size(); ++ch) {
+    for (size_t i = 0; i < alignedInput[ch].size(); ++i) {
+      float reconstructed = 0.0f;
+      for (size_t stem = 0; stem < separated.size(); ++stem) {
+        reconstructed += separated[stem][ch][i];
+      }
+      maximum = std::max(
+          maximum, std::abs(reconstructed - alignedInput[ch][i]));
+    }
+  }
+  return maximum;
+}
+
+double percentileFromSorted(const std::vector<double>& sorted,
+                            double percentile) {
+  if (sorted.empty()) return 0.0;
+  const double position =
+      percentile * static_cast<double>(sorted.size() - 1);
+  const size_t lower = static_cast<size_t>(std::floor(position));
+  const size_t upper = static_cast<size_t>(std::ceil(position));
+  const double fraction = position - static_cast<double>(lower);
+  return sorted[lower] * (1.0 - fraction) + sorted[upper] * fraction;
+}
+
+#endif
 
 }  // namespace
 
-TEST(OrtRunBenchmarkTest, DISABLED_BenchmarkOrtRunPerChunk) {
+TEST(OrtStreamingRuntimeTest,
+     StatefulSequenceHonorsPrerollFlushResetAndMixtureSum) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
-  const OrtApiBase* base = ortApiBase();
-  ASSERT_NE(base, nullptr) << "OrtGetApiBase returned null";
-  const OrtApi* api = ortApi();
-  ASSERT_NE(api, nullptr) << "Failed to get OrtApi";
+  audio_plugin::OnnxRuntime runtime;
+  std::string failureMessage;
+  ASSERT_TRUE(prepareRuntime(runtime, failureMessage)) << failureMessage;
 
-  const juce::File modelFile = resolveModelPathForTestBinary();
-  ASSERT_TRUE(modelFile.existsAsFile())
-      << "Model file not found: " << modelFile.getFullPathName();
+  const AudioChunk first = makeAudioChunk(0);
+  const AudioChunk second =
+      makeAudioChunk(audio_plugin::kOutputChunkSize);
+  const AudioChunk zero = makeZeroAudioChunk();
+  SeparatedChunk separated = makeSeparatedChunk();
+  AudioChunk alignedInput = makeZeroAudioChunk();
+  bool outputValid = true;
 
-  OrtEnv* rawEnv = nullptr;
-  if (!ortCheckOk(api,
-                  api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "StemgenRTBench",
-                                 &rawEnv),
-                  "CreateEnv")) {
-    return;
-  }
-  OrtEnvPtr env(rawEnv);
+  ASSERT_TRUE(
+      runtime.runInference(first, separated, alignedInput, outputValid));
+  EXPECT_FALSE(outputValid);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(separated), 0.0f);
 
-  OrtSessionOptions* rawSessionOptions = nullptr;
-  if (!ortCheckOk(api, api->CreateSessionOptions(&rawSessionOptions),
-                  "CreateSessionOptions")) {
-    return;
-  }
-  OrtSessionOptionsPtr sessionOptions(rawSessionOptions);
+  ASSERT_TRUE(
+      runtime.runInference(second, separated, alignedInput, outputValid));
+  ASSERT_TRUE(outputValid);
+  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
+  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
+  const SeparatedChunk firstResult = separated;
 
-  // Match plugin defaults as closely as possible.
-  (void)ortCheckOk(api,
-                   api->SetSessionGraphOptimizationLevel(rawSessionOptions,
-                                                        ORT_ENABLE_ALL),
-                   "SetSessionGraphOptimizationLevel");
+  // A single zero hop flushes the second real input hop.
+  ASSERT_TRUE(runtime.runInference(zero, separated, alignedInput, outputValid));
+  ASSERT_TRUE(outputValid);
+  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
+  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
 
-  const int numHardwareThreads =
-      static_cast<int>(std::thread::hardware_concurrency());
-  const int numIntraOpThreads =
-      std::min(std::max(numHardwareThreads / 2, 2), 4);
-  (void)ortCheckOk(api,
-                   api->SetIntraOpNumThreads(rawSessionOptions,
-                                             numIntraOpThreads),
-                   "SetIntraOpNumThreads");
-  (void)ortCheckOk(api, api->SetInterOpNumThreads(rawSessionOptions, 1),
-                   "SetInterOpNumThreads");
+  runtime.resetStreamingState();
 
-  // Try to match plugin execution provider selection (TensorRT -> CUDA -> CPU).
-  bool gpuEnabled = false;
-  std::string executionProvider = "CPU";
+  ASSERT_TRUE(
+      runtime.runInference(first, separated, alignedInput, outputValid));
+  EXPECT_FALSE(outputValid);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(separated), 0.0f);
 
-  // Priority 1: TensorRT
-  {
-    OrtTensorRTProviderOptionsV2* trtOptions = nullptr;
-    OrtStatus* status = api->CreateTensorRTProviderOptions(&trtOptions);
-    if (status == nullptr && trtOptions != nullptr) {
-      const char* trtKeys[] = {"device_id", "trt_fp16_enable",
-                               "trt_builder_optimization_level",
-                               "trt_engine_cache_enable"};
-      const char* trtValues[] = {"0", "1", "3", "1"};
-
-      OrtStatus* updateStatus = api->UpdateTensorRTProviderOptions(
-          trtOptions, trtKeys, trtValues, 4);
-      if (updateStatus != nullptr) {
-        api->ReleaseStatus(updateStatus);
-        updateStatus = nullptr;
-      }
-
-      OrtStatus* appendStatus =
-          api->SessionOptionsAppendExecutionProvider_TensorRT_V2(
-              rawSessionOptions, trtOptions);
-      if (appendStatus == nullptr) {
-        gpuEnabled = true;
-        executionProvider = "TensorRT";
-      } else {
-        api->ReleaseStatus(appendStatus);
-        appendStatus = nullptr;
-      }
-
-      api->ReleaseTensorRTProviderOptions(trtOptions);
-    } else {
-      if (status != nullptr) {
-        api->ReleaseStatus(status);
-        status = nullptr;
-      }
-    }
-  }
-
-  // Priority 2: CUDA
-  if (!gpuEnabled) {
-    OrtCUDAProviderOptionsV2* cudaOptions = nullptr;
-    OrtStatus* status = api->CreateCUDAProviderOptions(&cudaOptions);
-    if (status == nullptr && cudaOptions != nullptr) {
-      const char* keys[] = {"device_id", "arena_extend_strategy",
-                            "cudnn_conv_algo_search",
-                            "cudnn_conv_use_max_workspace",
-                            "do_copy_in_default_stream"};
-      const char* values[] = {"0", "kSameAsRequested", "EXHAUSTIVE", "1", "1"};
-
-      OrtStatus* updateStatus =
-          api->UpdateCUDAProviderOptions(cudaOptions, keys, values, 5);
-      if (updateStatus != nullptr) {
-        api->ReleaseStatus(updateStatus);
-        updateStatus = nullptr;
-      }
-
-      OrtStatus* appendStatus =
-          api->SessionOptionsAppendExecutionProvider_CUDA_V2(
-              rawSessionOptions, cudaOptions);
-      if (appendStatus == nullptr) {
-        gpuEnabled = true;
-        executionProvider = "CUDA";
-      } else {
-        api->ReleaseStatus(appendStatus);
-        appendStatus = nullptr;
-      }
-
-      api->ReleaseCUDAProviderOptions(cudaOptions);
-    } else {
-      if (status != nullptr) {
-        api->ReleaseStatus(status);
-        status = nullptr;
-      }
-    }
-  }
-
-  OrtSession* rawSession = nullptr;
-  {
-    const juce::String modelPath = modelFile.getFullPathName();
-#ifdef _WIN32
-    std::wstring wideModelPath(modelPath.toWideCharPointer());
-    if (!ortCheckOk(api,
-                    api->CreateSession(env.get(), wideModelPath.c_str(),
-                                       rawSessionOptions, &rawSession),
-                    "CreateSession")) {
-      return;
-    }
-#else
-    if (!ortCheckOk(api,
-                    api->CreateSession(env.get(), modelPath.toRawUTF8(),
-                                       rawSessionOptions, &rawSession),
-                    "CreateSession")) {
-      return;
-    }
+  ASSERT_TRUE(
+      runtime.runInference(second, separated, alignedInput, outputValid));
+  ASSERT_TRUE(outputValid);
+  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
+  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
+  EXPECT_LE(maxChunkDifference(separated, firstResult), 2.0e-5f);
 #endif
+}
+
+TEST(OrtStreamingRuntimeTest,
+     UsesBundledRuntimeWhenASystemOrtIsAlreadyLoaded) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#elif !defined(_WIN32)
+  GTEST_SKIP() << "Windows DLL-isolation test";
+#else
+  // Some Windows installations expose an older onnxruntime.dll in System32.
+  // Preload it deliberately, then require StemgenRT to resolve the exact DLL
+  // bundled beside this test binary instead of reusing the process-global one.
+  wchar_t systemDirectory[MAX_PATH] = {};
+  const UINT directoryLength =
+      GetSystemDirectoryW(systemDirectory, MAX_PATH);
+  HMODULE competingOrt = nullptr;
+  if (directoryLength > 0 && directoryLength < MAX_PATH) {
+    std::wstring systemOrtPath(systemDirectory, directoryLength);
+    systemOrtPath += L"\\onnxruntime.dll";
+    competingOrt = LoadLibraryW(systemOrtPath.c_str());
   }
-  OrtSessionPtr session(rawSession);
 
-  OrtMemoryInfo* rawMemoryInfo = nullptr;
-  if (!ortCheckOk(api,
-                  api->CreateCpuMemoryInfo(OrtArenaAllocator,
-                                           OrtMemTypeDefault, &rawMemoryInfo),
-                  "CreateCpuMemoryInfo")) {
-    return;
+  {
+    audio_plugin::OnnxRuntime runtime;
+    std::string failureMessage;
+    ASSERT_TRUE(prepareRuntime(runtime, failureMessage)) << failureMessage;
+    EXPECT_EQ(runtime.getRuntimeVersion(), "1.26.0");
+    EXPECT_EQ(runtime.getExecutionProvider(), "CPU");
   }
-  OrtMemoryInfoPtr memoryInfo(rawMemoryInfo);
 
-  // Build a fixed input tensor (1, 2, kInternalChunkSize).
-  std::vector<float> audioInput(
-      static_cast<size_t>(audio_plugin::kNumChannels *
-                          audio_plugin::kInternalChunkSize));
-  std::mt19937 rng(42);
-  std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-  for (float& v : audioInput) v = dist(rng);
-
-  const std::int64_t dims[3] = {
-      1, static_cast<std::int64_t>(audio_plugin::kNumChannels),
-      static_cast<std::int64_t>(audio_plugin::kInternalChunkSize)};
-
-  OrtValue* rawInputTensor = nullptr;
-  if (!ortCheckOk(
-          api,
-          api->CreateTensorWithDataAsOrtValue(
-              memoryInfo.get(), audioInput.data(),
-              audioInput.size() * sizeof(float), dims, 3,
-              ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &rawInputTensor),
-          "CreateTensorWithDataAsOrtValue")) {
-    return;
+  if (competingOrt != nullptr) {
+    FreeLibrary(competingOrt);
   }
-  OrtValuePtr inputTensor(rawInputTensor);
+#endif
+}
 
-  const char* inputNames[1] = {"audio"};
-  const char* outputNames[1] = {"separated"};
-  const OrtValue* inputValues[1] = {inputTensor.get()};
+TEST(OrtStreamingRuntimeTest, DISABLED_BenchmarkStatefulCpuPerHop) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#else
+  audio_plugin::OnnxRuntime runtime;
+  std::string failureMessage;
+  ASSERT_TRUE(prepareRuntime(runtime, failureMessage)) << failureMessage;
+  if (runtime.getExecutionProvider() != "CPU") {
+    GTEST_SKIP() << "CPU timing requested; active provider is "
+                 << runtime.getExecutionProvider();
+  }
 
-  constexpr int kWarmupIters = 10;
-  constexpr int kIters = 100;
-  std::vector<double> runMs;
-  runMs.reserve(static_cast<size_t>(kIters));
+  SeparatedChunk separated = makeSeparatedChunk();
+  AudioChunk alignedInput = makeZeroAudioChunk();
+  bool outputValid = false;
 
-  for (int i = 0; i < kWarmupIters + kIters; ++i) {
-    OrtValue* outputTensor = nullptr;
+  constexpr int kWarmupIterations = 5;
+  constexpr int kMeasureIterations = 500;
+  const AudioChunk preroll = makeAudioChunk(0);
+  ASSERT_TRUE(
+      runtime.runInference(preroll, separated, alignedInput, outputValid));
+  ASSERT_FALSE(outputValid);
 
-    const auto t0 = std::chrono::steady_clock::now();
-    OrtStatus* status = api->Run(session.get(), nullptr, inputNames, inputValues,
-                                 1, outputNames, 1, &outputTensor);
-    const auto t1 = std::chrono::steady_clock::now();
+  std::vector<double> runMilliseconds;
+  runMilliseconds.reserve(static_cast<size_t>(kMeasureIterations));
+  for (int iteration = 0;
+       iteration < kWarmupIterations + kMeasureIterations; ++iteration) {
+    const AudioChunk input = makeAudioChunk(
+        static_cast<std::int64_t>(iteration + 1) *
+        audio_plugin::kOutputChunkSize);
+    const auto begin = std::chrono::steady_clock::now();
+    ASSERT_TRUE(
+        runtime.runInference(input, separated, alignedInput, outputValid));
+    const auto end = std::chrono::steady_clock::now();
+    ASSERT_TRUE(outputValid);
+    ASSERT_LE(maxMixtureReconstructionError(separated, alignedInput),
+              1.0e-6f);
 
-    if (!ortCheckOk(api, status, "Run")) {
-      if (outputTensor != nullptr) api->ReleaseValue(outputTensor);
-      return;
-    }
-
-    if (i == 0 && outputTensor != nullptr) {
-      OrtTensorTypeAndShapeInfo* shapeInfo = nullptr;
-      OrtStatus* shapeStatus = api->GetTensorTypeAndShape(outputTensor, &shapeInfo);
-      if (shapeStatus == nullptr && shapeInfo != nullptr) {
-        size_t numDims = 0;
-        if (api->GetDimensionsCount(shapeInfo, &numDims) == nullptr &&
-            numDims > 0 && numDims < 16) {
-          std::vector<std::int64_t> outDims(numDims);
-          if (api->GetDimensions(shapeInfo, outDims.data(), numDims) == nullptr) {
-            std::cerr << "  Output shape: (";
-            for (size_t d = 0; d < numDims; ++d) {
-              std::cerr << outDims[d];
-              if (d + 1 < numDims) std::cerr << ", ";
-            }
-            std::cerr << ")\n";
-          }
-        }
-        api->ReleaseTensorTypeAndShapeInfo(shapeInfo);
-      } else {
-        if (shapeStatus != nullptr) {
-          api->ReleaseStatus(shapeStatus);
-          shapeStatus = nullptr;
-        }
-        if (shapeInfo != nullptr) {
-          api->ReleaseTensorTypeAndShapeInfo(shapeInfo);
-          shapeInfo = nullptr;
-        }
-      }
-    }
-
-    if (outputTensor != nullptr) api->ReleaseValue(outputTensor);
-
-    if (i >= kWarmupIters) {
-      const std::chrono::duration<double, std::milli> dt = t1 - t0;
-      runMs.push_back(dt.count());
+    if (iteration >= kWarmupIterations) {
+      runMilliseconds.push_back(
+          std::chrono::duration<double, std::milli>(end - begin).count());
     }
   }
 
-  ASSERT_EQ(runMs.size(), static_cast<size_t>(kIters));
+  ASSERT_EQ(runMilliseconds.size(),
+            static_cast<size_t>(kMeasureIterations));
+  std::sort(runMilliseconds.begin(), runMilliseconds.end());
+  const double mean =
+      std::accumulate(runMilliseconds.begin(), runMilliseconds.end(), 0.0) /
+      static_cast<double>(runMilliseconds.size());
+  const double hopBudgetMilliseconds =
+      1000.0 * static_cast<double>(audio_plugin::kOutputChunkSize) /
+      static_cast<double>(audio_plugin::kModelSampleRate);
+  const auto deadlineMisses = static_cast<size_t>(std::count_if(
+      runMilliseconds.begin(), runMilliseconds.end(),
+      [hopBudgetMilliseconds](double run) {
+        return run > hopBudgetMilliseconds;
+      }));
 
-  const auto minmax = std::minmax_element(runMs.begin(), runMs.end());
-  double sum = 0.0;
-  for (double v : runMs) sum += v;
-  const double mean = sum / static_cast<double>(runMs.size());
+  std::cerr << "\nStateful CPU hop timing (ORT "
+            << runtime.getRuntimeVersion() << "): mean=" << mean
+            << " ms, p50=" << percentileFromSorted(runMilliseconds, 0.50)
+            << " ms, p95=" << percentileFromSorted(runMilliseconds, 0.95)
+            << " ms, p99=" << percentileFromSorted(runMilliseconds, 0.99)
+            << " ms, max=" << runMilliseconds.back()
+            << " ms, hop budget=" << hopBudgetMilliseconds
+            << " ms, deadline misses=" << deadlineMisses << "/"
+            << runMilliseconds.size() << "\n";
 
-  std::vector<double> sorted = runMs;
-  std::sort(sorted.begin(), sorted.end());
-  const double p50 = percentileFromSorted(sorted, 0.50);
-  const double p90 = percentileFromSorted(sorted, 0.90);
-  const double p95 = percentileFromSorted(sorted, 0.95);
-  const double p99 = percentileFromSorted(sorted, 0.99);
-
-  const double chunkMs441 =
-      (static_cast<double>(audio_plugin::kOutputChunkSize) / 44100.0) * 1000.0;
-  const double chunkMs480 =
-      (static_cast<double>(audio_plugin::kOutputChunkSize) / 48000.0) * 1000.0;
-
-  std::cerr << "\n";
-  std::cerr << "====================================================================\n";
-  std::cerr << "  ORT RUN BENCHMARK (per chunk)\n";
-  std::cerr << "====================================================================\n";
-  std::cerr << "  Model: " << modelFile.getFullPathName() << "\n";
-  std::cerr << "  ORT version: " << base->GetVersionString() << "\n";
-  std::cerr << "  Graph optimization: ORT_ENABLE_ALL\n";
-  std::cerr << "  Threads: intra=" << numIntraOpThreads
-            << " inter=1 (hw=" << numHardwareThreads << ")\n";
-  std::cerr << "  Execution provider: " << executionProvider << "\n";
-  std::cerr << "  Input shape: (1, " << audio_plugin::kNumChannels << ", "
-            << audio_plugin::kInternalChunkSize << ")\n";
-  std::cerr << "  Chunk: " << audio_plugin::kOutputChunkSize << " samples"
-            << " (11.6ms @ 44.1k, 10.7ms @ 48k)\n";
-  std::cerr << "  Chunk duration: " << chunkMs441 << "ms @ 44.1kHz, " << chunkMs480
-            << "ms @ 48kHz\n";
-  std::cerr << "  Warmup: " << kWarmupIters << " iters\n";
-  std::cerr << "  Measure: " << kIters << " iters\n";
-  std::cerr << "--------------------------------------------------------------------\n";
-  std::cerr << "  Run time (OrtApi::Run):\n";
-  std::cerr << "    mean=" << mean << " ms\n";
-  std::cerr << "    min =" << *minmax.first << " ms\n";
-  std::cerr << "    p50 =" << p50 << " ms\n";
-  std::cerr << "    p90 =" << p90 << " ms\n";
-  std::cerr << "    p95 =" << p95 << " ms\n";
-  std::cerr << "    p99 =" << p99 << " ms\n";
-  std::cerr << "    max =" << *minmax.second << " ms\n";
-  std::cerr << "--------------------------------------------------------------------\n";
-  std::cerr << "  Real-time ratio (mean): " << (mean / chunkMs441) << "x of chunk @ 44.1kHz\n";
-  std::cerr << "====================================================================\n\n";
-
+  EXPECT_GT(mean, 0.0);
+  EXPECT_LT(percentileFromSorted(runMilliseconds, 0.95),
+            hopBudgetMilliseconds);
 #endif
 }

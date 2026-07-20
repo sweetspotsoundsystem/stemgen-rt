@@ -9,16 +9,10 @@
 #include <atomic>
 #include <cstdint>
 #include "Constants.h"
-#include "Crossover.h"
 #include "InferenceQueue.h"
-#include "InputNormalizer.h"
 #include "OnnxRuntime.h"
 #include "OutputWriter.h"
 #include "OverlapAddProcessor.h"
-#include "SoftGate.h"
-#include "StemPostProcessor.h"
-#include "VocalsGate.h"
-#include "LowBandStabilizer.h"
 
 namespace audio_plugin {
 
@@ -32,7 +26,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // This accounts for input accumulation, inference queue depth, and output buffering.
+  // This accounts for one asynchronous collection hop and the graph's
+  // previous-hop output alignment.
   int getLatencySamples() const;
   
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -85,40 +80,33 @@ public:
 
 private:
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  // ONNX Runtime wrapper (handles environment, session, GPU providers, and inference)
+  // ONNX Runtime wrapper (handles the CPU session and persistent graph state)
   std::unique_ptr<OnnxRuntime> onnxRuntime_;
   juce::String modelLoadError_;  // Stores the last model loading error for display
+  bool sampleRateSupported_{false};
 
-  // Overlap-add processor (manages all streaming buffers)
+  // Streaming buffer owner. Overlap-add itself is inside the ONNX graph.
   OverlapAddProcessor overlapAdd_;
 
-  // Output writer (handles crossfade between separated and dry signal)
+  // Output writer (handles latency-aligned fallback and exact residual routing)
   OutputWriter outputWriter_;
-
-  // Vocals gate with smoothing
-  VocalsGate vocalsGate_;
-
-  // Stabilizes low-frequency stem content using dry-signal-constrained redistribution.
-  LowBandStabilizer lowBandStabilizer_;
 
   // Background inference queue (handles thread, requests, and epoch tracking)
   InferenceQueue inferenceQueue_;
 
-  // Chunk sequence tracking for contiguous-only boundary crossfades.
+  // Monotonic input sequence lets the worker detect dropped chunks and reset
+  // recurrent model state instead of bridging a discontinuity.
   uint64_t nextInputChunkSequence_{0};
-  uint64_t lastOutputChunkSequence_{0};
-  bool hasLastOutputChunkSequence_{false};
-
-  // LR4 crossover for low-frequency bypass (splits input into LP + HP)
-  Crossover crossover_;
 
   // Internal methods
-  void allocateStreamingBuffers();  // Allocate streaming buffers
-  void resetStreamingBuffersRT();  // RT-safe reset (O(1), no memory operations)
+  void allocateStreamingBuffers(int maximumHostBlockSize);
+  void resetStreamingBuffersRT();
 #endif
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};
+  bool hasExpectedPlayheadPosition_{false};
+  int64_t expectedPlayheadPosition_{0};
 
   std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
   std::atomic<uint64_t> totalUnderrunSamples_{0};

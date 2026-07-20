@@ -9,9 +9,9 @@ namespace audio_plugin {
 
 class OverlapAddProcessor;
 
-// Handles writing separated stems to output buses with crossfade support.
-// Manages the crossfade between separated audio and dry fallback signal
-// during underrun conditions.
+// Writes the stateful graph output to native plugin buses, crossfades to a
+// latency-aligned fail-safe signal on underruns, and routes the final residual
+// to Other so the four stems sum exactly to Main.
 class OutputWriter {
 public:
     OutputWriter() = default;

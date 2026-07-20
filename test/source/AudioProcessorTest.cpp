@@ -52,8 +52,10 @@ TEST_F(AudioProcessorTest, IsMidiEffect) {
 }
 
 TEST_F(AudioProcessorTest, GetTailLengthSeconds) {
-  // No tail (reverb, delay, etc.)
-  EXPECT_EQ(processor->getTailLengthSeconds(), 0.0);
+  const double expected =
+      static_cast<double>(audio_plugin::kPluginLatencySamples) /
+      static_cast<double>(audio_plugin::kModelSampleRate);
+  EXPECT_DOUBLE_EQ(processor->getTailLengthSeconds(), expected);
 }
 
 TEST_F(AudioProcessorTest, HasEditor) {
@@ -189,7 +191,7 @@ TEST_F(AudioProcessorTest, LatencyMsCalculation) {
 
 TEST_F(AudioProcessorTest, PassthroughWhenNoModel) {
   // When prepareToPlay hasn't been called, the model isn't loaded,
-  // and the plugin should pass input audio through to outputs.
+  // and the plugin must preserve the input and exact stem sum safely.
   
   // Note: We intentionally do NOT call prepareToPlay() here.
   // The AudioProcessorTest fixture only creates the processor.
@@ -221,25 +223,40 @@ TEST_F(AudioProcessorTest, PassthroughWhenNoModel) {
   juce::MidiBuffer midiBuffer;
   processor->processBlock(buffer, midiBuffer);
   
-  // Without model loaded, input should be copied to all output buses.
-  // Use getBusBuffer to get the correct channel mapping (same as processor does).
+  // Without a qualified model, Main and Other carry the mixture while Drums,
+  // Bass, and Vocals are zero. This preserves the reconstruction invariant
+  // without pretending that a separation occurred.
   const int numOutputBuses = processor->getBusCount(false /* isInput */);
-  ASSERT_GT(numOutputBuses, 0) << "Expected at least one output bus";
+  ASSERT_EQ(numOutputBuses, 5);
   
   for (int busIdx = 0; busIdx < numOutputBuses; ++busIdx) {
     auto outputBus = processor->getBusBuffer(buffer, false /* isInput */, busIdx);
     const int busChannels = outputBus.getNumChannels();
-    
-    // Each output bus should have the input copied to it
+    const bool carriesMixture = (busIdx == 0 || busIdx == 3);
+
     for (int ch = 0; ch < std::min(2, busChannels); ++ch) {
-      const float* expected = (ch == 0) ? inputL.data() : inputR.data();
+      const float* input = (ch == 0) ? inputL.data() : inputR.data();
       const float* actual = outputBus.getReadPointer(ch);
       
       for (int i = 0; i < numSamples; ++i) {
-        EXPECT_NEAR(actual[i], expected[i], 1e-6f)
+        const float expected = carriesMixture ? input[i] : 0.0f;
+        EXPECT_FLOAT_EQ(actual[i], expected)
             << "Output bus " << busIdx << " channel " << ch 
             << " mismatch at sample " << i;
       }
+    }
+  }
+
+  for (int ch = 0; ch < 2; ++ch) {
+    const auto main = processor->getBusBuffer(buffer, false, 0);
+    const auto drums = processor->getBusBuffer(buffer, false, 1);
+    const auto bass = processor->getBusBuffer(buffer, false, 2);
+    const auto other = processor->getBusBuffer(buffer, false, 3);
+    const auto vocals = processor->getBusBuffer(buffer, false, 4);
+    for (int i = 0; i < numSamples; ++i) {
+      EXPECT_FLOAT_EQ(main.getSample(ch, i),
+                      drums.getSample(ch, i) + bass.getSample(ch, i) +
+                          other.getSample(ch, i) + vocals.getSample(ch, i));
     }
   }
 }
@@ -488,36 +505,56 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
   }
 }
 
-TEST_F(ProcessBlockTest, MainBusIsDryPassthroughWithLoadedModel) {
-  auto buffer = createBuffer(512);
-  buffer.clear();
+TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
   juce::MidiBuffer midiBuffer;
 
-  auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
-  auto mainBus = processor->getBusBuffer(buffer, false /* isInput */, 0);
+  std::vector<float> firstInputL(static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  std::vector<float> firstInputR(static_cast<size_t>(audio_plugin::kOutputChunkSize));
 
-  std::vector<float> inputL(static_cast<size_t>(buffer.getNumSamples()));
-  std::vector<float> inputR(static_cast<size_t>(buffer.getNumSamples()));
-  for (int i = 0; i < buffer.getNumSamples(); ++i) {
-    float sampleL = 0.8f * std::sin(2.0f * 3.14159f * 440.0f *
-                                    static_cast<float>(i) / 44100.0f);
-    float sampleR = 0.5f * std::sin(2.0f * 3.14159f * 220.0f *
-                                    static_cast<float>(i) / 44100.0f);
-    inputBus.setSample(0, i, sampleL);
-    inputBus.setSample(1, i, sampleR);
-    inputL[static_cast<size_t>(i)] = sampleL;
-    inputR[static_cast<size_t>(i)] = sampleR;
-  }
+  for (int block = 0; block < audio_plugin::kPluginLatencyChunks + 1; ++block) {
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
 
-  processor->processBlock(buffer, midiBuffer);
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      const float sampleL =
+          0.8f * std::sin(2.0f * 3.14159f * 440.0f *
+                          static_cast<float>(i + block * 17) / 44100.0f);
+      const float sampleR =
+          0.5f * std::sin(2.0f * 3.14159f * 220.0f *
+                          static_cast<float>(i + block * 29) / 44100.0f);
+      inputBus.setSample(0, i, sampleL);
+      inputBus.setSample(1, i, sampleR);
+      if (block == 0) {
+        firstInputL[static_cast<size_t>(i)] = sampleL;
+        firstInputR[static_cast<size_t>(i)] = sampleR;
+      }
+    }
 
-  const int channelsToCheck = std::min(2, mainBus.getNumChannels());
-  ASSERT_EQ(channelsToCheck, 2);
-  for (int i = 0; i < buffer.getNumSamples(); ++i) {
-    EXPECT_NEAR(mainBus.getSample(0, i), inputL[static_cast<size_t>(i)], 1e-6f)
-        << "Main L diverged from dry input at sample " << i;
-    EXPECT_NEAR(mainBus.getSample(1, i), inputR[static_cast<size_t>(i)], 1e-6f)
-        << "Main R diverged from dry input at sample " << i;
+    processor->processBlock(buffer, midiBuffer);
+    const auto mainBus = processor->getBusBuffer(buffer, false /* isInput */, 0);
+    const auto drumsBus = processor->getBusBuffer(buffer, false, 1);
+    const auto bassBus = processor->getBusBuffer(buffer, false, 2);
+    const auto otherBus = processor->getBusBuffer(buffer, false, 3);
+    const auto vocalsBus = processor->getBusBuffer(buffer, false, 4);
+
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      for (int ch = 0; ch < 2; ++ch) {
+        const float reconstructed =
+            drumsBus.getSample(ch, i) + bassBus.getSample(ch, i) +
+            otherBus.getSample(ch, i) + vocalsBus.getSample(ch, i);
+        EXPECT_NEAR(mainBus.getSample(ch, i), reconstructed, 1e-6f);
+      }
+      if (block < audio_plugin::kPluginLatencyChunks) {
+        EXPECT_FLOAT_EQ(mainBus.getSample(0, i), 0.0f);
+        EXPECT_FLOAT_EQ(mainBus.getSample(1, i), 0.0f);
+      } else {
+        EXPECT_NEAR(mainBus.getSample(0, i),
+                    firstInputL[static_cast<size_t>(i)], 1e-6f);
+        EXPECT_NEAR(mainBus.getSample(1, i),
+                    firstInputR[static_cast<size_t>(i)], 1e-6f);
+      }
+    }
   }
 }
 
@@ -547,34 +584,37 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 // ============================================================================
 
 TEST(ConstantsTest, StemCountIsCorrect) {
-  EXPECT_EQ(audio_plugin::kNumStems, 4);  // drums, bass, other, vocals
+  EXPECT_EQ(audio_plugin::kNumStems, 4);
+  EXPECT_EQ(audio_plugin::kStemDrums, 0);
+  EXPECT_EQ(audio_plugin::kStemBass, 1);
+  EXPECT_EQ(audio_plugin::kStemVocals, 2);
+  EXPECT_EQ(audio_plugin::kStemOther, 3);
 }
 
 TEST(ConstantsTest, ChannelCountIsStereo) {
   EXPECT_EQ(audio_plugin::kNumChannels, 2);
 }
 
-TEST(ConstantsTest, ChunkSizesAreConsistent) {
-  // Internal chunk should equal: context + output + context
-  EXPECT_EQ(audio_plugin::kInternalChunkSize, 
-            audio_plugin::kContextSize + audio_plugin::kOutputChunkSize + audio_plugin::kContextSize);
+TEST(ConstantsTest, StatefulStreamingWindowIsTwoHops) {
+  EXPECT_EQ(audio_plugin::kOutputChunkSize, 512);
+  EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
+            2 * audio_plugin::kOutputChunkSize);
 }
 
-TEST(ConstantsTest, OutputChunkSizeIsReasonable) {
-  // Should be power of 2 or at least reasonable for audio
-  EXPECT_GT(audio_plugin::kOutputChunkSize, 0);
-  EXPECT_LE(audio_plugin::kOutputChunkSize, 4096);
+TEST(ConstantsTest, FusionHiddenShapeMatchesQualifiedC91) {
+  EXPECT_EQ(audio_plugin::kFusionHiddenLayers, 2);
+  EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
 }
 
-TEST(ConstantsTest, ContextSizeIsReasonable) {
-  EXPECT_GT(audio_plugin::kContextSize, 0);
-  EXPECT_LE(audio_plugin::kContextSize, 8192);
+TEST(ConstantsTest, PluginLatencyIncludesGraphAndAsyncQueueDelay) {
+  EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
+  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
+  EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 2);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 1024);
 }
 
-TEST(ConstantsTest, CrossoverFrequencyIsReasonable) {
-  // Crossover should remain in a practical low-frequency range.
-  EXPECT_GT(audio_plugin::kCrossoverFreqHz, 20.0f);
-  EXPECT_LE(audio_plugin::kCrossoverFreqHz, 300.0f);
+TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
+  EXPECT_EQ(audio_plugin::kModelSampleRate, 44100);
 }
 
 TEST(ConstantsTest, InferenceBufferCountIsPositive) {
@@ -1413,8 +1453,7 @@ protected:
     std::cerr << "====================================================================\n";
     std::cerr << "  BASS DIAGNOSTIC REPORT\n";
     std::cerr << "====================================================================\n";
-    std::cerr << "  Crossover: " << audio_plugin::kCrossoverFreqHz << " Hz\n";
-    std::cerr << "  Norm target: " << audio_plugin::kNormTargetRmsDb << " dB\n";
+    std::cerr << "  Model input: raw fullband (no crossover bypass)\n";
     std::cerr << "  Block size: " << kBlockSize << ", Sample rate: " << kSampleRate << "\n";
     std::cerr << "====================================================================\n\n";
 

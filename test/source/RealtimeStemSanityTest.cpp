@@ -9,7 +9,7 @@ namespace audio_plugin_test {
 namespace {
 
 constexpr double kSampleRate = 44100.0;
-constexpr int kBlockSize = 128;
+constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
 constexpr int kTotalChannels = 12;  // 2 input + 10 output (5 buses * 2ch)
 
 constexpr float kPi = 3.14159265358979323846f;
@@ -33,11 +33,15 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
 
   juce::MidiBuffer midiBuffer;
 
-  constexpr int kWarmupBlocks = 40;
-  constexpr int kMeasureBlocks = 80;
+  constexpr int kWarmupBlocks = 8;
+  constexpr int kMeasureBlocks = 64;
 
   int64_t sampleIndex = 0;
   float maxAbsStemDiff = 0.0f;
+  float maxAbsReconstructionError = 0.0f;
+  auto nextDeadline = std::chrono::steady_clock::now();
+  const auto blockDuration = std::chrono::duration<double>(
+      static_cast<double>(kBlockSize) / kSampleRate);
 
   for (int b = 0; b < (kWarmupBlocks + kMeasureBlocks); ++b) {
     juce::AudioBuffer<float> buffer(kTotalChannels, kBlockSize);
@@ -67,6 +71,7 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
       auto bassBus = processor.getBusBuffer(buffer, false /* isInput */, 2);
       auto otherBus = processor.getBusBuffer(buffer, false /* isInput */, 3);
       auto vocalsBus = processor.getBusBuffer(buffer, false /* isInput */, 4);
+      auto mainBus = processor.getBusBuffer(buffer, false /* isInput */, 0);
 
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         for (int ch = 0; ch < 2; ++ch) {
@@ -78,14 +83,20 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
           maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - b0));
           maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - o));
           maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - v));
+          maxAbsReconstructionError = std::max(
+              maxAbsReconstructionError,
+              std::abs(mainBus.getSample(ch, i) - (d + b0 + o + v)));
         }
       }
     }
 
     sampleIndex += buffer.getNumSamples();
 
-    // Pace processing so the background inference thread can keep up.
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    // Pace at the real 512-sample callback interval. If processing overruns,
+    // sleep_until returns immediately and queue/underrun telemetry records it.
+    nextDeadline += std::chrono::duration_cast<
+        std::chrono::steady_clock::duration>(blockDuration);
+    std::this_thread::sleep_until(nextDeadline);
   }
 
   // If stems were always falling back to delayed dry/4, they would be bit-identical
@@ -93,9 +104,13 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
   EXPECT_GT(maxAbsStemDiff, 1.0e-3f)
       << "Stem buses appear identical (likely underrun fallback only); maxAbsStemDiff="
       << maxAbsStemDiff;
+  EXPECT_LE(maxAbsReconstructionError, 1.0e-6f)
+      << "Stem buses did not reconstruct latency-aligned Main";
+  EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0u);
+  EXPECT_EQ(processor.getRingOverflowEventCount(), 0u);
+  EXPECT_EQ(processor.getUnderrunBlockCount(), 0u);
 
   processor.releaseResources();
 }
 
 }  // namespace audio_plugin_test
-

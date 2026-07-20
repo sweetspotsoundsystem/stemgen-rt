@@ -1,97 +1,129 @@
 #include <StemgenRT/Constants.h>
 #include <StemgenRT/OverlapAddProcessor.h>
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
 #include <vector>
 
 namespace audio_plugin_test {
-
 namespace {
 
-void pushDryBlock(audio_plugin::OverlapAddProcessor& processor,
-                  const std::vector<float>& left,
-                  const std::vector<float>& right) {
-  ASSERT_EQ(left.size(), right.size());
-  for (size_t i = 0; i < left.size(); ++i) {
-    processor.pushInputSample(0, 0.0f, 0.0f, left[i]);
-    processor.pushInputSample(1, 0.0f, 0.0f, right[i]);
+using StereoBuffer =
+    std::array<std::vector<float>, audio_plugin::kNumChannels>;
+
+void appendDryBlock(audio_plugin::OverlapAddProcessor& processor,
+                    const StereoBuffer& input, size_t offset, size_t count,
+                    StereoBuffer& output) {
+  ASSERT_LE(offset + count, input[0].size());
+  ASSERT_EQ(input[0].size(), input[1].size());
+
+  // Match PluginProcessor: the complete host block is accumulated before the
+  // latency-aligned fallback is read.
+  for (size_t i = 0; i < count; ++i) {
+    for (int ch = 0; ch < audio_plugin::kNumChannels; ++ch) {
+      processor.pushInputSample(
+          ch, input[static_cast<size_t>(ch)][offset + i]);
+    }
+  }
+
+  for (size_t i = 0; i < count; ++i) {
+    for (int ch = 0; ch < audio_plugin::kNumChannels; ++ch) {
+      output[static_cast<size_t>(ch)].push_back(
+          processor.readDryDelaySample(ch));
+    }
+    processor.advanceDryDelayPos();
   }
 }
 
-std::vector<float> readDrySamples(audio_plugin::OverlapAddProcessor& processor,
-                                  int channel,
-                                  size_t count) {
-  std::vector<float> out(count);
-  for (size_t i = 0; i < count; ++i) {
-    out[i] = processor.readDryDelaySample(channel);
-    processor.advanceDryDelayPos();
+StereoBuffer makeDistinctStereoInput(size_t sampleCount) {
+  StereoBuffer input;
+  for (auto& channel : input) {
+    channel.resize(sampleCount);
   }
-  return out;
+  for (size_t i = 0; i < sampleCount; ++i) {
+    input[0][i] = static_cast<float>(i + 1);
+    input[1][i] = -static_cast<float>(i + 1) - 0.25f;
+  }
+  return input;
+}
+
+void expectFixedLatency(const StereoBuffer& input,
+                        const StereoBuffer& output) {
+  ASSERT_EQ(output[0].size(), input[0].size());
+  ASSERT_EQ(output[1].size(), input[1].size());
+
+  constexpr size_t kLatency =
+      static_cast<size_t>(audio_plugin::kPluginLatencySamples);
+  for (size_t ch = 0; ch < static_cast<size_t>(audio_plugin::kNumChannels);
+       ++ch) {
+    for (size_t i = 0; i < output[ch].size(); ++i) {
+      const float expected = i < kLatency ? 0.0f : input[ch][i - kLatency];
+      EXPECT_FLOAT_EQ(output[ch][i], expected)
+          << "channel=" << ch << " sample=" << i;
+    }
+  }
 }
 
 }  // namespace
 
-TEST(OverlapAddProcessorTest, PrimeDryDelayDoesNotTileShortHostBlock) {
+TEST(OverlapAddProcessorTest,
+     DryFallbackHasFixedPluginLatencyAcrossDifferentHostBlocks) {
+  constexpr size_t kMaximumHostBlock = 768;
+  constexpr size_t kTotalSamples = 3072;
+  const StereoBuffer input = makeDistinctStereoInput(kTotalSamples);
+  StereoBuffer output;
+
   audio_plugin::OverlapAddProcessor processor;
-  processor.allocate();
+  processor.allocate(kMaximumHostBlock);
 
-  // Simulate RT reset behavior: indices are reset but dry delay storage is retained.
-  std::vector<float> stale(audio_plugin::kOutputChunkSize * 2, -1.0f);
-  pushDryBlock(processor, stale, stale);
-  processor.resetIndices();
-
-  constexpr int kHostBlockSize = 64;
-  std::vector<float> input(static_cast<size_t>(kHostBlockSize));
-  for (int i = 0; i < kHostBlockSize; ++i) {
-    input[static_cast<size_t>(i)] = static_cast<float>(i + 1);
+  const std::array<size_t, 8> blockSizes = {64, 256, 512, 128,
+                                             768, 320, 512, 512};
+  size_t offset = 0;
+  for (const size_t blockSize : blockSizes) {
+    appendDryBlock(processor, input, offset, blockSize, output);
+    offset += blockSize;
   }
+  ASSERT_EQ(offset, kTotalSamples);
 
-  pushDryBlock(processor, input, input);
-
-  const float* inputPointers[audio_plugin::kNumChannels] = {
-      input.data(), input.data()};
-  processor.primeDryDelayFromInput(inputPointers, kHostBlockSize);
-
-  auto primed = readDrySamples(processor, 0, audio_plugin::kOutputChunkSize);
-
-  for (int i = 0; i < kHostBlockSize; ++i) {
-    EXPECT_FLOAT_EQ(primed[static_cast<size_t>(i)], input[static_cast<size_t>(i)]);
-  }
-  for (int i = kHostBlockSize; i < audio_plugin::kOutputChunkSize; ++i) {
-    EXPECT_FLOAT_EQ(primed[static_cast<size_t>(i)], 0.0f);
-  }
+  expectFixedLatency(input, output);
 }
 
-TEST(OverlapAddProcessorTest, PrimeDryDelayKeepsNewestWrappedSamplesForLargeHostBlock) {
-  audio_plugin::OverlapAddProcessor withPriming;
-  withPriming.allocate();
-  withPriming.resetIndices();
+TEST(OverlapAddProcessorTest,
+     MaximumHostBlockDoesNotOverwriteLatencyAlignedDrySamples) {
+  constexpr size_t kHostBlockSize = 2048;
+  static_assert(kHostBlockSize >
+                static_cast<size_t>(audio_plugin::kPluginLatencySamples));
+  const StereoBuffer input = makeDistinctStereoInput(kHostBlockSize);
+  StereoBuffer output;
 
-  audio_plugin::OverlapAddProcessor withoutPriming;
-  withoutPriming.allocate();
-  withoutPriming.resetIndices();
+  audio_plugin::OverlapAddProcessor processor;
+  processor.allocate(kHostBlockSize);
+  appendDryBlock(processor, input, 0, kHostBlockSize, output);
 
-  constexpr int kHostBlockSize = 1024;
-  static_assert(kHostBlockSize > audio_plugin::kOutputChunkSize);
-  std::vector<float> input(static_cast<size_t>(kHostBlockSize));
-  for (int i = 0; i < kHostBlockSize; ++i) {
-    input[static_cast<size_t>(i)] = static_cast<float>(i + 1);
-  }
+  expectFixedLatency(input, output);
+}
 
-  pushDryBlock(withPriming, input, input);
-  pushDryBlock(withoutPriming, input, input);
+TEST(OverlapAddProcessorTest, ResetAndClearRestoreAZeroedDelayLine) {
+  constexpr size_t kLatency =
+      static_cast<size_t>(audio_plugin::kPluginLatencySamples);
+  const StereoBuffer staleInput = makeDistinctStereoInput(kLatency * 2);
+  StereoBuffer discarded;
 
-  const float* inputPointers[audio_plugin::kNumChannels] = {
-      input.data(), input.data()};
-  withPriming.primeDryDelayFromInput(inputPointers, kHostBlockSize);
+  audio_plugin::OverlapAddProcessor processor;
+  processor.allocate(kLatency);
+  appendDryBlock(processor, staleInput, 0, kLatency, discarded);
+  appendDryBlock(processor, staleInput, kLatency, kLatency, discarded);
 
-  auto primed = readDrySamples(withPriming, 0, audio_plugin::kOutputChunkSize);
-  auto baseline = readDrySamples(withoutPriming, 0, audio_plugin::kOutputChunkSize);
+  processor.resetIndices();
+  processor.clearDryDelayBuffer();
 
-  for (int i = 0; i < audio_plugin::kOutputChunkSize; ++i) {
-    EXPECT_FLOAT_EQ(primed[static_cast<size_t>(i)], baseline[static_cast<size_t>(i)]);
-    EXPECT_FLOAT_EQ(primed[static_cast<size_t>(i)],
-                    input[static_cast<size_t>(i + audio_plugin::kOutputChunkSize)]);
-  }
+  const StereoBuffer newInput = makeDistinctStereoInput(kLatency + 64);
+  StereoBuffer output;
+  appendDryBlock(processor, newInput, 0, kLatency, output);
+  appendDryBlock(processor, newInput, kLatency, 64, output);
+
+  expectFixedLatency(newInput, output);
 }
 
 }  // namespace audio_plugin_test

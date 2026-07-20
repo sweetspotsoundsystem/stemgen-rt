@@ -18,19 +18,12 @@ class OnnxRuntime;
 // A single inference request with input/output buffers and atomic state flags.
 struct InferenceRequest {
     // Input data (filled by audio thread)
-    std::array<std::vector<float>, kNumChannels> inputChunk;     // kOutputChunkSize HP-filtered samples
-    std::array<std::vector<float>, kNumChannels> contextSnapshot; // kContextSize HP-filtered samples
-    std::array<std::vector<float>, kNumChannels> originalInput;   // kOutputChunkSize fullband (HP+LP) samples
-    std::array<std::vector<float>, kNumChannels> fullbandInput;   // kOutputChunkSize raw pre-crossover samples
-    std::array<std::vector<float>, kNumChannels> lowFreqChunk;    // kOutputChunkSize LP-filtered samples
-    float normalizationGain{1.0f};
+    std::array<std::vector<float>, kNumChannels> inputChunk;
 
     // Output data (filled by inference thread)
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> outputChunk;
-
-    // Overlap tail: kCrossfadeSamples of model output beyond the center region.
-    // Used for crossfading between adjacent chunks to eliminate boundary discontinuities.
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> overlapTail;
+    std::array<std::vector<float>, kNumChannels> alignedInput;
+    bool outputValid{false};  // False for pre-roll immediately after a state reset.
 
     // State flags
     std::atomic<bool> ready{false};      // True when input data is ready for inference

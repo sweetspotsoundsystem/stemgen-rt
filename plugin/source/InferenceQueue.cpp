@@ -11,17 +11,14 @@ namespace audio_plugin {
 void InferenceRequest::allocate() {
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         inputChunk[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
-        contextSnapshot[ch].resize(static_cast<size_t>(kContextSize), 0.0f);
-        originalInput[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
-        fullbandInput[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
-        lowFreqChunk[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
+        alignedInput[ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
     }
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
         for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
             outputChunk[stem][ch].resize(static_cast<size_t>(kOutputChunkSize), 0.0f);
-            overlapTail[stem][ch].resize(static_cast<size_t>(kCrossfadeSamples), 0.0f);
         }
     }
+    outputValid = false;
 }
 
 InferenceQueue::InferenceQueue() {
@@ -199,11 +196,21 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
     DBG("[InferenceQueue] Thread running");
 
     uint32_t lastSeenEpoch = resetEpoch_.load(std::memory_order_acquire);
+    bool hasPreviousInputSequence = false;
+    uint64_t previousInputSequence = 0;
+    if (runtime != nullptr) {
+        runtime->resetStreamingState();
+    }
 
     while (!shouldStop_.load(std::memory_order_acquire)) {
         // Check for epoch change (reset occurred)
         uint32_t currentEpoch = resetEpoch_.load(std::memory_order_acquire);
         if (currentEpoch != lastSeenEpoch) {
+            if (runtime != nullptr) {
+                runtime->resetStreamingState();
+            }
+            hasPreviousInputSequence = false;
+
             // Jump to the slot where new-epoch writes started to avoid
             // waiting on old non-ready holes.
             const size_t startIdx =
@@ -255,26 +262,42 @@ void InferenceQueue::inferenceThreadFunc(OnnxRuntime* runtime) {
                 continue;
             }
 
-            // Run inference
-            bool inferenceOk = false;
-            if (runtime) {
-                inferenceOk = runtime->runInference(
-                    request->contextSnapshot,
-                    request->inputChunk,
-                    request->lowFreqChunk,
-                    request->normalizationGain,
-                    request->outputChunk,
-                    request->overlapTail);
+            const uint64_t inputSequence = request->chunkSequence;
+            if (runtime != nullptr && hasPreviousInputSequence &&
+                inputSequence != previousInputSequence + 1) {
+                DBG("[InferenceQueue] Input sequence gap; resetting model state");
+                runtime->resetStreamingState();
+                hasPreviousInputSequence = false;
             }
 
-            // Treat inference errors as dropped chunks (fallback path will crossfade to dry).
+            // Run inference. The graph emits the preceding input hop, so a run
+            // immediately after reset succeeds with outputValid=false (pre-roll).
+            bool inferenceOk = false;
+            request->outputValid = false;
+            if (runtime) {
+                inferenceOk = runtime->runInference(
+                    request->inputChunk,
+                    request->outputChunk,
+                    request->alignedInput,
+                    request->outputValid);
+            }
+
+            // Publish an invalid marker so the consumer can advance past the
+            // failed slot instead of deadlocking behind it.
             if (!inferenceOk) {
+                if (runtime != nullptr) {
+                    runtime->resetStreamingState();
+                }
+                hasPreviousInputSequence = false;
                 request->ready.store(false, std::memory_order_release);
-                request->processed.store(false, std::memory_order_release);
+                request->processed.store(true, std::memory_order_release);
                 readIdx_.store((idx + 1) % kNumInferenceBuffers,
                                std::memory_order_release);
                 continue;
             }
+
+            previousInputSequence = inputSequence;
+            hasPreviousInputSequence = true;
 
             // Check if reset occurred during inference
             currentEpoch = resetEpoch_.load(std::memory_order_acquire);

@@ -31,11 +31,13 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 #if HAS_LOGO_ASSET
   if (logoImage.isValid()) {
     auto bounds = getLocalBounds().reduced(20).toFloat();
-    float scale = juce::jmin(bounds.getWidth() / logoImage.getWidth(),
-                             bounds.getHeight() / logoImage.getHeight());
+    const auto imageWidth = static_cast<float>(logoImage.getWidth());
+    const auto imageHeight = static_cast<float>(logoImage.getHeight());
+    const float scale = juce::jmin(bounds.getWidth() / imageWidth,
+                                   bounds.getHeight() / imageHeight);
     g.drawImage(logoImage,
-                bounds.withSizeKeepingCentre(logoImage.getWidth() * scale,
-                                             logoImage.getHeight() * scale));
+                bounds.withSizeKeepingCentre(imageWidth * scale,
+                                             imageHeight * scale));
   }
 #else
   g.setColour(juce::Colours::white);

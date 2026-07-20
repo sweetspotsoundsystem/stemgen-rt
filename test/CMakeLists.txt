@@ -50,41 +50,35 @@ if(WIN32)
   endif()
 endif()
 
-# Create symlinks/copies to model files so tests can load the ONNX model.
+# Create a symlink/copy to the single-file model so tests can load it.
 # The test binary looks for the model at ${CMAKE_BINARY_DIR}/Resources/model.onnx
 # (relative to the test executable's grandparent directory).
 set(MODEL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/model")
 set(MODEL_DEST_DIR "${CMAKE_BINARY_DIR}/Resources")
 
-if(EXISTS "${MODEL_SOURCE_DIR}/model.onnx")
-  # Create Resources directory and copy/symlink after build
-  # Windows doesn't support symlinks without admin privileges, so use copy there
-  if(WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MODEL_SOURCE_DIR}/model.onnx" 
-        "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MODEL_SOURCE_DIR}/model.onnx.data" 
-        "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMENT "Copying ONNX model for tests"
-    )
-  else()
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
-      COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E create_symlink 
-        "${MODEL_SOURCE_DIR}/model.onnx" 
-        "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMAND ${CMAKE_COMMAND} -E create_symlink 
-        "${MODEL_SOURCE_DIR}/model.onnx.data" 
-        "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMENT "Creating symlinks to ONNX model for tests"
-    )
-  endif()
+if(WIN32)
+  add_custom_target(${PROJECT_NAME}_BundleModel ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${MODEL_SOURCE_DIR}/model.onnx"
+      "${MODEL_DEST_DIR}/model.onnx"
+    COMMENT "Copying verified ONNX model for tests"
+    VERBATIM
+  )
+else()
+  add_custom_target(${PROJECT_NAME}_BundleModel ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "${MODEL_SOURCE_DIR}/model.onnx"
+      "${MODEL_DEST_DIR}/model.onnx"
+    COMMENT "Linking verified ONNX model for tests"
+    VERBATIM
+  )
 endif()
+add_dependencies(${PROJECT_NAME}_BundleModel ${PROJECT_NAME})
 
 # Add all tests defined with googletest to the CMake metadata
 # so that these tests are run upon a call to ctest in the test

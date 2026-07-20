@@ -39,7 +39,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: libs/onnxruntime
-        key: onnxruntime-1.22.0-${{ runner.os }}-${{ runner.arch }}
+        key: onnxruntime-1.26.0-${{ runner.os }}-${{ runner.arch }}
 
     - name: Download ONNX Runtime (macOS)
       if: matrix.os == 'macos-14' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
@@ -127,4 +127,3 @@ jobs:
         files: "*.zip"
         prerelease: false
         make_latest: true
-

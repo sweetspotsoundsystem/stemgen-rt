@@ -4,7 +4,7 @@
 
 set -e
 
-VERSION="1.22.0"
+VERSION="1.26.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DEST_DIR="$PROJECT_ROOT/libs/onnxruntime"
@@ -14,7 +14,9 @@ ARCH=$(uname -m)
 if [[ "$ARCH" == "arm64" ]]; then
     PLATFORM="osx-arm64"
 elif [[ "$ARCH" == "x86_64" ]]; then
-    PLATFORM="osx-x64"
+    echo "ONNX Runtime ${VERSION} does not publish an official macOS x86_64 archive."
+    echo "Run this script from a native Apple Silicon shell."
+    exit 1
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
@@ -43,4 +45,3 @@ ls -la "$DEST_DIR"
 echo ""
 echo "Now rebuild your project:"
 echo "  rm -rf build && cmake --preset release && cmake --build build-release"
-

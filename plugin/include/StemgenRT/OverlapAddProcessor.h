@@ -1,155 +1,80 @@
 #pragma once
 
 #include <array>
-#include <vector>
 #include <cstddef>
+#include <vector>
+
 #include "Constants.h"
 
 namespace audio_plugin {
 
-// Manages the streaming buffers for overlap-add inference.
-// Handles input accumulation, context management, output ring buffers,
-// and dry fallback delay line.
+// Owns the audio-thread accumulation, output-ring, and latency-aligned dry
+// fallback buffers. Model overlap-add now lives inside the ONNX graph; the
+// historical class name is retained to avoid unnecessary API churn.
 class OverlapAddProcessor {
 public:
     OverlapAddProcessor();
 
-    // Allocate all buffers
-    void allocate();
-
-    // Reset all buffers to zero
+    void allocate(size_t maximumHostBlockSize =
+                      static_cast<size_t>(kOutputChunkSize));
     void reset();
-
-    // RT-safe reset: only reset indices, defer clearing to background
     void resetIndices();
+    void clearDryDelayBuffer();
 
-    // === Input accumulation ===
-
-    // Get the number of samples accumulated so far
     size_t getInputAccumCount() const { return inputAccumCount_; }
-
-    // Add a sample to the input accumulation buffer (called per-sample)
-    void pushInputSample(int channel, float hpSample, float lpSample, float drySample);
-
-    // Check if we have enough samples for inference
-    bool readyForInference() const { return inputAccumCount_ >= static_cast<size_t>(kOutputChunkSize); }
-
-    // Get accumulated HP input buffer for normalization calculation
-    const std::array<std::vector<float>, kNumChannels>& getInputAccumBuffer() const { return inputAccumBuffer_; }
-
-    // Get context buffer
-    const std::array<std::vector<float>, kNumChannels>& getContextBuffer() const { return contextBuffer_; }
-
-    // Get accumulated LP buffer
-    const std::array<std::vector<float>, kNumChannels>& getLowFreqAccumBuffer() const { return lowFreqAccumBuffer_; }
-
-    // Get accumulated fullband (raw, pre-crossover) buffer
-    const std::array<std::vector<float>, kNumChannels>& getFullbandAccumBuffer() const { return fullbandAccumBuffer_; }
-
-    // Clear input accumulation after queueing inference
+    void pushInputSample(int channel, float sample);
+    bool readyForInference() const {
+        return inputAccumCount_ >= static_cast<size_t>(kOutputChunkSize);
+    }
+    const std::array<std::vector<float>, kNumChannels>& getInputAccumBuffer() const {
+        return inputAccumBuffer_;
+    }
     void clearInputAccum();
 
-    // Update context buffer with new samples (called after queueing inference)
-    void updateContextBuffer();
-
-    // Clear context buffer (RT-safe, called on transport start)
-    void clearContextBuffer();
-
-    // === Output ring buffer ===
-
-    // Get output ring buffer for writing (from inference results)
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& getOutputRingBuffers() {
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
+    getOutputRingBuffers() {
         return outputRingBuffers_;
     }
+    std::array<std::vector<float>, kNumChannels>& getDelayedInputBuffer() {
+        return delayedInputBuffer_;
+    }
 
-    // Get delayed input buffer for residual calculation
-    std::array<std::vector<float>, kNumChannels>& getDelayedInputBuffer() { return delayedInputBuffer_; }
-
-    // Ring buffer state
     size_t getOutputReadPos() const { return outputReadPos_; }
     void setOutputReadPos(size_t pos) { outputReadPos_ = pos; }
     size_t getOutputSamplesAvailable() const { return outputSamplesAvailable_; }
-    void setOutputSamplesAvailable(size_t n) { outputSamplesAvailable_ = n; }
-    void addOutputSamplesAvailable(size_t n) { outputSamplesAvailable_ += n; }
+    void setOutputSamplesAvailable(size_t count) {
+        outputSamplesAvailable_ = count;
+    }
+    void addOutputSamplesAvailable(size_t count) {
+        outputSamplesAvailable_ += count;
+    }
     size_t getOutputRingSize() const { return outputRingBuffers_[0][0].size(); }
-
-    // Delayed input buffer position
-    size_t getDelayedInputWritePos() const { return delayedInputWritePos_; }
-
-    // Calculate write position in ring buffer
     size_t getOutputWritePos() const {
         return (outputReadPos_ + outputSamplesAvailable_) % getOutputRingSize();
     }
 
-    // Read from output ring buffer and advance read position
-    // Returns false if no samples available
-    bool readOutputSample(int stem, int channel, float& sample);
-
-    // Advance read position (call after reading all stems for one sample)
-    void advanceOutputReadPos();
-
-    // === Dry delay line for underrun fallback ===
-
-    // Write to dry delay line (called per-sample)
-    void writeDryDelaySample(int channel, float sample);
-
-    // Read from dry delay line (delayed by kOutputChunkSize)
     float readDryDelaySample(int channel) const;
-
-    // Advance dry delay positions (call once per sample after reading)
     void advanceDryDelayPos();
 
-    // Dry delay priming helpers
-    bool isDryDelayPrimed() const { return dryDelayPrimed_; }
-    void primeDryDelayFromInput(const float* inputPointers[kNumChannels], int numSamples);
-
-    // === Chunk boundary crossfade state ===
-
-    // Previous chunk's overlap tail for crossfading at chunk boundaries.
-    // Eliminates discontinuities between adjacent model output chunks.
-    bool hasPrevOverlapTail() const { return hasPrevOverlapTail_; }
-    void setHasPrevOverlapTail(bool v) { hasPrevOverlapTail_ = v; }
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& getPrevOverlapTail() {
-        return prevOverlapTail_;
-    }
-
-    // === Pending chunk state (for amortized copying) ===
-
     bool hasPendingChunk() const { return hasPendingChunk_; }
-    void setHasPendingChunk(bool v) { hasPendingChunk_ = v; }
+    void setHasPendingChunk(bool value) { hasPendingChunk_ = value; }
     size_t getPendingChunkOffset() const { return pendingChunkCopyOffset_; }
-    void setPendingChunkOffset(size_t v) { pendingChunkCopyOffset_ = v; }
+    void setPendingChunkOffset(size_t value) { pendingChunkCopyOffset_ = value; }
 
 private:
-    // Input accumulation
-    std::array<std::vector<float>, kNumChannels> inputAccumBuffer_;   // HP-filtered
-    std::array<std::vector<float>, kNumChannels> lowFreqAccumBuffer_; // LP-filtered
-    std::array<std::vector<float>, kNumChannels> fullbandAccumBuffer_; // Raw pre-crossover
+    std::array<std::vector<float>, kNumChannels> inputAccumBuffer_;
     size_t inputAccumCount_{0};
 
-    // Context buffer for model (HP-filtered history)
-    std::array<std::vector<float>, kNumChannels> contextBuffer_;
-
-    // Output ring buffers [stem][channel][samples]
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> outputRingBuffers_;
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>
+        outputRingBuffers_;
+    std::array<std::vector<float>, kNumChannels> delayedInputBuffer_;
     size_t outputReadPos_{0};
     size_t outputSamplesAvailable_{0};
 
-    // Delayed input for residual calculation
-    std::array<std::vector<float>, kNumChannels> delayedInputBuffer_;
-    size_t delayedInputWritePos_{0};
-
-    // Dry delay line for underrun fallback
     std::array<std::vector<float>, kNumChannels> dryDelayLine_;
     size_t dryDelayWritePos_{0};
     size_t dryDelayReadPos_{0};
-    bool dryDelayPrimed_{false};
 
-    // Chunk boundary crossfade state
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems> prevOverlapTail_;
-    bool hasPrevOverlapTail_{false};
-
-    // Amortized chunk copying state
     bool hasPendingChunk_{false};
     size_t pendingChunkCopyOffset_{0};
 };
