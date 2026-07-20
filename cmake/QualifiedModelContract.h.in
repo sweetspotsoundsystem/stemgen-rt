@@ -1,0 +1,151 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+
+namespace audio_plugin::qualified_model {
+
+inline constexpr std::string_view kContractId =
+    "@STEMGENRT_QUALIFIED_CONTRACT_ID@";
+inline constexpr std::string_view kModelSha256 =
+    "@STEMGENRT_QUALIFIED_MODEL_SHA256@";
+inline constexpr std::int64_t kModelByteSize =
+    @STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE@;
+inline constexpr std::string_view kCheckpointSha256 =
+    "@STEMGENRT_QUALIFIED_CHECKPOINT_SHA256@";
+
+inline constexpr int kSampleRate = @STEMGENRT_QUALIFIED_SAMPLE_RATE@;
+inline constexpr int kNumChannels = @STEMGENRT_QUALIFIED_CHANNELS@;
+inline constexpr int kNumStems = @STEMGENRT_QUALIFIED_STEMS@;
+inline constexpr int kHopSamples = @STEMGENRT_QUALIFIED_HOP_SAMPLES@;
+inline constexpr int kAnalysisWindowSamples =
+    @STEMGENRT_QUALIFIED_ANALYSIS_WINDOW_SAMPLES@;
+inline constexpr int kFusionHiddenLayers =
+    @STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS@;
+inline constexpr int kFusionHiddenSize =
+    @STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE@;
+inline constexpr int kModelOutputDelayChunks =
+    @STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS@;
+inline constexpr int kDrumsSourceIndex =
+    @STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX@;
+inline constexpr int kBassSourceIndex =
+    @STEMGENRT_QUALIFIED_BASS_SOURCE_INDEX@;
+inline constexpr int kVocalsSourceIndex =
+    @STEMGENRT_QUALIFIED_VOCALS_SOURCE_INDEX@;
+inline constexpr int kOtherSourceIndex =
+    @STEMGENRT_QUALIFIED_OTHER_SOURCE_INDEX@;
+inline constexpr int kResidualSourceIndex =
+    @STEMGENRT_QUALIFIED_RESIDUAL_SOURCE_INDEX@;
+inline constexpr auto kSourceOrder = std::to_array<int>({
+    kDrumsSourceIndex,
+    kBassSourceIndex,
+    kVocalsSourceIndex,
+    kOtherSourceIndex,
+});
+
+inline constexpr auto kInputNames = std::to_array<std::string_view>({
+    "@STEMGENRT_QUALIFIED_INPUT_AUDIO_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_PAST_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_OVERLAP_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_HIDDEN_NAME@",
+});
+inline constexpr auto kOutputNames = std::to_array<std::string_view>({
+    "@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_PAST_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_OVERLAP_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_NAME@",
+});
+
+inline constexpr auto kInputAudioShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_INPUT_AUDIO_SHAPE@});
+inline constexpr auto kInputPastShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_INPUT_PAST_SHAPE@});
+inline constexpr auto kInputOverlapShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_INPUT_OVERLAP_SHAPE@});
+inline constexpr auto kInputHiddenShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_INPUT_HIDDEN_SHAPE@});
+inline constexpr auto kOutputSeparatedShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE@});
+inline constexpr auto kOutputPastShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_OUTPUT_PAST_SHAPE@});
+inline constexpr auto kOutputOverlapShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_OVERLAP_SHAPE@});
+inline constexpr auto kOutputHiddenShape =
+    std::to_array<std::int64_t>({@STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_SHAPE@});
+
+inline constexpr std::string_view kExportMode =
+    "@STEMGENRT_QUALIFIED_METADATA_EXPORT_MODE@";
+inline constexpr std::string_view kMixtureConsistency =
+    "@STEMGENRT_QUALIFIED_METADATA_MIXTURE_CONSISTENCY@";
+inline constexpr std::string_view kExternalData =
+    "@STEMGENRT_QUALIFIED_METADATA_EXTERNAL_DATA@";
+inline constexpr std::string_view kOutputAlignment =
+    "@STEMGENRT_QUALIFIED_OUTPUT_ALIGNMENT@";
+
+struct MetadataEntry {
+  std::string_view key;
+  std::string_view value;
+};
+
+inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
+    {"hs_tasnet.checkpoint_sha256", kCheckpointSha256},
+    {"hs_tasnet.export.mode", kExportMode},
+    {"hs_tasnet.export.mixture_consistency", kMixtureConsistency},
+    {"hs_tasnet.export.residual_source_index",
+     "@STEMGENRT_QUALIFIED_RESIDUAL_SOURCE_INDEX@"},
+    {"hs_tasnet.external_data", kExternalData},
+    {"hs_tasnet.streaming.chunk_samples", "@STEMGENRT_QUALIFIED_HOP_SAMPLES@"},
+    {"hs_tasnet.streaming.output_alignment", kOutputAlignment},
+});
+
+static_assert(kInputAudioShape ==
+              std::array<std::int64_t, 3>{1, kNumChannels, kHopSamples});
+static_assert(kInputPastShape == kInputAudioShape);
+static_assert(kInputOverlapShape ==
+              std::array<std::int64_t, 4>{1, kNumStems, kNumChannels,
+                                          kAnalysisWindowSamples});
+static_assert(kInputHiddenShape ==
+              std::array<std::int64_t, 3>{kFusionHiddenLayers, 1,
+                                          kFusionHiddenSize});
+static_assert(kOutputSeparatedShape ==
+              std::array<std::int64_t, 4>{1, kNumStems, kNumChannels,
+                                          kHopSamples});
+static_assert(kOutputPastShape == kInputAudioShape);
+static_assert(kOutputOverlapShape == kInputOverlapShape);
+static_assert(kOutputHiddenShape == kInputHiddenShape);
+static_assert(kAnalysisWindowSamples == 2 * kHopSamples);
+static_assert(kInputNames.size() == 4);
+static_assert(kOutputNames.size() == 4);
+static_assert(kNumChannels == 2);
+static_assert(kNumStems == 4);
+static_assert(kModelOutputDelayChunks == 1);
+static_assert(
+    [] {
+      for (const int index : kSourceOrder) {
+        if (index < 0 || index >= kNumStems) {
+          return false;
+        }
+      }
+      return true;
+    }(),
+    "Every qualified source index must address an available stem");
+static_assert(
+    [] {
+      for (std::size_t lhs = 0; lhs < kSourceOrder.size(); ++lhs) {
+        for (std::size_t rhs = lhs + 1; rhs < kSourceOrder.size(); ++rhs) {
+          if (kSourceOrder[lhs] == kSourceOrder[rhs]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }(),
+    "Qualified source indices must be unique");
+static_assert(kOtherSourceIndex == kResidualSourceIndex);
+static_assert(kResidualSourceIndex >= 0 && kResidualSourceIndex < kNumStems);
+static_assert(kOutputAlignment == "previous_input_chunk",
+              "The native scheduler supports only previous-hop alignment");
+
+}  // namespace audio_plugin::qualified_model

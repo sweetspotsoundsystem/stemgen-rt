@@ -71,7 +71,7 @@ if (Test-Path $VST3Plugin) {
     Write-Host "  [X] VST3 plugin not found at $VST3Plugin" -ForegroundColor Red
     Write-Host "      Make sure you've built the project first:" -ForegroundColor Gray
     Write-Host "        cmake --preset release" -ForegroundColor Gray
-    Write-Host "        cmake --build build-release --config $Config" -ForegroundColor Gray
+    Write-Host "        cmake --build --preset release --config $Config" -ForegroundColor Gray
     Write-Host "      Or try a different config: .\install-plugins.ps1 -Config Debug" -ForegroundColor Gray
 }
 
@@ -81,4 +81,3 @@ Write-Host ""
 Write-Host "VST3 plugin locations:" -ForegroundColor Gray
 Write-Host "  System: $VST3DestSystem" -ForegroundColor Gray
 Write-Host "  User:   $VST3DestUser" -ForegroundColor Gray
-

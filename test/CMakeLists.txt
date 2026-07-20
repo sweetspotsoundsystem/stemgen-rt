@@ -8,9 +8,16 @@ enable_testing()
 # Creates the test console application.
 set(SOURCE_FILES
   source/AudioProcessorTest.cpp
+  source/InferenceQueueTest.cpp
+  source/ModelInputNormalizerTest.cpp
+  source/StreamingSampleRateAdapterTest.cpp
+  source/ModelOutputSchedulerTest.cpp
   source/OverlapAddProcessorTest.cpp
+  source/OutputWriterTest.cpp
   source/OrtRunBenchmarkTest.cpp
   source/RealtimeStemSanityTest.cpp
+  source/SampleRateBridgeE2ETest.cpp
+  source/TransportUnderrunE2ETest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
@@ -50,11 +57,12 @@ if(WIN32)
   endif()
 endif()
 
-# Create a symlink/copy to the single-file model so tests can load it.
-# The test binary looks for the model at ${CMAKE_BINARY_DIR}/Resources/model.onnx
-# (relative to the test executable's grandparent directory).
+# Create a symlink/copy to the single-file model so tests can load it. Derive
+# the destination from the executable location: multi-config generators place
+# it under test/<Config>, while single-config generators place it under test.
+# In both cases this matches the executable-grandparent lookup used by tests.
 set(MODEL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/model")
-set(MODEL_DEST_DIR "${CMAKE_BINARY_DIR}/Resources")
+set(MODEL_DEST_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources")
 
 if(WIN32)
   add_custom_target(${PROJECT_NAME}_BundleModel ALL

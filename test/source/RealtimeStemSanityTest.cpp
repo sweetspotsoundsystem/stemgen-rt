@@ -1,6 +1,7 @@
 #include <StemgenRT/PluginProcessor.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <thread>
@@ -15,20 +16,24 @@ constexpr int kTotalChannels = 12;  // 2 input + 10 output (5 buses * 2ch)
 constexpr float kPi = 3.14159265358979323846f;
 
 float sineAtSample(int64_t sampleIndex, float freqHz, float amplitude) {
-  const float t = static_cast<float>(sampleIndex) / static_cast<float>(kSampleRate);
+  const float t =
+      static_cast<float>(sampleIndex) / static_cast<float>(kSampleRate);
   return amplitude * std::sin(2.0f * kPi * freqHz * t);
 }
 
 }  // namespace
 
-// Real-time paced sanity check: with enough wall-clock time for the inference thread
-// to keep up, the 4 stem buses should not all be identical (dry fallback signature).
-TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) {
+// Real-time paced sanity check: with enough wall-clock time for the inference
+// thread to keep up, at least one retained model source must be present.
+// Complete fallback routes the mixture only to Other.
+TEST(RealtimeStemSanityTest,
+     DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) {
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kBlockSize);
 
   if (processor.getLatencySamples() <= 0) {
-    GTEST_SKIP() << "Model not loaded; skipping real-time paced stem sanity check";
+    GTEST_SKIP()
+        << "Model not loaded; skipping real-time paced stem sanity check";
   }
 
   juce::MidiBuffer midiBuffer;
@@ -37,7 +42,7 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
   constexpr int kMeasureBlocks = 64;
 
   int64_t sampleIndex = 0;
-  float maxAbsStemDiff = 0.0f;
+  float maxAbsRetainedStem = 0.0f;
   float maxAbsReconstructionError = 0.0f;
   auto nextDeadline = std::chrono::steady_clock::now();
   const auto blockDuration = std::chrono::duration<double>(
@@ -47,7 +52,8 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
     juce::AudioBuffer<float> buffer(kTotalChannels, kBlockSize);
     buffer.clear();
 
-    // Fill input bus with a continuous multitone to encourage non-trivial stem output.
+    // Fill input bus with a continuous multitone to encourage non-trivial stem
+    // output.
     auto inputBus = processor.getBusBuffer(buffer, true /* isInput */, 0);
     for (int i = 0; i < buffer.getNumSamples(); ++i) {
       const int64_t si = sampleIndex + i;
@@ -65,7 +71,8 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
 
     if (b >= kWarmupBlocks) {
       const int numOutputBuses = processor.getBusCount(false /* isInput */);
-      ASSERT_GE(numOutputBuses, 5) << "Expected 5 output buses (Main + 4 stems)";
+      ASSERT_GE(numOutputBuses, 5)
+          << "Expected 5 output buses (Main + 4 stems)";
 
       auto drumsBus = processor.getBusBuffer(buffer, false /* isInput */, 1);
       auto bassBus = processor.getBusBuffer(buffer, false /* isInput */, 2);
@@ -80,12 +87,11 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
           const float o = otherBus.getSample(ch, i);
           const float v = vocalsBus.getSample(ch, i);
 
-          maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - b0));
-          maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - o));
-          maxAbsStemDiff = std::max(maxAbsStemDiff, std::abs(d - v));
-          maxAbsReconstructionError = std::max(
-              maxAbsReconstructionError,
-              std::abs(mainBus.getSample(ch, i) - (d + b0 + o + v)));
+          maxAbsRetainedStem = std::max(
+              {maxAbsRetainedStem, std::abs(d), std::abs(b0), std::abs(v)});
+          maxAbsReconstructionError =
+              std::max(maxAbsReconstructionError,
+                       std::abs(mainBus.getSample(ch, i) - (d + b0 + o + v)));
         }
       }
     }
@@ -94,16 +100,16 @@ TEST(RealtimeStemSanityTest, DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) 
 
     // Pace at the real 512-sample callback interval. If processing overruns,
     // sleep_until returns immediately and queue/underrun telemetry records it.
-    nextDeadline += std::chrono::duration_cast<
-        std::chrono::steady_clock::duration>(blockDuration);
+    nextDeadline +=
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            blockDuration);
     std::this_thread::sleep_until(nextDeadline);
   }
 
-  // If stems were always falling back to delayed dry/4, they would be bit-identical
-  // across buses, making maxAbsStemDiff ~= 0.
-  EXPECT_GT(maxAbsStemDiff, 1.0e-3f)
-      << "Stem buses appear identical (likely underrun fallback only); maxAbsStemDiff="
-      << maxAbsStemDiff;
+  EXPECT_GT(maxAbsRetainedStem, 1.0e-3f)
+      << "Drums, Bass, and Vocals remained silent (complete fallback only); "
+         "maxAbsRetainedStem="
+      << maxAbsRetainedStem;
   EXPECT_LE(maxAbsReconstructionError, 1.0e-6f)
       << "Stem buses did not reconstruct latency-aligned Main";
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0u);

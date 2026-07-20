@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 #include "Constants.h"
@@ -13,70 +15,96 @@ namespace audio_plugin {
 // historical class name is retained to avoid unnecessary API churn.
 class OverlapAddProcessor {
 public:
-    OverlapAddProcessor();
+  OverlapAddProcessor();
 
-    void allocate(size_t maximumHostBlockSize =
-                      static_cast<size_t>(kOutputChunkSize));
-    void reset();
-    void resetIndices();
-    void clearDryDelayBuffer();
+  void allocate(
+      size_t maximumHostBlockSize = static_cast<size_t>(kOutputChunkSize),
+      size_t latencySamples = static_cast<size_t>(kPluginLatencySamples),
+      size_t maximumModelOutputSamples = static_cast<size_t>(kOutputChunkSize));
+  void reset();
+  // Audio-thread reset. Invalidate buffered model/dry data by generation and
+  // counters; do not clear the backing storage here.
+  void resetIndices();
+  // Logically invalidate dry history without touching its backing storage.
+  // reset() performs the physical clear on the non-real-time path.
+  void clearDryDelayBuffer();
 
-    size_t getInputAccumCount() const { return inputAccumCount_; }
-    void pushInputSample(int channel, float sample);
-    bool readyForInference() const {
-        return inputAccumCount_ >= static_cast<size_t>(kOutputChunkSize);
-    }
-    const std::array<std::vector<float>, kNumChannels>& getInputAccumBuffer() const {
-        return inputAccumBuffer_;
-    }
-    void clearInputAccum();
+  size_t getInputAccumCount() const { return inputAccumCount_; }
+  // The host-rate dry timeline and the fixed 44.1 kHz model accumulator are
+  // separate clocks when sample-rate conversion is active. The legacy
+  // pushInputSample() keeps the exact 44.1 kHz one-call path intact.
+  void pushDryInputSample(int channel, float sample);
+  void pushModelInputSample(int channel, float sample);
+  void pushInputSample(int channel, float sample);
+  bool readyForInference() const {
+    return inputAccumCount_ >= static_cast<size_t>(kOutputChunkSize);
+  }
+  const std::array<std::vector<float>, kNumChannels>& getInputAccumBuffer()
+      const {
+    return inputAccumBuffer_;
+  }
+  void clearInputAccum();
 
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
-    getOutputRingBuffers() {
-        return outputRingBuffers_;
-    }
-    std::array<std::vector<float>, kNumChannels>& getDelayedInputBuffer() {
-        return delayedInputBuffer_;
-    }
+  std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
+  getOutputRingBuffers() {
+    return outputRingBuffers_;
+  }
+  std::array<std::vector<float>, kNumChannels>& getDelayedInputBuffer() {
+    return delayedInputBuffer_;
+  }
 
-    size_t getOutputReadPos() const { return outputReadPos_; }
-    void setOutputReadPos(size_t pos) { outputReadPos_ = pos; }
-    size_t getOutputSamplesAvailable() const { return outputSamplesAvailable_; }
-    void setOutputSamplesAvailable(size_t count) {
-        outputSamplesAvailable_ = count;
-    }
-    void addOutputSamplesAvailable(size_t count) {
-        outputSamplesAvailable_ += count;
-    }
-    size_t getOutputRingSize() const { return outputRingBuffers_[0][0].size(); }
-    size_t getOutputWritePos() const {
-        return (outputReadPos_ + outputSamplesAvailable_) % getOutputRingSize();
-    }
+  uint64_t getOutputTimelineSample() const { return outputTimelineSample_; }
+  size_t getOutputReadPos() const {
+    return static_cast<size_t>(outputTimelineSample_ % getOutputRingSize());
+  }
+  size_t getOutputRingPosition(uint64_t timelineSample) const {
+    return static_cast<size_t>(timelineSample % getOutputRingSize());
+  }
+  size_t getOutputSamplesAvailable() const { return scheduledOutputSamples_; }
+  size_t getOutputRingSize() const { return outputRingBuffers_[0][0].size(); }
 
-    float readDryDelaySample(int channel) const;
-    void advanceDryDelayPos();
+  bool canScheduleModelOutput(uint64_t firstTimelineSample,
+                              size_t sampleCount) const;
+  void markModelOutputScheduled(uint64_t firstTimelineSample,
+                                size_t sampleCount);
+  bool hasModelOutputForCurrentSample() const;
+  void advanceOutputTimeline();
 
-    bool hasPendingChunk() const { return hasPendingChunk_; }
-    void setHasPendingChunk(bool value) { hasPendingChunk_ = value; }
-    size_t getPendingChunkOffset() const { return pendingChunkCopyOffset_; }
-    void setPendingChunkOffset(size_t value) { pendingChunkCopyOffset_ = value; }
+  float readDryDelaySample(int channel) const;
+  void advanceDryDelayPos();
+
+  bool canProcessHostBlock(size_t sampleCount) const {
+    return sampleCount <= dryDelayHostBlockCapacity_;
+  }
+  size_t getLatencySamples() const { return latencySamples_; }
 
 private:
-    std::array<std::vector<float>, kNumChannels> inputAccumBuffer_;
-    size_t inputAccumCount_{0};
+  friend class OverlapAddProcessorTestPeer;
 
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>
-        outputRingBuffers_;
-    std::array<std::vector<float>, kNumChannels> delayedInputBuffer_;
-    size_t outputReadPos_{0};
-    size_t outputSamplesAvailable_{0};
+  std::array<std::vector<float>, kNumChannels> inputAccumBuffer_;
+  size_t inputAccumCount_{0};
 
-    std::array<std::vector<float>, kNumChannels> dryDelayLine_;
-    size_t dryDelayWritePos_{0};
-    size_t dryDelayReadPos_{0};
+  std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>
+      outputRingBuffers_;
+  std::array<std::vector<float>, kNumChannels> delayedInputBuffer_;
+  std::vector<uint64_t> outputTimelineTags_;
+  std::vector<uint64_t> outputGenerationTags_;
+  uint64_t outputGeneration_{0};
+  uint64_t outputTimelineSample_{0};
+  size_t scheduledOutputSamples_{0};
 
-    bool hasPendingChunk_{false};
-    size_t pendingChunkCopyOffset_{0};
+  std::array<std::vector<float>, kNumChannels> dryDelayLine_;
+  size_t dryDelayWritePos_{0};
+  size_t dryDelayReadPos_{0};
+  size_t dryDelayHostBlockCapacity_{0};
+  size_t latencySamples_{static_cast<size_t>(kPluginLatencySamples)};
+  uint64_t dryInputSamplesWritten_{0};
+  uint64_t dryOutputSamplesRead_{0};
+
+  void clearDryDelayStorage();
+
+  static constexpr uint64_t kInvalidOutputTimelineTag =
+      std::numeric_limits<uint64_t>::max();
 };
 
 }  // namespace audio_plugin

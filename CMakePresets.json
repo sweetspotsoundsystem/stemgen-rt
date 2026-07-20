@@ -18,9 +18,10 @@
     {
       "name": "release",
       "inherits": "default",
-      "binaryDir": "release-build",
+      "binaryDir": "build-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "STEMGENRT_REQUIRE_QUALIFIED_ORT": "ON"
       }
     },
     {

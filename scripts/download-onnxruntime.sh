@@ -2,12 +2,14 @@
 # Download the official ONNX Runtime release (self-contained, no external dependencies)
 # Usage: ./scripts/download-onnxruntime.sh
 
-set -e
+set -euo pipefail
 
 VERSION="1.26.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DEST_DIR="$PROJECT_ROOT/libs/onnxruntime"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stemgenrt-ort.XXXXXX")"
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Detect architecture
 ARCH=$(uname -m)
@@ -28,14 +30,32 @@ URL="https://github.com/microsoft/onnxruntime/releases/download/v${VERSION}/${FI
 echo "Downloading ONNX Runtime ${VERSION} for ${PLATFORM}..."
 echo "URL: $URL"
 
-# Create destination directory
-mkdir -p "$DEST_DIR"
+# Download and validate before replacing an existing SDK.
+ARCHIVE_PATH="$TEMP_DIR/$FILENAME"
+EXTRACT_DIR="$TEMP_DIR/extracted"
+mkdir -p "$EXTRACT_DIR"
+curl --fail --location --retry 3 -o "$ARCHIVE_PATH" "$URL"
+tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR"
 
-# Download and extract
-cd "$DEST_DIR"
-curl -L -o "$FILENAME" "$URL"
-tar -xzf "$FILENAME" --strip-components=1
-rm "$FILENAME"
+SDK_DIR="$EXTRACT_DIR/onnxruntime-${PLATFORM}-${VERSION}"
+if [[ ! -d "$SDK_DIR" ]]; then
+    echo "Downloaded archive did not contain the expected SDK directory: $SDK_DIR"
+    exit 1
+fi
+
+INSTALLED_VERSION="$(tr -d '[:space:]' < "$SDK_DIR/VERSION_NUMBER")"
+if [[ "$INSTALLED_VERSION" != "$VERSION" ]]; then
+    echo "Downloaded SDK reports ONNX Runtime $INSTALLED_VERSION; expected $VERSION"
+    exit 1
+fi
+if [[ ! -f "$SDK_DIR/include/onnxruntime_c_api.h" || ! -e "$SDK_DIR/lib/libonnxruntime.dylib" ]]; then
+    echo "Downloaded SDK is incomplete (header or dylib missing)."
+    exit 1
+fi
+
+rm -rf "$DEST_DIR"
+mkdir -p "$(dirname "$DEST_DIR")"
+mv "$SDK_DIR" "$DEST_DIR"
 
 echo ""
 echo "✓ ONNX Runtime ${VERSION} installed to: $DEST_DIR"
@@ -44,4 +64,5 @@ echo "Contents:"
 ls -la "$DEST_DIR"
 echo ""
 echo "Now rebuild your project:"
-echo "  rm -rf build && cmake --preset release && cmake --build build-release"
+echo "  cmake --preset release"
+echo "  cmake --build --preset release"

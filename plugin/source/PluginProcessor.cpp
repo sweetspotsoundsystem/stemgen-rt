@@ -1,12 +1,15 @@
 #include "StemgenRT/PluginProcessor.h"
 #include "StemgenRT/PluginEditor.h"
+#include "StemgenRT/ModelOutputScheduler.h"
 #include <algorithm>
 #include <vector>
 #include <cstdint>
 #include <cmath>
 #include <chrono>
 #include <cstring>
+#include <exception>
 #include <limits>
+#include <stdexcept>
 #include <thread>
 
 namespace audio_plugin {
@@ -26,8 +29,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
       ) {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  // Early initialization of ONNX Runtime environment (for accurate status display).
-  // The full model loading and session creation happens in prepareToPlay().
+  // Initialize the environment early so availability is visible before the
+  // host starts playback. Model loading still happens in prepareToPlay().
   onnxRuntime_ = std::make_unique<OnnxRuntime>();
 #endif
 }
@@ -69,7 +72,18 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
   // A partial final hop plus the graph's required zero-hop flush can require
-  // up to two chunks before the final separated samples emerge.
+  // up to the currently reported latency before the final separated samples
+  // emerge. Before prepareToPlay(), use the qualified two-hop minimum.
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  const int activeLatency =
+      activeLatencySamples_.load(std::memory_order_acquire);
+  // The host bridge's prepared rate is authoritative. Some direct plugin
+  // lifecycles call prepareToPlay() without populating JUCE's base-class rate.
+  if (activeLatency > 0 && hostSampleRate_ > 0) {
+    return static_cast<double>(activeLatency) /
+           static_cast<double>(hostSampleRate_);
+  }
+#endif
   return static_cast<double>(kPluginLatencySamples) /
          static_cast<double>(kModelSampleRate);
 }
@@ -99,32 +113,54 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
 }
 
 juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
+  const auto appendTimingWarning = [this](juce::String status) {
+    if (isRealtimeCallbackTimingUnsafe()) {
+      status += juce::String::formatted(
+          " | PDC warning: %d-sample callback needs %d samples",
+          getLastHostBlockSize(), getRequiredLatencySamplesForLastHostBlock());
+    }
+    return status;
+  };
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   if (onnxRuntime_) {
-    if (!sampleRateSupported_) {
-      return "Model requires a 44.1 kHz host sample rate";
+    if (!sampleRateSupported_.load(std::memory_order_acquire)) {
+      juce::String sampleRateError;
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        sampleRateError = modelLoadError_;
+      }
+      return appendTimingWarning(
+          sampleRateError.isNotEmpty()
+              ? sampleRateError
+              : juce::String("Supported host rates: 44.1, 48, 88.2, 96, "
+                             "176.4, or 192 kHz"));
     }
-    if (modelLoadError_.isNotEmpty() && !onnxRuntime_->isModelLoaded()) {
-      return juce::String("Model error: ") + modelLoadError_;
+    juce::String modelLoadError;
+    {
+      const std::lock_guard<std::mutex> lock(statusMutex_);
+      modelLoadError = modelLoadError_;
     }
-    return onnxRuntime_->getStatusString();
+    if (modelLoadError.isNotEmpty() &&
+        activeLatencySamples_.load(std::memory_order_acquire) == 0) {
+      return appendTimingWarning(juce::String("Model error: ") +
+                                 modelLoadError);
+    }
+    return appendTimingWarning(onnxRuntime_->getStatusString());
   }
-  return "ONNX Runtime: not initialized";
+  return appendTimingWarning("ONNX Runtime: not initialized");
 #else
-  return "ONNX Runtime: not linked";
+  return appendTimingWarning("ONNX Runtime: not linked");
 #endif
 }
 
 int AudioPluginAudioProcessor::getLatencySamples() const {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  if (!sampleRateSupported_ || !onnxRuntime_ ||
-      !onnxRuntime_->isModelLoaded()) {
+  if (!sampleRateSupported_.load(std::memory_order_acquire) || !onnxRuntime_ ||
+      !onnxRuntime_->isReadyForInference()) {
     return 0;
   }
-  
-  // One hop is needed to accumulate/queue audio and the stateful graph emits
-  // the preceding hop. This fixed value is reported for host PDC.
-  return kPluginLatencySamples;
+
+  return activeLatencySamples_.load(std::memory_order_acquire);
 #else
   return 0;
 #endif
@@ -132,6 +168,12 @@ int AudioPluginAudioProcessor::getLatencySamples() const {
 
 double AudioPluginAudioProcessor::getLatencyMs() const {
   double sampleRate = getSampleRate();
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  if (activeLatencySamples_.load(std::memory_order_acquire) > 0 &&
+      hostSampleRate_ > 0) {
+    sampleRate = static_cast<double>(hostSampleRate_);
+  }
+#endif
   if (sampleRate <= 0.0) {
     sampleRate = 44100.0;  // Fallback if not yet initialized
   }
@@ -204,11 +246,110 @@ uint64_t AudioPluginAudioProcessor::getQueueFullChunkDropCount() const {
 }
 #endif
 
+int AudioPluginAudioProcessor::getPreparedHostBlockSize() const {
+  return preparedHostBlockSize_.load(std::memory_order_acquire);
+}
+
+int AudioPluginAudioProcessor::getLastHostBlockSize() const {
+  return lastHostBlockSize_.load(std::memory_order_acquire);
+}
+
+int AudioPluginAudioProcessor::getRequiredLatencySamplesForLastHostBlock()
+    const {
+  return requiredLatencySamplesForLastHostBlock_.load(
+      std::memory_order_acquire);
+}
+
+bool AudioPluginAudioProcessor::isRealtimeCallbackTimingUnsafe() const {
+  return realtimeCallbackTimingUnsafe_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getUnsafeRealtimeCallbackCount() const {
+  return unsafeRealtimeCallbackCount_.load(std::memory_order_acquire);
+}
+
+InferenceQueue::WorkerPriorityStatus
+AudioPluginAudioProcessor::getInferenceWorkerPriorityStatus() const {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.getWorkerPriorityStatus();
+#else
+  return InferenceQueue::WorkerPriorityStatus::Unsupported;
+#endif
+}
+
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 void AudioPluginAudioProcessor::allocateStreamingBuffers(
-    int maximumHostBlockSize) {
-  overlapAdd_.allocate(static_cast<size_t>(
-      std::max(maximumHostBlockSize, kOutputChunkSize)));
+    int maximumHostBlockSize,
+    double hostSampleRate) {
+  const int safeHostBlockSize = std::max(maximumHostBlockSize, 1);
+  hostSampleRate_ = static_cast<int>(std::lround(hostSampleRate));
+  sampleRateConversionActive_ = hostSampleRate_ != kModelSampleRate;
+
+  if (!inputSampleRateAdapter_.prepare(hostSampleRate,
+                                       static_cast<double>(kModelSampleRate),
+                                       static_cast<size_t>(kNumChannels))) {
+    throw std::runtime_error("input sample-rate converter preparation failed");
+  }
+
+  sampleRateConversionDelaySamples_ = 0;
+  inferenceQueue_.disableOutputSampleRateConversion();
+  if (sampleRateConversionActive_) {
+    if (!inferenceQueue_.prepareOutputSampleRate(hostSampleRate)) {
+      throw std::runtime_error(
+          "output sample-rate converter preparation failed");
+    }
+
+    const double naturalDelaySamples =
+        inputSampleRateAdapter_.filterGroupDelaySeconds() * hostSampleRate +
+        inferenceQueue_.getOutputSampleRateConversionDelaySamples();
+    const double integralDelay = std::ceil(naturalDelaySamples - 1.0e-9);
+    const double fractionalCompensation = integralDelay - naturalDelaySamples;
+    if (fractionalCompensation < -1.0e-9 || fractionalCompensation >= 1.0) {
+      throw std::runtime_error("invalid sample-rate converter phase delay");
+    }
+    if (!inferenceQueue_.prepareOutputSampleRate(
+            hostSampleRate, std::max(0.0, fractionalCompensation))) {
+      throw std::runtime_error(
+          "output sample-rate converter phase alignment failed");
+    }
+
+    const double correctedDelaySamples =
+        inputSampleRateAdapter_.filterGroupDelaySeconds() * hostSampleRate +
+        inferenceQueue_.getOutputSampleRateConversionDelaySamples();
+    const double roundedDelaySamples = std::round(correctedDelaySamples);
+    if (!std::isfinite(correctedDelaySamples) ||
+        std::abs(correctedDelaySamples - roundedDelaySamples) > 1.0e-6 ||
+        roundedDelaySamples < 0.0 ||
+        roundedDelaySamples >
+            static_cast<double>(std::numeric_limits<int>::max())) {
+      throw std::runtime_error(
+          "sample-rate converter delay is not host-sample aligned");
+    }
+    sampleRateConversionDelaySamples_ = static_cast<int>(roundedDelaySamples);
+  }
+
+  modelSchedulingLatencySamples_ = calculateModelSchedulingLatencySamples(
+      hostSampleRate_, safeHostBlockSize);
+  const int latencySamples = calculatePluginLatencySamples(
+      hostSampleRate_, safeHostBlockSize, sampleRateConversionDelaySamples_);
+  activeLatencySamples_.store(latencySamples, std::memory_order_release);
+  overlapAdd_.allocate(static_cast<size_t>(safeHostBlockSize),
+                       static_cast<size_t>(latencySamples),
+                       inferenceQueue_.getMaximumHostOutputSamplesPerHop());
+
+  const size_t hostScratchCapacity = static_cast<size_t>(
+      std::max(safeHostBlockSize, kMinimumHostBlockCapacity));
+  const size_t modelScratchCapacity =
+      inputSampleRateAdapter_.maxOutputForInput(hostScratchCapacity);
+  if (modelScratchCapacity == std::numeric_limits<size_t>::max() ||
+      modelScratchCapacity == std::numeric_limits<size_t>::max() - 1U) {
+    throw std::runtime_error("sample-rate converter scratch size overflow");
+  }
+  for (size_t channel = 0U; channel < static_cast<size_t>(kNumChannels);
+       ++channel) {
+    sanitizedHostInputScratch_[channel].assign(hostScratchCapacity, 0.0f);
+    modelInputScratch_[channel].assign(modelScratchCapacity + 1U, 0.0f);
+  }
 
   // Reset output writer (initializes crossfade state)
   outputWriter_.reset();
@@ -219,7 +360,9 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
   DBG("[HS-TasNet] Streaming buffers allocated:");
   DBG("  Model chunk size: " << kOutputChunkSize << " samples");
   DBG("  Model analysis window: " << kAnalysisWindowSize << " samples");
-  DBG("  Reported PDC: " << kPluginLatencySamples << " samples");
+  DBG("  Host sample rate: " << hostSampleRate_ << " Hz");
+  DBG("  SRC delay: " << sampleRateConversionDelaySamples_ << " samples");
+  DBG("  Reported PDC: " << latencySamples << " samples");
   DBG("  Inference queue size: " << kNumInferenceBuffers << " slots");
 }
 
@@ -227,22 +370,39 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
 
 void AudioPluginAudioProcessor::resetStreamingBuffers() {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  // fullReset() directly clears slot ownership, so stop the worker first when
+  // this non-RT reset is invoked on an already prepared processor. Preserve
+  // the prior running state for test/host-driven full resets; prepareToPlay()
+  // and releaseResources() already enter here with the worker stopped.
+  const bool restartInferenceThread = inferenceQueue_.isThreadRunning();
+  if (restartInferenceThread) {
+    inferenceQueue_.stopThread();
+  }
+
   // Reset overlap-add processor (clears all buffers and indices)
   overlapAdd_.reset();
+  inputSampleRateAdapter_.reset();
 
   // Reset output writer (crossfade state)
   outputWriter_.reset();
-  // Reset inference queue state (full reset: clears flags and indices)
+  // Reset inference queue state (full reset: clears ownership and indices)
   inferenceQueue_.fullReset();
   if (onnxRuntime_) {
     onnxRuntime_->resetStreamingState();
+  }
+  if (restartInferenceThread && onnxRuntime_ &&
+      onnxRuntime_->isReadyForInference()) {
+    inferenceQueue_.startThread(onnxRuntime_.get());
   }
 
   // Reset input sequence tracking used for recurrent-state gap detection.
   nextInputChunkSequence_ = 0;
 
-  // Reset startup grace period counter
-  outputChunksConsumed_.store(0, std::memory_order_release);
+  // Snapshot diagnostics describe the current streaming generation. Lifetime
+  // totals intentionally remain cumulative across resets.
+  ringFillLevel_.store(0, std::memory_order_release);
+  underrunActive_.store(false, std::memory_order_release);
+  lastUnderrunSamplesInLastBlock_.store(0, std::memory_order_release);
 
   DBG("[HS-TasNet] Streaming buffers reset");
 #endif
@@ -262,16 +422,16 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
   // cannot leak old dry audio into the new transport position.
   overlapAdd_.resetIndices();
   overlapAdd_.clearDryDelayBuffer();
+  inputSampleRateAdapter_.reset();
 
   // Reset output writer (crossfade state)
   outputWriter_.reset();
+  ringFillLevel_.store(0, std::memory_order_release);
   underrunActive_.store(false, std::memory_order_release);
   lastUnderrunSamplesInLastBlock_.store(0, std::memory_order_release);
 
-  // Reset startup grace period counter
-  outputChunksConsumed_.store(0, std::memory_order_release);
-
-  // Reset inference queue - increments epoch and invalidates in-flight requests.
+  // Reset inference queue - increments epoch and invalidates in-flight
+  // requests.
   inferenceQueue_.reset();
 
   // Start a new contiguous input sequence after transport resets.
@@ -281,62 +441,150 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
 
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
                                               int samplesPerBlock) {
+  preparedHostBlockSize_.store(std::max(samplesPerBlock, 1),
+                               std::memory_order_release);
+  lastHostBlockSize_.store(0, std::memory_order_release);
+  requiredLatencySamplesForLastHostBlock_.store(0, std::memory_order_release);
+  realtimeCallbackTimingUnsafe_.store(false, std::memory_order_release);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   inferenceQueue_.stopThread();
-  sampleRateSupported_ =
-      std::abs(sampleRate - static_cast<double>(kModelSampleRate)) < 0.5;
-  if (!sampleRateSupported_) {
-    modelLoadError_ = juce::String("Unsupported sample rate ")
-                      + juce::String(sampleRate, 1)
-                      + " Hz; this model requires 44100 Hz";
+  // Every prepare attempt starts a new stream generation, including attempts
+  // that later fail closed for sample rate, runtime, or model validation.
+  // This prevents stale output and snapshot telemetry from surviving a host
+  // reconfiguration onto the safe path.
+  resetStreamingBuffers();
+  const bool sampleRateCanConvertToInt =
+      std::isfinite(sampleRate) && sampleRate > 0.0 &&
+      sampleRate <= static_cast<double>(std::numeric_limits<int>::max());
+  const int roundedSampleRate =
+      sampleRateCanConvertToInt ? static_cast<int>(std::lround(sampleRate)) : 0;
+  hostSampleRate_ =
+      roundedSampleRate > 0 ? roundedSampleRate : kModelSampleRate;
+  sampleRateConversionActive_ = false;
+  sampleRateConversionDelaySamples_ = 0;
+  modelSchedulingLatencySamples_ = calculateModelSchedulingLatencySamples(
+      hostSampleRate_, std::max(samplesPerBlock, 1));
+  const bool sampleRateSupported =
+      sampleRateCanConvertToInt &&
+      std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
+      isQualifiedHostSampleRate(roundedSampleRate);
+  sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
+  if (!sampleRateSupported) {
+    const juce::String error = juce::String("Unsupported sample rate ") +
+                               juce::String(sampleRate, 1) +
+                               " Hz; qualified rates are 44100, 48000, 88200, "
+                               "96000, 176400, and 192000 Hz";
+    {
+      const std::lock_guard<std::mutex> lock(statusMutex_);
+      modelLoadError_ = error;
+    }
+    activeLatencySamples_.store(0, std::memory_order_release);
     setLatencySamples(0);
-    DBG("[HS-TasNet] " << modelLoadError_);
+    DBG("[HS-TasNet] " << error);
     return;
   }
-  modelLoadError_.clear();
+  {
+    const std::lock_guard<std::mutex> lock(statusMutex_);
+    modelLoadError_.clear();
+  }
+  outputWriter_.prepare(sampleRate);
 
   // Warn about small buffer sizes that may cause real-time issues
   constexpr int kMinRecommendedBufferSize = 128;
   if (samplesPerBlock < kMinRecommendedBufferSize) {
-    DBG("[HS-TasNet] WARNING: Buffer size " << samplesPerBlock << " samples is below recommended "
+    DBG("[HS-TasNet] WARNING: Buffer size "
+        << samplesPerBlock << " samples is below recommended "
         << kMinRecommendedBufferSize << ". May cause audio dropouts.");
   }
 
   // Check if OnnxRuntime is initialized
   if (!onnxRuntime_ || !onnxRuntime_->isInitialized()) {
     DBG("[ORT] ONNX Runtime not available");
+    activeLatencySamples_.store(0, std::memory_order_release);
+    setLatencySamples(0);
     return;
   }
 
   // Load the HS-TasNet model (only once)
   if (!onnxRuntime_->isModelLoaded()) {
     // Construct model path relative to the plugin binary
-    juce::File pluginFile = juce::File::getSpecialLocation(juce::File::currentExecutableFile);
-    juce::File modelFile = pluginFile.getParentDirectory().getParentDirectory()
-                                     .getChildFile("Resources/model.onnx");
+    juce::File pluginFile =
+        juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+    juce::File modelFile =
+        pluginFile.getParentDirectory().getParentDirectory().getChildFile(
+            "Resources/model.onnx");
 
     DBG("[HS-TasNet] Checking model path: " << modelFile.getFullPathName());
 
     if (!modelFile.existsAsFile()) {
-      modelLoadError_ = juce::String("Model not found: ") + modelFile.getFullPathName();
-      DBG("[HS-TasNet] " << modelLoadError_);
+      const juce::String error =
+          juce::String("Model not found: ") + modelFile.getFullPathName();
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = error;
+      }
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+      DBG("[HS-TasNet] " << error);
       return;
     }
 
     // Load the qualified model into the CPU ONNX Runtime session.
-    if (!onnxRuntime_->loadModel(modelFile.getFullPathName(), modelLoadError_)) {
-      DBG("[HS-TasNet] Model load failed: " << modelLoadError_);
+    juce::String loadError;
+    if (!onnxRuntime_->loadModel(modelFile.getFullPathName(), loadError)) {
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = loadError;
+      }
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+      DBG("[HS-TasNet] Model load failed: " << loadError);
       return;
     }
-
   }
 
   // Always recreate bounded buffers and state for the host's current maximum
   // block size, then start the inference thread.
-  // Hosts may call releaseResources() + prepareToPlay() cycles during transport changes.
+  // Hosts may call releaseResources() + prepareToPlay() cycles during transport
+  // changes.
   if (onnxRuntime_->isModelLoaded()) {
-    onnxRuntime_->prepareForInference();
-    allocateStreamingBuffers(samplesPerBlock);
+    juce::String preparationError;
+    if (!onnxRuntime_->prepareForInference(preparationError)) {
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = preparationError;
+      }
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+      DBG("[HS-TasNet] Inference preparation failed: " << preparationError);
+      return;
+    }
+
+    try {
+      allocateStreamingBuffers(samplesPerBlock, sampleRate);
+    } catch (const std::exception& exception) {
+      const juce::String error =
+          juce::String("Streaming buffer allocation failed: ") +
+          juce::String(exception.what());
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = error;
+      }
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+      DBG("[HS-TasNet] " << error);
+      return;
+    } catch (...) {
+      const juce::String error = "Streaming buffer allocation failed";
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = error;
+      }
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+      DBG("[HS-TasNet] " << error);
+      return;
+    }
 
     // Reset streaming buffers to clean state for new playback session
     resetStreamingBuffers();
@@ -345,7 +593,7 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
     inferenceQueue_.startThread(onnxRuntime_.get());
 
     // Report latency to host for Plugin Delay Compensation (PDC)
-    setLatencySamples(kPluginLatencySamples);
+    setLatencySamples(activeLatencySamples_.load(std::memory_order_acquire));
 
     // Warm up ORT: queue a dummy inference to trigger lazy initialization.
     // Use submitForWarmup() which doesn't advance write index, then reset()
@@ -362,18 +610,18 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       // never indefinitely in case inference thread is stalled.
       constexpr auto kWarmupTimeout = std::chrono::seconds(2);
       const auto deadline = std::chrono::steady_clock::now() + kWarmupTimeout;
-      while (!warmup->processed.load(std::memory_order_acquire)) {
+      while (!warmup->isProcessed()) {
         if (std::chrono::steady_clock::now() >= deadline) {
           break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      const bool warmupCompleted =
-          warmup->processed.load(std::memory_order_acquire);
+      const bool warmupCompleted = warmup->isProcessed();
 
       if (warmupCompleted) {
-        // Clear processed flag directly (don't use releaseOutputSlot which advances consumeIdx)
-        warmup->processed.store(false, std::memory_order_release);
+        // Release without advancing consumeIdx; warmup never advances the
+        // queue's write/consume timeline.
+        inferenceQueue_.releaseWarmupSlot(warmup);
         DBG("[HS-TasNet] ORT warmup complete");
       } else {
         DBG("[HS-TasNet] ORT warmup timed out after "
@@ -397,7 +645,13 @@ void AudioPluginAudioProcessor::releaseResources() {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   // Stop the inference thread
   inferenceQueue_.stopThread();
+  activeLatencySamples_.store(0, std::memory_order_release);
+  setLatencySamples(0);
 #endif
+  preparedHostBlockSize_.store(0, std::memory_order_release);
+  lastHostBlockSize_.store(0, std::memory_order_release);
+  requiredLatencySamplesForLastHostBlock_.store(0, std::memory_order_release);
+  realtimeCallbackTimingUnsafe_.store(false, std::memory_order_release);
   // Reset streaming buffers when playback stops
   resetStreamingBuffers();
 }
@@ -448,32 +702,71 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
   juce::ScopedNoDenormals noDenormals;
   const int numSamples = buffer.getNumSamples();
+  const bool nonRealtimeRender = isNonRealtime();
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  const int requiredLatencySamples =
+      numSamples > 0
+          ? calculatePluginLatencySamples(hostSampleRate_, numSamples,
+                                          sampleRateConversionDelaySamples_)
+          : 0;
+#else
+  const int requiredLatencySamples =
+      numSamples > 0 ? calculatePluginLatencySamples(numSamples) : 0;
+#endif
+  lastHostBlockSize_.store(numSamples, std::memory_order_release);
+  requiredLatencySamplesForLastHostBlock_.store(requiredLatencySamples,
+                                                std::memory_order_release);
+  bool unsafeRealtimeCallback = false;
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  const int activeLatency =
+      activeLatencySamples_.load(std::memory_order_acquire);
+  unsafeRealtimeCallback = !nonRealtimeRender && numSamples > 0 &&
+                           activeLatency > 0 &&
+                           requiredLatencySamples > activeLatency;
+#endif
+  realtimeCallbackTimingUnsafe_.store(unsafeRealtimeCallback,
+                                      std::memory_order_release);
+  if (unsafeRealtimeCallback) {
+    unsafeRealtimeCallbackCount_.fetch_add(1, std::memory_order_relaxed);
+  }
+  // If the host exposes no transport state, preserve live/offline processing
+  // telemetry. A known stopped transport has no playback deadline to miss.
+  bool underrunTelemetryEnabled = true;
 
   // Check for playback state change to reset streaming buffers.
-  // Note: getPlayHead()->getPosition() is generally safe but not strictly RT-guaranteed
-  // in all hosts (some may take locks). We only call it when we need the information,
-  // and we degrade gracefully if it fails.
-  // The playhead check is relatively infrequent (once per block) and essential for
-  // proper transport sync. If a host's implementation is problematic, the user can
-  // increase buffer size. We prioritize correct behavior over the edge case of a
-  // blocking playhead implementation.
+  // Note: getPlayHead()->getPosition() is generally safe but not strictly
+  // RT-guaranteed in all hosts (some may take locks). We only call it when we
+  // need the information, and we degrade gracefully if it fails. The playhead
+  // check is relatively infrequent (once per block) and essential for proper
+  // transport sync. If a host's implementation is problematic, the user can
+  // increase buffer size. We prioritize correct behavior over the edge case of
+  // a blocking playhead implementation.
   if (juce::AudioPlayHead* currentPlayHead = getPlayHead()) {
     if (auto posInfo = currentPlayHead->getPosition()) {
-      bool isPlaying = posInfo->getIsPlaying();
-      bool wasPlayingBefore = wasPlaying.exchange(isPlaying, std::memory_order_acq_rel);
+      const bool isPlaying = posInfo->getIsPlaying();
+      underrunTelemetryEnabled = isPlaying;
+      const bool wasPlayingBefore =
+          wasPlaying.exchange(isPlaying, std::memory_order_acq_rel);
 
-      bool transportDiscontinuity = isPlaying && !wasPlayingBefore;
-      if (isPlaying) {
-        if (const auto timeInSamples = posInfo->getTimeInSamples()) {
-          if (wasPlayingBefore && hasExpectedPlayheadPosition_ &&
+      bool transportDiscontinuity = isPlaying != wasPlayingBefore;
+      if (const auto timeInSamples = posInfo->getTimeInSamples()) {
+        if (hasExpectedPlayheadPosition_) {
+          if (isPlaying && wasPlayingBefore &&
               *timeInSamples != expectedPlayheadPosition_) {
             transportDiscontinuity = true;
           }
-          expectedPlayheadPosition_ = *timeInSamples + numSamples;
-          hasExpectedPlayheadPosition_ = true;
-        } else {
-          hasExpectedPlayheadPosition_ = false;
+          if (!isPlaying && !wasPlayingBefore &&
+              *timeInSamples != expectedPlayheadPosition_) {
+            transportDiscontinuity = true;
+          }
         }
+
+        // A stopped playhead normally reports the same position on every
+        // callback. Retaining it lets us detect a stopped scrub/seek without
+        // repeatedly resetting ordinary stopped callbacks.
+        expectedPlayheadPosition_ =
+            isPlaying ? *timeInSamples + numSamples : *timeInSamples;
+        hasExpectedPlayheadPosition_ = true;
       } else {
         hasExpectedPlayheadPosition_ = false;
       }
@@ -487,171 +780,295 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   }
 
 #if !JucePlugin_IsSynth
-  // Extract input channel pointers directly (RT-safe: getBusBuffer returns a view,
-  // but we avoid storing the AudioBuffer object to sidestep copy ambiguity)
-  const float* inputChannelPtrs[kNumChannels] = { nullptr, nullptr };
+  // Extract input channel pointers directly (RT-safe: getBusBuffer returns a
+  // view, but we avoid storing the AudioBuffer object to sidestep copy
+  // ambiguity)
+  const float* inputChannelPtrs[kNumChannels] = {nullptr, nullptr};
   {
     auto inputBus = getBusBuffer(buffer, true /* isInput */, 0);
-    for (int ch = 0; ch < std::min(kNumChannels, inputBus.getNumChannels()); ++ch)
+    for (int ch = 0; ch < std::min(kNumChannels, inputBus.getNumChannels());
+         ++ch)
       inputChannelPtrs[ch] = inputBus.getReadPointer(ch);
   }
 #endif
 
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  if (sampleRateSupported_ && onnxRuntime_ &&
-      onnxRuntime_->isModelLoaded()) {
+  if (sampleRateSupported_.load(std::memory_order_acquire) && onnxRuntime_ &&
+      onnxRuntime_->isReadyForInference() &&
+      activeLatencySamples_.load(std::memory_order_acquire) > 0) {
     const size_t outRingSize = overlapAdd_.getOutputRingSize();
     auto& outputRingBuffers = overlapAdd_.getOutputRingBuffers();
     auto& delayedInputBuffer = overlapAdd_.getDelayedInputBuffer();
 
-    // Consume inference results into the ring buffer up to a target fill level.
-    // Unlike consuming ALL results, this limits the ring to just enough for the
-    // current host block read. Excess results stay in the inference queue (16 slots)
-    // and are consumed in subsequent blocks. This avoids:
-    //   - Persistent ring buildup from startup bursts (was causing ~60ms latency)
-    //   - Cascading underruns from discarding ring data (cap approach)
-    //
-    // The algorithm:
-    //   1. If no pending chunk, check if a processed result is ready
-    //   2. Copy from the pending chunk to the ring buffer
-    //   3. When chunk is fully copied, move to next processed result
-    //   4. Stop when ring reaches target fill level
+    // A host is allowed to exceed maximumExpectedSamplesPerBlock. The dry
+    // history has generous bounded slack for normal violations; fail closed on
+    // an absurdly large callback instead of overwriting unread delay samples.
+    if (!overlapAdd_.canProcessHostBlock(static_cast<size_t>(numSamples))) {
+      resetStreamingBuffersRT();
+      for (int busIndex = 0; busIndex < getBusCount(false); ++busIndex) {
+        auto outputBus = getBusBuffer(buffer, false, busIndex);
+        outputBus.clear();
+      }
+      return;
+    }
 
-    const size_t targetRingFill = std::max(
-        static_cast<size_t>(kOutputChunkSize),
-        static_cast<size_t>(numSamples));
-    const size_t currentRingAvail = overlapAdd_.getOutputSamplesAvailable();
-    size_t samplesToProcess = (currentRingAvail < targetRingFill)
-        ? (targetRingFill - currentRingAvail)
-        : 0;
+    // A non-finite input is a streaming discontinuity: sanitize it to silence
+    // and reset all graph/queue state before consuming any old-epoch output.
+    bool inputHadNonFiniteSample = false;
+#if !JucePlugin_IsSynth
+    for (int ch = 0; ch < kNumChannels && !inputHadNonFiniteSample; ++ch) {
+      if (inputChannelPtrs[ch] == nullptr) {
+        continue;
+      }
+      for (int i = 0; i < numSamples; ++i) {
+        if (!std::isfinite(inputChannelPtrs[ch][i])) {
+          inputHadNonFiniteSample = true;
+          break;
+        }
+      }
+    }
+#endif
+    if (inputHadNonFiniteSample) {
+      resetStreamingBuffersRT();
+    }
+
+    // Results are scheduled by their exact input sequence, never by arrival
+    // order. If inference misses a deadline, its elapsed prefix is discarded;
+    // it can therefore never replay over a newer dry-fallback timeline.
     uint64_t ringOverflowEventsThisBlock = 0;
     uint64_t ringOverflowSamplesDroppedThisBlock = 0;
     uint64_t queueFullDropsThisBlock = 0;
 
-    while (samplesToProcess > 0) {
-      // If no pending chunk, try to acquire one
-      if (!overlapAdd_.hasPendingChunk()) {
-        InferenceRequest* outputSlot = inferenceQueue_.getOutputSlot(inferenceQueue_.getEpoch());
-        if (!outputSlot) {
-          break;  // No more results ready (stale ones are auto-discarded)
+    const auto drainReadyInferenceResults = [&]() {
+      size_t consumedResults = 0;
+      for (int resultIndex = 0; resultIndex < kNumInferenceBuffers;
+           ++resultIndex) {
+        InferenceRequest* consumeRequest =
+            inferenceQueue_.getCurrentOutputSlot();
+        if (consumeRequest == nullptr) {
+          consumeRequest =
+              inferenceQueue_.getOutputSlot(inferenceQueue_.getEpoch());
+        }
+        if (consumeRequest == nullptr) {
+          break;
         }
 
-        // Every reset produces one pre-roll marker. Consume it without adding
-        // samples so the next output remains aligned with the first real hop.
-        if (!outputSlot->outputValid) {
+        // Every graph-state reset produces exactly one pre-roll marker.
+        // Sequence zero cannot otherwise have a valid aligned predecessor.
+        if (!consumeRequest->outputValid ||
+            consumeRequest->chunkSequence == 0) {
           inferenceQueue_.releaseOutputSlot();
+          ++consumedResults;
           continue;
         }
 
-        // Check ring buffer capacity before writing
-        size_t avail = overlapAdd_.getOutputSamplesAvailable();
-        if (avail + static_cast<size_t>(kOutputChunkSize) > outRingSize) {
-          // Ring buffer would overflow - drop oldest samples to make room
-          size_t overflow = (avail + static_cast<size_t>(kOutputChunkSize)) - outRingSize;
-          overlapAdd_.setOutputReadPos((overlapAdd_.getOutputReadPos() + overflow) % outRingSize);
-          overlapAdd_.setOutputSamplesAvailable(avail - overflow);
+        if (sampleRateConversionActive_ &&
+            (!consumeRequest->hostOutputValid ||
+             consumeRequest->hostOutputSampleCount == 0U)) {
           ++ringOverflowEventsThisBlock;
-          ringOverflowSamplesDroppedThisBlock += static_cast<uint64_t>(overflow);
-#if JUCE_DEBUG
-          DBG("[HS-TasNet] Output ring overflow: dropped " << overflow
-              << " oldest samples (ringAvail=" << avail
-              << ", ringSize=" << outRingSize << ")");
-#endif
+          inferenceQueue_.releaseOutputSlot();
+          ++consumedResults;
+          continue;
         }
 
-        // We have a valid pending chunk to copy
-        overlapAdd_.setHasPendingChunk(true);
-        overlapAdd_.setPendingChunkOffset(0);
-      }
+        const uint64_t outputTimelineSample =
+            overlapAdd_.getOutputTimelineSample();
+        const size_t convertedSampleCount =
+            sampleRateConversionActive_ ? consumeRequest->hostOutputSampleCount
+                                        : static_cast<size_t>(kOutputChunkSize);
+        ModelOutputSchedulePlan schedulePlan;
+        if (sampleRateConversionActive_) {
+          const uint64_t schedulingLatency =
+              static_cast<uint64_t>(modelSchedulingLatencySamples_);
+          if (consumeRequest->hostOutputStartSample >
+              std::numeric_limits<uint64_t>::max() - schedulingLatency) {
+            schedulePlan.action =
+                ModelOutputScheduleAction::kDiscardTimelineOverflow;
+          } else {
+            schedulePlan = planModelOutputRange(
+                schedulingLatency + consumeRequest->hostOutputStartSample,
+                convertedSampleCount, outputTimelineSample, outRingSize);
+          }
+        } else {
+          const uint64_t latency = static_cast<uint64_t>(
+              activeLatencySamples_.load(std::memory_order_acquire));
+          schedulePlan =
+              planModelOutputSchedule(consumeRequest->chunkSequence, latency,
+                                      outputTimelineSample, outRingSize);
+        }
 
-      // Get the current output slot (already validated when we acquired the pending chunk)
-      InferenceRequest* consumeRequest = inferenceQueue_.getCurrentOutputSlot();
+        if (schedulePlan.action == ModelOutputScheduleAction::kWaitForHorizon) {
+          // Keep ownership and retry against the same absolute timeline after
+          // the bounded ring horizon advances.
+          break;
+        }
+        if (schedulePlan.action != ModelOutputScheduleAction::kSchedule) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(convertedSampleCount);
+          inferenceQueue_.releaseOutputSlot();
+          ++consumedResults;
+          continue;
+        }
 
-      size_t remainingInChunk = static_cast<size_t>(kOutputChunkSize) - overlapAdd_.getPendingChunkOffset();
-      size_t samplesToCopy = std::min(samplesToProcess, remainingInChunk);
-      
-      // Copy the qualified raw model output and its aligned mixture reference.
-      // The graph owns overlap-add; no external context or boundary crossfade
-      // is applied here.
-      size_t writePos = overlapAdd_.getOutputWritePos();
-      const size_t srcBase = overlapAdd_.getPendingChunkOffset();
+        if (!overlapAdd_.canScheduleModelOutput(
+                schedulePlan.scheduleTimelineSample,
+                schedulePlan.sampleCount)) {
+          // A same-timeline collision is a duplicate/corrupt result. Preserve
+          // the first publication and discard this one instead of shifting
+          // either.
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(schedulePlan.sampleCount);
+          inferenceQueue_.releaseOutputSlot();
+          ++consumedResults;
+          continue;
+        }
 
-      const float* stemData[kNumStems][kNumChannels];
-      for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-        stemData[stem][0] = consumeRequest->outputChunk[stem][0].data() + srcBase;
-        stemData[stem][1] = consumeRequest->outputChunk[stem][1].data() + srcBase;
-      }
-
-      for (size_t i = 0; i < samplesToCopy; ++i) {
-        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-          delayedInputBuffer[ch][writePos] =
-              consumeRequest->alignedInput[ch][srcBase + i];
-          for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-            outputRingBuffers[stem][ch][writePos] = stemData[stem][ch][i];
+        for (size_t i = 0; i < schedulePlan.sampleCount; ++i) {
+          const size_t sourceIndex = schedulePlan.sourceOffset + i;
+          const size_t destinationIndex = overlapAdd_.getOutputRingPosition(
+              schedulePlan.scheduleTimelineSample + static_cast<uint64_t>(i));
+          for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+            if (sampleRateConversionActive_) {
+              for (const int retainedStem :
+                   {kStemDrums, kStemBass, kStemVocals}) {
+                const size_t stem = static_cast<size_t>(retainedStem);
+                outputRingBuffers[stem][ch][destinationIndex] =
+                    consumeRequest->hostOutputChunk[stem][ch][sourceIndex];
+              }
+            } else {
+              delayedInputBuffer[ch][destinationIndex] =
+                  consumeRequest->alignedInput[ch][sourceIndex];
+              for (size_t stem = 0; stem < static_cast<size_t>(kNumStems);
+                   ++stem) {
+                outputRingBuffers[stem][ch][destinationIndex] =
+                    consumeRequest->outputChunk[stem][ch][sourceIndex];
+              }
+            }
           }
         }
-        
-        // Advance write position with branch instead of modulo
-        ++writePos;
-        if (writePos == outRingSize) writePos = 0;
-      }
-      overlapAdd_.addOutputSamplesAvailable(samplesToCopy);
-      overlapAdd_.setPendingChunkOffset(overlapAdd_.getPendingChunkOffset() + samplesToCopy);
-      samplesToProcess -= samplesToCopy;
-
-      // Check if chunk is fully copied
-      if (overlapAdd_.getPendingChunkOffset() >= static_cast<size_t>(kOutputChunkSize)) {
-        // Release the slot and move to next
+        overlapAdd_.markModelOutputScheduled(
+            schedulePlan.scheduleTimelineSample, schedulePlan.sampleCount);
+        if (schedulePlan.sourceOffset > 0) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(schedulePlan.sourceOffset);
+        }
         inferenceQueue_.releaseOutputSlot();
-        outputChunksConsumed_.fetch_add(1, std::memory_order_relaxed);
-        overlapAdd_.setHasPendingChunk(false);
-        overlapAdd_.setPendingChunkOffset(0);
+        ++consumedResults;
       }
-    }
+      return consumedResults;
+    };
 
-    // Accumulate raw fullband samples exactly as used by the qualified c91
-    // validation path.
+    drainReadyInferenceResults();
+
+    // Preserve every sanitized native host frame for Main/fallback before
+    // advancing the independent 44.1 kHz model clock.
     for (int i = 0; i < numSamples; ++i) {
       for (int ch = 0; ch < kNumChannels; ++ch) {
 #if !JucePlugin_IsSynth
-        float sample = (inputChannelPtrs[ch] != nullptr) ? inputChannelPtrs[ch][i] : 0.0f;
+        const float rawSample =
+            (inputChannelPtrs[ch] != nullptr) ? inputChannelPtrs[ch][i] : 0.0f;
+        const float sample = std::isfinite(rawSample) ? rawSample : 0.0f;
 #else
-        float sample = 0.0f;
+        const float sample = 0.0f;
 #endif
-        overlapAdd_.pushInputSample(ch, sample);
+        sanitizedHostInputScratch_[static_cast<size_t>(ch)]
+                                  [static_cast<size_t>(i)] = sample;
+        overlapAdd_.pushDryInputSample(ch, sample);
+      }
+    }
+
+    // The inference worker applies one stereo-linked, state-aware boost before
+    // binding the graph tensors and restores the original gain on separated
+    // output. Queue submission remains entirely on the 44.1 kHz clock.
+    const bool synchronousOfflineRender = nonRealtimeRender;
+    bool offlineInferenceTimedOut = false;
+    const auto submitAccumulatedModelHop = [&]() {
+      if (!overlapAdd_.readyForInference()) {
+        return;
       }
 
-      // When we have enough samples, queue for inference
-      if (overlapAdd_.readyForInference()) {
-        const uint64_t chunkSequence = nextInputChunkSequence_++;
+      if (offlineInferenceTimedOut) {
+        overlapAdd_.clearInputAccum();
+        return;
+      }
 
-        // Get the next write slot (nullptr if queue is full)
-        InferenceRequest* request = inferenceQueue_.getWriteSlot();
+      const uint64_t chunkSequence = nextInputChunkSequence_++;
+      InferenceRequest* request = inferenceQueue_.getWriteSlot();
+      if (request == nullptr && synchronousOfflineRender) {
+        drainReadyInferenceResults();
+        request = inferenceQueue_.getWriteSlot();
+      }
 
-        if (request) {
-          request->chunkSequence = chunkSequence;
+      if (request) {
+        request->chunkSequence = chunkSequence;
+        const auto& inputAccumBuffer = overlapAdd_.getInputAccumBuffer();
+        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+          std::memcpy(request->inputChunk[ch].data(),
+                      inputAccumBuffer[ch].data(),
+                      static_cast<size_t>(kOutputChunkSize) * sizeof(float));
+        }
 
-          const auto& inputAccumBuffer = overlapAdd_.getInputAccumBuffer();
-          for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-            std::memcpy(request->inputChunk[ch].data(), inputAccumBuffer[ch].data(),
-                        static_cast<size_t>(kOutputChunkSize) * sizeof(float));
+        const uint32_t submittedEpoch = inferenceQueue_.getEpoch();
+        inferenceQueue_.submitWriteSlot(submittedEpoch);
+
+        if (synchronousOfflineRender) {
+          constexpr auto kOfflineHopTimeout = std::chrono::seconds(5);
+          const auto deadline =
+              std::chrono::steady_clock::now() + kOfflineHopTimeout;
+          while (!request->isProcessed() &&
+                 inferenceQueue_.getEpoch() == submittedEpoch &&
+                 inferenceQueue_.isThreadRunning() &&
+                 std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::microseconds(50));
           }
 
-          // Submit the request (handles epoch stamping and index advancement)
-          inferenceQueue_.submitWriteSlot(inferenceQueue_.getEpoch());
+          if (request->isProcessed() &&
+              inferenceQueue_.getEpoch() == submittedEpoch) {
+            drainReadyInferenceResults();
+          } else {
+            offlineInferenceTimedOut = true;
+          }
         }
-        else {
-          // Queue is full, so the worker will detect the sequence gap and reset
-          // recurrent/OLA state before processing the next accepted chunk.
-          ++queueFullDropsThisBlock;
-#if JUCE_DEBUG
-          DBG("[HS-TasNet] Queue full, dropping chunk seq=" << chunkSequence
-              << " ringAvail=" << overlapAdd_.getOutputSamplesAvailable());
-#endif
-        }
-
-        overlapAdd_.clearInputAccum();
+      } else {
+        // Sequence still advances. The worker resets its recurrent graph and
+        // output SRC at the next accepted absolute model hop.
+        ++queueFullDropsThisBlock;
       }
+      overlapAdd_.clearInputAccum();
+    };
+
+    size_t modelSampleCount = static_cast<size_t>(numSamples);
+    const float* modelInputPointers[kNumChannels] = {
+        sanitizedHostInputScratch_[0].data(),
+        sanitizedHostInputScratch_[1].data()};
+    if (sampleRateConversionActive_) {
+      const float* hostInputPointers[kNumChannels] = {
+          sanitizedHostInputScratch_[0].data(),
+          sanitizedHostInputScratch_[1].data()};
+      float* convertedInputPointers[kNumChannels] = {
+          modelInputScratch_[0].data(), modelInputScratch_[1].data()};
+      const auto conversion = inputSampleRateAdapter_.process(
+          hostInputPointers, static_cast<size_t>(numSamples),
+          convertedInputPointers, modelInputScratch_[0].size());
+      if (!conversion.ok ||
+          conversion.inputConsumed != static_cast<size_t>(numSamples)) {
+        resetStreamingBuffersRT();
+        modelSampleCount = 0U;
+      } else {
+        modelSampleCount = conversion.outputProduced;
+        modelInputPointers[0] = modelInputScratch_[0].data();
+        modelInputPointers[1] = modelInputScratch_[1].data();
+      }
+    }
+
+    for (size_t sample = 0U; sample < modelSampleCount; ++sample) {
+      for (int ch = 0; ch < kNumChannels; ++ch) {
+        overlapAdd_.pushModelInputSample(ch, modelInputPointers[ch][sample]);
+      }
+      submitAccumulatedModelHop();
     }
 
     // ===== Write separated stems to output buses =====
@@ -666,61 +1083,59 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       mainWrite[ch] = mainBus.getWritePointer(ch);
 
     // Buses 1-4: individual stems
-    float* stemWrite[4][kNumChannels] = {{nullptr, nullptr}, {nullptr, nullptr},
-                                         {nullptr, nullptr}, {nullptr, nullptr}};
+    float* stemWrite[4][kNumChannels] = {{nullptr, nullptr},
+                                         {nullptr, nullptr},
+                                         {nullptr, nullptr},
+                                         {nullptr, nullptr}};
     int stemNumCh[4] = {0, 0, 0, 0};
 
     for (int b = 0; b < 4; ++b) {
-        if (b + 1 < numOutputBuses) {
-            auto stemBus = getBusBuffer(buffer, false, b + 1);
-            stemNumCh[b] = stemBus.getNumChannels();
-            for (int ch = 0; ch < std::min(kNumChannels, stemNumCh[b]); ++ch)
-                stemWrite[b][ch] = stemBus.getWritePointer(ch);
-        }
+      if (b + 1 < numOutputBuses) {
+        auto stemBus = getBusBuffer(buffer, false, b + 1);
+        stemNumCh[b] = stemBus.getNumChannels();
+        for (int ch = 0; ch < std::min(kNumChannels, stemNumCh[b]); ++ch)
+          stemWrite[b][ch] = stemBus.getWritePointer(ch);
+      }
     }
 
     // Set up output writer and write the block
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
-    const auto writeStats =
-        outputWriter_.writeBlock(overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize, numSamples);
+    const auto writeStats = outputWriter_.writeBlock(
+        overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
+        numSamples, underrunTelemetryEnabled, !unsafeRealtimeCallback,
+        !sampleRateConversionActive_);
 
-    // Grace period: don't count underruns until the first inference result has
-    // been consumed. Before that, the pipeline is still filling and underruns
-    // are expected (not a performance problem).
-    const bool pastGracePeriod =
-        outputChunksConsumed_.load(std::memory_order_relaxed) > 0;
-
-    // Report ring fill AFTER the read — this reflects actual excess buffering
-    // beyond PDC. Samples consumed in the same block don't add latency.
-    ringFillLevel_.store(overlapAdd_.getOutputSamplesAvailable(), std::memory_order_release);
+    // Report exact-timeline model samples that remain scheduled after this
+    // block. Gaps are not counted as fill and never shift later output.
+    ringFillLevel_.store(overlapAdd_.getOutputSamplesAvailable(),
+                         std::memory_order_release);
     if (ringOverflowEventsThisBlock > 0) {
-      totalRingOverflowEvents_.fetch_add(ringOverflowEventsThisBlock, std::memory_order_relaxed);
-      totalRingOverflowSamplesDropped_.fetch_add(ringOverflowSamplesDroppedThisBlock,
-                                                 std::memory_order_relaxed);
+      totalRingOverflowEvents_.fetch_add(ringOverflowEventsThisBlock,
+                                         std::memory_order_relaxed);
+      totalRingOverflowSamplesDropped_.fetch_add(
+          ringOverflowSamplesDroppedThisBlock, std::memory_order_relaxed);
     }
     if (queueFullDropsThisBlock > 0) {
-      totalQueueFullChunkDrops_.fetch_add(queueFullDropsThisBlock, std::memory_order_relaxed);
+      totalQueueFullChunkDrops_.fetch_add(queueFullDropsThisBlock,
+                                          std::memory_order_relaxed);
     }
 
-    if (pastGracePeriod) {
-      underrunActive_.store(writeStats.isUnderrunNow,
-                            std::memory_order_release);
-      lastUnderrunSamplesInLastBlock_.store(writeStats.underrunSamples,
-                                            std::memory_order_release);
-      if (writeStats.hadUnderrun) {
-        totalUnderrunBlocks_.fetch_add(1, std::memory_order_acq_rel);
-        totalUnderrunSamples_.fetch_add(writeStats.underrunSamples,
-                                       std::memory_order_acq_rel);
-      }
+    underrunActive_.store(writeStats.isUnderrunNow, std::memory_order_release);
+    lastUnderrunSamplesInLastBlock_.store(writeStats.underrunSamples,
+                                          std::memory_order_release);
+    if (writeStats.hadUnderrun) {
+      totalUnderrunBlocks_.fetch_add(1, std::memory_order_acq_rel);
+      totalUnderrunSamples_.fetch_add(writeStats.underrunSamples,
+                                      std::memory_order_acq_rel);
     }
 
-#if JUCE_DEBUG
-    if (writeStats.underrunTransition) {
-      DBG("[HS-TasNet] Underrun transition: ringAvail=" << writeStats.ringAvailAtStart
-          << " xfadeGain=" << writeStats.crossfadeGainAtStart
-          << " gracePeriod=" << (pastGracePeriod ? "no" : "yes"));
+    if (offlineInferenceTimedOut) {
+      // The current callback has already rendered from its intact aligned-dry
+      // history. Now invalidate the stalled request and graph generation so
+      // the next callback starts from deterministic pre-roll without splicing
+      // a mid-callback reset onto the output timeline.
+      resetStreamingBuffersRT();
     }
-#endif
 
     return;
   }
@@ -735,12 +1150,15 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     auto outputBus = getBusBuffer(buffer, false /* isInput */, busIndex);
     const int outNumCh = outputBus.getNumChannels();
     const int channelsToCopy = std::min(kNumChannels, outNumCh);
-    
+
     const bool carriesMixture = (busIndex == 0 || busIndex == 3);
     for (int ch = 0; ch < channelsToCopy; ++ch) {
       float* outPtr = outputBus.getWritePointer(ch);
       if (carriesMixture && inputChannelPtrs[ch] != nullptr) {
-        std::memcpy(outPtr, inputChannelPtrs[ch], static_cast<size_t>(numSamples) * sizeof(float));
+        for (int i = 0; i < numSamples; ++i) {
+          const float sample = inputChannelPtrs[ch][i];
+          outPtr[i] = std::isfinite(sample) ? sample : 0.0f;
+        }
       } else {
         std::memset(outPtr, 0, static_cast<size_t>(numSamples) * sizeof(float));
       }

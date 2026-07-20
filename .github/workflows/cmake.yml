@@ -49,41 +49,64 @@ jobs:
       if: matrix.os == 'windows-latest' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: .\scripts\download-onnxruntime.ps1
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+    - name: Configure CMake (macOS arm64)
+      if: matrix.os == 'macos-14'
+      run: >-
+        cmake -S . -B ${{github.workspace}}/build
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DCMAKE_OSX_ARCHITECTURES=arm64
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
+        -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      run: >-
+        cmake -S . -B ${{github.workspace}}/build
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
 
     - name: Build
-      # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }}
+
+    - name: Verify packaged macOS bundles
+      if: matrix.os == 'macos-14'
+      run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }} --target StemgenRT_VerifyMacBundles
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{ matrix.build_type }}
+      run: ctest -C ${{ matrix.build_type }} --output-on-failure
+
+    - name: Archive macOS bundles
+      if: matrix.os == 'macos-14'
+      run: |
+        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 StemgenRT-macOS-VST3.zip
+        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component StemgenRT-macOS-AU.zip
+
+    - name: Archive Windows VST3
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: Compress-Archive -LiteralPath build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
       if: matrix.os == 'macos-14'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: build/plugin/AudioPlugin_artefacts/Release/VST3/
+        path: StemgenRT-macOS-VST3.zip
 
     - name: Upload AU (macOS)
       if: matrix.os == 'macos-14'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-AU
-        path: build/plugin/AudioPlugin_artefacts/Release/AU/
+        path: StemgenRT-macOS-AU.zip
 
     - name: Upload VST3 (Windows)
       if: matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: build/plugin/AudioPlugin_artefacts/Release/VST3/
+        path: StemgenRT-Windows-VST3.zip
 
   release:
     name: Update Release
@@ -105,15 +128,9 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
-        path: artifacts
-
-    - name: Create release archives
-      run: |
-        cd artifacts
-        for dir in */; do
-          name="${dir%/}"
-          zip -r "../${name}.zip" "$dir"
-        done
+        path: release-assets
+        pattern: StemgenRT-*
+        merge-multiple: true
 
     - name: Update latest release
       uses: softprops/action-gh-release@v2
@@ -124,6 +141,6 @@ jobs:
           Build from commit ${{ github.sha }}
           
           Updated: ${{ github.event.head_commit.timestamp }}
-        files: "*.zip"
+        files: "release-assets/*.zip"
         prerelease: false
         make_latest: true
