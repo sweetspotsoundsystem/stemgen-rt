@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <condition_variable>
 #include <memory>
@@ -41,14 +42,16 @@ struct InferenceRequest {
   std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>
       hostOutputChunk;
   std::array<std::vector<float>, kNumChannels> alignedInput;
-  // True only when the current-sequence graph result is safe to publish.
+  // True only when the graph result aligned to the preceding input sequence is
+  // safe to publish. The first successful run after reset is invalid pre-roll.
   bool outputValid{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};
   size_t hostOutputSampleCount{0};
 
   // Monotonic input chunk index assigned by the audio thread. The worker uses
-  // it for recurrent-state gap detection and exact current-chunk timestamps.
+  // it for recurrent-state gap detection; the scheduler subtracts the graph's
+  // one-hop delay to recover the exact previous-hop output timestamp.
   uint64_t chunkSequence{0};
 
   // Allocate buffers to expected sizes
@@ -142,6 +145,16 @@ public:
   // Submit the current write slot for processing (called from audio thread)
   // Must call getWriteSlot() first and fill in the data
   void submitWriteSlot(uint32_t epoch);
+
+  // Wait for one just-submitted request until an absolute callback deadline.
+  // This performs only lock-free state reads and cooperative yields; it never
+  // takes the worker condition-variable mutex. A false result leaves the
+  // request and recurrent stream intact so exact-timeline consumption can
+  // discard a late completion instead of shifting it.
+  bool waitUntilProcessed(
+      const InferenceRequest* request,
+      uint32_t epoch,
+      std::chrono::steady_clock::time_point deadline) const noexcept;
 
   // Submit a warmup request without advancing write index
   // Used during prepareToPlay for ORT lazy initialization

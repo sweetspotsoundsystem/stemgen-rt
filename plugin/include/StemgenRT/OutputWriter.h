@@ -53,9 +53,10 @@ public:
   // Missing model samples remain dry fallback regardless of telemetry state.
   // Set underrunTelemetryEnabled false when a known host transport is stopped,
   // because idle callbacks have no playback deadline to miss.
-  // Set modelOutputEnabled false when the current real-time callback cadence
-  // is incompatible with the prepared PDC; scheduled samples are discarded on
-  // their original timeline and the complete mixture is routed to Other.
+  // Set modelOutputEnabled false whenever the actual callback violates the
+  // same-callback contract, including an offline bounce with variable block
+  // sizes. Scheduled samples are discarded on their original timeline and the
+  // complete mixture is routed to Other.
   WriteResult writeBlock(
       OverlapAddProcessor& overlapAdd,
       const std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&

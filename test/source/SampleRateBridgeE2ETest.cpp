@@ -336,7 +336,7 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported c126 host configuration"));
+      "Unsupported c91 same-callback configuration"));
   processor.releaseResources();
 }
 
@@ -356,7 +356,7 @@ TEST(SampleRateBridgeE2ETest,
   processor.prepareToPlay(44100.0, 512);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Accepted c126 model/runtime unavailable";
+    GTEST_SKIP() << "Accepted c91 model/runtime unavailable";
   }
 
   juce::MidiBuffer midi;

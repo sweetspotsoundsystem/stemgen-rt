@@ -87,16 +87,19 @@ constexpr ModelOutputSchedulePlan planModelOutputSchedule(
     uint64_t latencySamples,
     uint64_t outputTimelineSample,
     size_t schedulingCapacity,
-    size_t chunkSize = static_cast<size_t>(kOutputChunkSize)) {
+    size_t chunkSize = static_cast<size_t>(kOutputChunkSize),
+    uint64_t modelOutputDelayChunks =
+        static_cast<uint64_t>(kModelOutputDelayChunks)) {
   ModelOutputSchedulePlan plan;
-  if (chunkSize == 0 || schedulingCapacity == 0) {
+  if (chunkSize == 0 || schedulingCapacity == 0 ||
+      chunkSequence < modelOutputDelayChunks) {
     return plan;
   }
 
   constexpr uint64_t kMaximumTimelineSample =
       std::numeric_limits<uint64_t>::max();
   const uint64_t chunkSize64 = static_cast<uint64_t>(chunkSize);
-  const uint64_t alignedSequence = chunkSequence;
+  const uint64_t alignedSequence = chunkSequence - modelOutputDelayChunks;
   if (latencySamples > kMaximumTimelineSample - chunkSize64 ||
       alignedSequence >
           (kMaximumTimelineSample - latencySamples) / chunkSize64) {

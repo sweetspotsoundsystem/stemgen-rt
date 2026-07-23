@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // The c126 listening configuration accounts for one asynchronous
-  // collection hop; the graph itself emits the current input hop.
+  // c91 emits the previous hop and the listening path completes inference in
+  // the callback that supplies the current hop, for one 512-sample PDC hop.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -59,6 +59,9 @@ public:
   int getRequiredLatencySamplesForLastHostBlock() const;
   bool isRealtimeCallbackTimingUnsafe() const;
   uint64_t getUnsafeRealtimeCallbackCount() const;
+  uint64_t getSameCallbackTimeoutCount() const;
+  int getLastSameCallbackWaitMicroseconds() const;
+  int getMaximumSameCallbackWaitMicroseconds() const;
   InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -149,6 +152,9 @@ private:
   std::atomic<int> requiredLatencySamplesForLastHostBlock_{0};
   std::atomic<bool> realtimeCallbackTimingUnsafe_{false};
   std::atomic<uint64_t> unsafeRealtimeCallbackCount_{0};
+  std::atomic<uint64_t> sameCallbackTimeoutCount_{0};
+  std::atomic<int> lastSameCallbackWaitMicroseconds_{0};
+  std::atomic<int> maximumSameCallbackWaitMicroseconds_{0};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

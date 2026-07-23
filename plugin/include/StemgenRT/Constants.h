@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The c126 current-chunk deployment emits [drums, bass, vocals, other].
+// The c91 deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -16,35 +16,40 @@ constexpr int kStemBass = qualified_model::kBassSourceIndex;
 constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
-// Fixed model contract. The graph consumes one 512-sample hop and emits that
-// same hop while carrying previous-audio and fusion-GRU state. Its 1,024-
-// sample analysis window is internal; there is no boundary overlap tensor.
+// Fixed model contract. The graph consumes one 512-sample hop and emits the
+// preceding hop while carrying previous-audio, overlap-add, and fusion-GRU
+// state.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
 constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
 constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 
-// The background design needs one hop to collect/queue audio. The causal graph
-// emits the current input hop, so it adds no further output-delay hop.
+// c91's graph delay is one hop. Same-callback worker completion removes the
+// former additional asynchronous queue hop, keeping total PDC at one hop.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
-constexpr int kAsyncQueueDelayChunks = 1;
+constexpr int kAsyncQueueDelayChunks = 0;
 constexpr int kPluginLatencyChunks =
     kModelOutputDelayChunks + kAsyncQueueDelayChunks;
 constexpr int kPluginLatencySamples = kPluginLatencyChunks * kOutputChunkSize;
 
-// This listening build deliberately starts with the one host configuration
-// that exposes the intended 512-sample PDC without borrowing qualification
-// claims from the previous-hop graph.
-constexpr int kCurrentChunkQualifiedHostSampleRate = kModelSampleRate;
-constexpr int kCurrentChunkQualifiedHostBlockSize = kOutputChunkSize;
+// Same-callback completion is defined only for an exact model-hop callback.
+// Other callback sizes or rates fail closed instead of silently adding delay.
+constexpr int kSameCallbackQualifiedHostSampleRate = kModelSampleRate;
+constexpr int kSameCallbackQualifiedHostBlockSize = kOutputChunkSize;
 
-constexpr bool isQualifiedCurrentChunkHostConfiguration(int sampleRate,
+constexpr bool isQualifiedSameCallbackHostConfiguration(int sampleRate,
                                                         int blockSize) {
-  return sampleRate == kCurrentChunkQualifiedHostSampleRate &&
-         blockSize == kCurrentChunkQualifiedHostBlockSize;
+  return sampleRate == kSameCallbackQualifiedHostSampleRate &&
+         blockSize == kSameCallbackQualifiedHostBlockSize;
 }
+
+// Provisional listening budget. It is measured from processBlock entry and
+// leaves about 1.61 ms of a 44.1 kHz / 512-sample callback for scheduling,
+// output publication, and host return. Target hardware still requires native
+// DAW-load qualification.
+constexpr int kSameCallbackWaitBudgetMicroseconds = 10000;
 
 // Host clocks explicitly covered by the native sample-rate bridge. The graph
 // contract itself remains fixed at 44.1 kHz. Keep this list qualification-
@@ -68,10 +73,10 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
          static_cast<std::uint64_t>(numerator % denominator != 0U);
 }
 
-// A result for hop N is aligned to input hop N. The worker needs one complete
-// 512-sample hop interval after the callback that supplies that request.
-// Results are consumed only at callback boundaries, so reserve enough whole
-// callbacks for that compute interval plus the callback/model-hop phase offset.
+// c91 emits hop N-1 while callback N is in progress. The generic helpers are
+// retained for diagnostics and future bridge work; the listening path below is
+// admitted only at the exact 44.1 kHz / 512-sample point where its one-hop PDC
+// is unambiguous.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
   const int callbacksPerModelHop = 1 + (kOutputChunkSize - 1) / safeBlockSize;
@@ -79,11 +84,9 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
          std::gcd(safeBlockSize, kOutputChunkSize);
 }
 
-// Rate-aware form of the callback scheduling reserve. For integer host-hop
-// durations, the gcd term is the exact callback/model phase bound. At rational
-// rates, ceil(plugin-latency hops) plus whole callback intervals is a safe
-// bound. This remains available for later requalification; this listening
-// build accepts only the exact 44.1 kHz / 512-sample configuration above.
+// Rate-aware form of the same diagnostic reserve. This remains available for
+// later requalification; the same-callback listening build accepts only the
+// exact configuration above.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
   const std::uint64_t safeSampleRate = static_cast<std::uint64_t>(
@@ -138,9 +141,14 @@ static_assert(calculatePluginLatencySamples(256) == 768);
 static_assert(calculatePluginLatencySamples(512) == 512);
 static_assert(calculatePluginLatencySamples(768) == 1024);
 static_assert(calculatePluginLatencySamples(1024) == 1024);
-static_assert(isQualifiedCurrentChunkHostConfiguration(44100, 512));
-static_assert(!isQualifiedCurrentChunkHostConfiguration(48000, 512));
-static_assert(!isQualifiedCurrentChunkHostConfiguration(44100, 256));
+static_assert(kModelOutputDelayChunks == 1);
+static_assert(kAsyncQueueDelayChunks == 0);
+static_assert(isQualifiedSameCallbackHostConfiguration(44100, 512));
+static_assert(!isQualifiedSameCallbackHostConfiguration(48000, 512));
+static_assert(!isQualifiedSameCallbackHostConfiguration(44100, 256));
+static_assert(kSameCallbackWaitBudgetMicroseconds > 0);
+static_assert(kSameCallbackWaitBudgetMicroseconds <
+              (1000000 * kOutputChunkSize) / kModelSampleRate);
 static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));

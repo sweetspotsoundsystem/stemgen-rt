@@ -311,9 +311,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 3U);
-  ASSERT_EQ(contract::kOutputNames.size(), 3U);
-  ASSERT_EQ(contract::kMetadata.size(), 24U);
+  ASSERT_EQ(contract::kInputNames.size(), 4U);
+  ASSERT_EQ(contract::kOutputNames.size(), 4U);
+  ASSERT_EQ(contract::kMetadata.size(), 16U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -322,13 +322,9 @@ TEST(QualifiedModelContractTest,
   }
   for (const auto& [key, value] : contract::kMetadata) {
     EXPECT_FALSE(key.empty());
-    if (key == "hs_tasnet.streaming.overlap_add_buffer_shape") {
-      EXPECT_TRUE(value.empty());
-    } else {
-      EXPECT_FALSE(value.empty());
-    }
+    EXPECT_FALSE(value.empty());
   }
-  EXPECT_EQ(contract::kOutputAlignment, "current_input_chunk");
+  EXPECT_EQ(contract::kOutputAlignment, "previous_input_chunk");
 
   const juce::File modelFile = resolveModelPathForTestBinary();
   ASSERT_TRUE(modelFile.existsAsFile())
@@ -384,9 +380,9 @@ TEST(OrtStreamingRuntimeTest, ReadinessRequiresSuccessfulStreamingPreparation) {
 
   ASSERT_TRUE(
       runtime.runInference(input, separated, alignedInput, outputValid));
-  EXPECT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, input), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
+  EXPECT_FALSE(outputValid);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(separated), 0.0f);
   EXPECT_TRUE(runtime.isReadyForInference());
 #endif
 }
@@ -425,7 +421,7 @@ TEST(OrtStreamingRuntimeTest, ExplicitIntraOpThreadOverrideMustBePositive) {
 }
 
 TEST(OrtStreamingRuntimeTest,
-     StatefulSequenceHonorsCurrentAlignmentResetAndMixtureSum) {
+     StatefulSequenceHonorsPrerollFlushResetAndMixtureSum) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
@@ -442,39 +438,37 @@ TEST(OrtStreamingRuntimeTest,
 
   ASSERT_TRUE(
       runtime.runInference(first, separated, alignedInput, outputValid));
+  EXPECT_FALSE(outputValid);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(separated), 0.0f);
+
+  ASSERT_TRUE(
+      runtime.runInference(second, separated, alignedInput, outputValid));
   ASSERT_TRUE(outputValid);
   EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
   EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
   const SeparatedChunk firstResult = separated;
 
-  ASSERT_TRUE(
-      runtime.runInference(second, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
-  const SeparatedChunk secondResult = separated;
-
-  // A zero hop is an ordinary current input, not a flush command.
+  // A single zero hop flushes the second real input hop.
   ASSERT_TRUE(runtime.runInference(zero, separated, alignedInput, outputValid));
   ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, zero), 0.0f);
+  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
   EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
 
   runtime.resetStreamingState();
 
   ASSERT_TRUE(
       runtime.runInference(first, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
-  EXPECT_LE(maxChunkDifference(separated, firstResult), 2.0e-5f);
+  EXPECT_FALSE(outputValid);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxAbsoluteValue(separated), 0.0f);
 
   ASSERT_TRUE(
       runtime.runInference(second, separated, alignedInput, outputValid));
   ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
+  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
   EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
-  EXPECT_LE(maxChunkDifference(separated, secondResult), 2.0e-5f);
+  EXPECT_LE(maxChunkDifference(separated, firstResult), 2.0e-5f);
 #endif
 }
 
@@ -507,6 +501,9 @@ TEST(OrtStreamingRuntimeTest,
   bool referenceValid = false;
   bool quietValid = false;
   bool veryQuietValid = false;
+  AudioChunk previousReferenceInput = makeZeroAudioChunk();
+  AudioChunk previousQuietInput = makeZeroAudioChunk();
+  AudioChunk previousVeryQuietInput = makeZeroAudioChunk();
   std::array<float, 3> referenceStemPeaks{};
 
   constexpr size_t kHopCount = 8;
@@ -526,29 +523,27 @@ TEST(OrtStreamingRuntimeTest,
                                           quietAligned, quietValid));
     ASSERT_TRUE(veryQuietRuntime.runInference(
         veryQuietInput, veryQuietSeparated, veryQuietAligned, veryQuietValid));
-    ASSERT_TRUE(referenceValid);
-    ASSERT_TRUE(quietValid);
-    ASSERT_TRUE(veryQuietValid);
+    ASSERT_EQ(quietValid, referenceValid);
+    ASSERT_EQ(veryQuietValid, referenceValid);
+    if (!referenceValid) {
+      EXPECT_EQ(hop, 0U);
+      EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceAligned), 0.0f);
+      EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceSeparated), 0.0f);
+      previousReferenceInput = referenceInput;
+      previousQuietInput = quietInput;
+      previousVeryQuietInput = veryQuietInput;
+      continue;
+    }
 
-    EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, referenceInput), 0.0f);
-    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, quietInput), 0.0f);
-    EXPECT_FLOAT_EQ(maxChunkDifference(veryQuietAligned, veryQuietInput), 0.0f);
+    EXPECT_FLOAT_EQ(
+        maxChunkDifference(referenceAligned, previousReferenceInput), 0.0f);
+    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, previousQuietInput),
+                    0.0f);
+    EXPECT_FLOAT_EQ(
+        maxChunkDifference(veryQuietAligned, previousVeryQuietInput), 0.0f);
     EXPECT_TRUE(std::isfinite(maxAbsoluteValue(referenceSeparated)));
     EXPECT_TRUE(std::isfinite(maxAbsoluteValue(quietSeparated)));
     EXPECT_TRUE(std::isfinite(maxAbsoluteValue(veryQuietSeparated)));
-    if (hop == 0) {
-      // Golden values from a direct ORT run of the contract-pinned c126 graph
-      // with this exact raw input and zero state. The removed +6.4 dB
-      // deployment normalizer misses these values by 4e-3 to 27e-3, so this
-      // is an input-binding regression test rather than only an aligned-Main
-      // check.
-      EXPECT_NEAR(referenceSeparated[0][0][0], 0.016884943f, 3.0e-5f);
-      EXPECT_NEAR(referenceSeparated[0][0][17], 0.008217704f, 3.0e-5f);
-      EXPECT_NEAR(referenceSeparated[1][0][0], 0.004469482f, 3.0e-5f);
-      EXPECT_NEAR(referenceSeparated[1][1][255], 0.005644727f, 3.0e-5f);
-      EXPECT_NEAR(referenceSeparated[2][0][17], -0.012955057f, 3.0e-5f);
-      EXPECT_NEAR(referenceSeparated[3][0][17], 0.002754772f, 3.0e-5f);
-    }
     EXPECT_LE(
         maxMixtureReconstructionError(referenceSeparated, referenceAligned),
         1.0e-6f);
@@ -562,9 +557,12 @@ TEST(OrtStreamingRuntimeTest,
           std::max(referenceStemPeaks[stem],
                    maxAbsoluteStemValue(referenceSeparated, stem));
     }
+    previousReferenceInput = referenceInput;
+    previousQuietInput = quietInput;
+    previousVeryQuietInput = veryQuietInput;
   }
 
-  // An ordinary zero current hop remains exact without a flush protocol.
+  // One zero hop flushes the last real input without changing its raw level.
   const AudioChunk zero = makeZeroAudioChunk();
   ASSERT_TRUE(referenceRuntime.runInference(zero, referenceSeparated,
                                             referenceAligned, referenceValid));
@@ -575,9 +573,11 @@ TEST(OrtStreamingRuntimeTest,
   ASSERT_TRUE(referenceValid);
   ASSERT_TRUE(quietValid);
   ASSERT_TRUE(veryQuietValid);
-  EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceAligned), 0.0f);
-  EXPECT_FLOAT_EQ(maxAbsoluteValue(quietAligned), 0.0f);
-  EXPECT_FLOAT_EQ(maxAbsoluteValue(veryQuietAligned), 0.0f);
+  EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, previousReferenceInput),
+                  0.0f);
+  EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, previousQuietInput), 0.0f);
+  EXPECT_FLOAT_EQ(
+      maxChunkDifference(veryQuietAligned, previousVeryQuietInput), 0.0f);
   EXPECT_LE(maxMixtureReconstructionError(referenceSeparated, referenceAligned),
             1.0e-6f);
   EXPECT_LE(maxMixtureReconstructionError(quietSeparated, quietAligned),
@@ -639,6 +639,10 @@ TEST(OrtStreamingRuntimeTest,
 
     ASSERT_TRUE(
         runtime.runInference(input, separated, aligned, outputValid));
+    if (hop == 0U) {
+      ASSERT_FALSE(outputValid);
+      continue;
+    }
     ASSERT_TRUE(outputValid);
     if (hop >= kWarmupHops) {
       for (size_t measuredStem = 0;
@@ -668,9 +672,10 @@ TEST(OrtStreamingRuntimeTest,
     }
   }
 
-  // This is a ceiling around the explicitly unqualified c126 listening graph,
-  // not a promotion threshold. A replacement must tighten this to the c91 OLA
-  // baseline (within +3 dB) before release.
+  // c91 owns the synthesis overlap-add, so a low tone must not acquire the
+  // large periodic boundary derivative observed in the no-OLA c126 graph.
+  // These are listening-regression ceilings; target-hardware promotion also
+  // compares p95/p99 target-relative boundary errors to the frozen c91 corpus.
   for (size_t measuredStem = 0;
        measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);
@@ -683,9 +688,9 @@ TEST(OrtStreamingRuntimeTest,
                   static_cast<double>(internalCounts[measuredStem]));
     ASSERT_GT(internalRms, 0.0);
     const double seamRatio = boundaryRms / internalRms;
-    EXPECT_LT(seamRatio, 45.0)
+    EXPECT_LT(seamRatio, 4.0)
         << "Stem index " << kMeasuredStemIndices[measuredStem];
-    EXPECT_LT(boundaryRms / static_cast<double>(kInputPeak), 0.16)
+    EXPECT_LT(boundaryRms / static_cast<double>(kInputPeak), 0.05)
         << "Stem index " << kMeasuredStemIndices[measuredStem];
   }
 #endif
@@ -737,14 +742,24 @@ TEST(OrtStreamingRuntimeTest,
   AudioChunk quietAligned = makeZeroAudioChunk();
   bool referenceValid = false;
   bool quietValid = false;
+  AudioChunk previousReferenceInput = makeZeroAudioChunk();
+  AudioChunk previousQuietInput = makeZeroAudioChunk();
+  bool havePreviousInput = false;
   std::array<float, 3> retainedStemPeaks{};
 
-  const auto verifyResult = [&](const AudioChunk& referenceInput,
-                                const AudioChunk& quietInput) {
-    ASSERT_TRUE(referenceValid);
-    ASSERT_TRUE(quietValid);
-    EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, referenceInput), 0.0f);
-    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, quietInput), 0.0f);
+  const auto verifyResult = [&](const AudioChunk& expectedReference,
+                                const AudioChunk& expectedQuiet,
+                                bool expectedValid) {
+    ASSERT_EQ(referenceValid, expectedValid);
+    ASSERT_EQ(quietValid, expectedValid);
+    if (!expectedValid) {
+      EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceAligned), 0.0f);
+      EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceSeparated), 0.0f);
+      return;
+    }
+    EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, expectedReference),
+                    0.0f);
+    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, expectedQuiet), 0.0f);
     EXPECT_LE(
         maxMixtureReconstructionError(referenceSeparated, referenceAligned),
         1.0e-6f);
@@ -765,10 +780,14 @@ TEST(OrtStreamingRuntimeTest,
         referenceInput, referenceSeparated, referenceAligned, referenceValid));
     ASSERT_TRUE(quietRuntime.runInference(quietInput, quietSeparated,
                                           quietAligned, quietValid));
-    verifyResult(referenceInput, quietInput);
+    verifyResult(previousReferenceInput, previousQuietInput,
+                 havePreviousInput);
+    previousReferenceInput = referenceInput;
+    previousQuietInput = quietInput;
+    havePreviousInput = true;
   }
 
-  // Exercise an ordinary silent current hop.
+  // Flush the final real hop with one zero input.
   const AudioChunk zero = makeZeroAudioChunk();
   ASSERT_TRUE(referenceRuntime.runInference(zero, referenceSeparated,
                                             referenceAligned, referenceValid));
@@ -776,7 +795,7 @@ TEST(OrtStreamingRuntimeTest,
                                         quietValid));
   ASSERT_TRUE(referenceValid);
   ASSERT_TRUE(quietValid);
-  verifyResult(zero, zero);
+  verifyResult(previousReferenceInput, previousQuietInput, true);
 
   for (size_t stem = 0; stem < retainedStemPeaks.size(); ++stem) {
     EXPECT_GT(retainedStemPeaks[stem], 1.0e-5f)
@@ -786,7 +805,7 @@ TEST(OrtStreamingRuntimeTest,
 }
 
 TEST(OrtStreamingRuntimeTest,
-     NonFiniteInputFailsClosedAndRestartsWithValidCurrentChunk) {
+     NonFiniteInputFailsClosedAndRestartsWithDeterministicPreroll) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
@@ -809,11 +828,15 @@ TEST(OrtStreamingRuntimeTest,
 
   ASSERT_TRUE(baselineRuntime.runInference(first, baselineSeparated,
                                            baselineAligned, baselineValid));
+  ASSERT_FALSE(baselineValid);
+  ASSERT_TRUE(baselineRuntime.runInference(second, baselineSeparated,
+                                           baselineAligned, baselineValid));
   ASSERT_TRUE(baselineValid);
   ASSERT_FLOAT_EQ(maxChunkDifference(baselineAligned, first), 0.0f);
   const SeparatedChunk baselineFirstSeparated = baselineSeparated;
-  ASSERT_TRUE(baselineRuntime.runInference(second, baselineSeparated,
-                                           baselineAligned, baselineValid));
+  const AudioChunk zero = makeZeroAudioChunk();
+  ASSERT_TRUE(baselineRuntime.runInference(
+      zero, baselineSeparated, baselineAligned, baselineValid));
   ASSERT_TRUE(baselineValid);
   ASSERT_FLOAT_EQ(maxChunkDifference(baselineAligned, second), 0.0f);
   const SeparatedChunk baselineSecondSeparated = baselineSeparated;
@@ -824,8 +847,8 @@ TEST(OrtStreamingRuntimeTest,
     runtime.resetStreamingState();
     ASSERT_TRUE(
         runtime.runInference(first, separated, alignedInput, outputValid));
-    ASSERT_TRUE(outputValid);
-    EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
+    ASSERT_FALSE(outputValid);
+    EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
 
     AudioChunk invalid = second;
     invalid[1][17] = invalidValue;
@@ -836,11 +859,15 @@ TEST(OrtStreamingRuntimeTest,
 
     ASSERT_TRUE(
         runtime.runInference(first, separated, alignedInput, outputValid));
-    EXPECT_TRUE(outputValid);
+    EXPECT_FALSE(outputValid);
+    EXPECT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
+    ASSERT_TRUE(
+        runtime.runInference(second, separated, alignedInput, outputValid));
+    ASSERT_TRUE(outputValid);
     EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
     EXPECT_LE(maxChunkDifference(separated, baselineFirstSeparated), 2.0e-5f);
     ASSERT_TRUE(
-        runtime.runInference(second, separated, alignedInput, outputValid));
+        runtime.runInference(zero, separated, alignedInput, outputValid));
     ASSERT_TRUE(outputValid);
     EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
     EXPECT_LE(maxChunkDifference(separated, baselineSecondSeparated), 2.0e-5f);
@@ -901,7 +928,7 @@ TEST(OrtStreamingRuntimeTest, DISABLED_BenchmarkStatefulCpuPerHop) {
   const AudioChunk warmupSeed = makeAudioChunk(0);
   ASSERT_TRUE(
       runtime.runInference(warmupSeed, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
+  ASSERT_FALSE(outputValid);
 
   std::vector<double> runMilliseconds;
   runMilliseconds.reserve(static_cast<size_t>(kMeasureIterations));
@@ -1021,8 +1048,8 @@ TEST(OrtStreamingRuntimeTest,
     runtime.resetStreamingState();
     ASSERT_TRUE(
         runtime.runInference(modelInput, separated, alignedInput, outputValid));
-    ASSERT_TRUE(outputValid);
-    ASSERT_FLOAT_EQ(maxChunkDifference(alignedInput, modelInput), 0.0f);
+    ASSERT_FALSE(outputValid);
+    ASSERT_FLOAT_EQ(maxAbsoluteValue(alignedInput), 0.0f);
 
     const size_t hostOutputCapacity = hostFramesPerHop + 2U;
     std::array<std::vector<float>, 3 * audio_plugin::kNumChannels> hostOutput;
@@ -1175,7 +1202,7 @@ TEST(OrtStreamingRuntimeTest, DISABLED_BenchmarkStatefulCpuIntraOpThreadSweep) {
       bool outputValid = true;
       ASSERT_TRUE(runtime.runInference(workload.front(), separated,
                                        alignedInput, outputValid));
-      ASSERT_TRUE(outputValid);
+      ASSERT_FALSE(outputValid);
 
       const bool captureOneThreadReference =
           pass == 0 && intraOpThreadCount == 1;

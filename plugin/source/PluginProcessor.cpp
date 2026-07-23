@@ -71,9 +71,7 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // Completing a partial final hop can require up to the currently reported
-  // latency before its separated samples emerge. The current-chunk graph has
-  // no additional zero-hop flush.
+  // c91 needs one final zero-input graph hop to flush the last real input hop.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
       activeLatencySamples_.load(std::memory_order_acquire);
@@ -132,8 +130,8 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
       return appendTimingWarning(
           sampleRateError.isNotEmpty()
               ? sampleRateError
-              : juce::String("Supported host rates: 44.1, 48, 88.2, 96, "
-                             "176.4, or 192 kHz"));
+              : juce::String(
+                    "This listening build requires 44.1 kHz / 512 samples"));
     }
     juce::String modelLoadError;
     {
@@ -266,6 +264,19 @@ bool AudioPluginAudioProcessor::isRealtimeCallbackTimingUnsafe() const {
 
 uint64_t AudioPluginAudioProcessor::getUnsafeRealtimeCallbackCount() const {
   return unsafeRealtimeCallbackCount_.load(std::memory_order_acquire);
+}
+
+uint64_t AudioPluginAudioProcessor::getSameCallbackTimeoutCount() const {
+  return sameCallbackTimeoutCount_.load(std::memory_order_acquire);
+}
+
+int AudioPluginAudioProcessor::getLastSameCallbackWaitMicroseconds() const {
+  return lastSameCallbackWaitMicroseconds_.load(std::memory_order_acquire);
+}
+
+int AudioPluginAudioProcessor::getMaximumSameCallbackWaitMicroseconds() const {
+  return maximumSameCallbackWaitMicroseconds_.load(
+      std::memory_order_acquire);
 }
 
 InferenceQueue::WorkerPriorityStatus
@@ -446,6 +457,8 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   lastHostBlockSize_.store(0, std::memory_order_release);
   requiredLatencySamplesForLastHostBlock_.store(0, std::memory_order_release);
   realtimeCallbackTimingUnsafe_.store(false, std::memory_order_release);
+  lastSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
+  maximumSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   inferenceQueue_.stopThread();
   // Every prepare attempt starts a new stream generation, including attempts
@@ -467,12 +480,12 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   const bool sampleRateSupported =
       sampleRateCanConvertToInt &&
       std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
-      isQualifiedCurrentChunkHostConfiguration(roundedSampleRate,
+      isQualifiedSameCallbackHostConfiguration(roundedSampleRate,
                                                samplesPerBlock);
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c126 listening configuration ") +
+        juce::String("Unsupported c91 same-callback configuration ") +
         juce::String(sampleRate, 1) + " Hz / " +
         juce::String(samplesPerBlock) +
         " samples; this build requires 44100 Hz / 512 samples";
@@ -705,6 +718,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   juce::ScopedNoDenormals noDenormals;
   const int numSamples = buffer.getNumSamples();
   const bool nonRealtimeRender = isNonRealtime();
+  const bool callbackMatchesSameCallbackContract =
+      numSamples == kSameCallbackQualifiedHostBlockSize;
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  const auto callbackEntryTime = std::chrono::steady_clock::now();
+#endif
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int requiredLatencySamples =
       numSamples > 0
@@ -734,6 +752,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // If the host exposes no transport state, preserve live/offline processing
   // telemetry. A known stopped transport has no playback deadline to miss.
   bool underrunTelemetryEnabled = true;
+  bool resetAfterCurrentCallback = false;
 
   // Check for playback state change to reset streaming buffers.
   // Note: getPlayHead()->getPosition() is generally safe but not strictly
@@ -750,7 +769,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       const bool wasPlayingBefore =
           wasPlaying.exchange(isPlaying, std::memory_order_acq_rel);
 
-      bool transportDiscontinuity = isPlaying != wasPlayingBefore;
+      const bool playbackStarted = isPlaying && !wasPlayingBefore;
+      const bool playbackStopped = !isPlaying && wasPlayingBefore;
+      bool transportDiscontinuity = playbackStarted;
+      resetAfterCurrentCallback = playbackStopped;
       if (const auto timeInSamples = posInfo->getTimeInSamples()) {
         if (hasExpectedPlayheadPosition_) {
           if (isPlaying && wasPlayingBefore &&
@@ -773,10 +795,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         hasExpectedPlayheadPosition_ = false;
       }
 
-      // Reset on starts, seeks, scrubs, and loop wraps. The queue epoch makes
-      // the recurrent-state reset happen safely on the inference worker.
+      // Reset immediately on starts, seeks, scrubs, and loop wraps. A
+      // play-to-stop transition is different: c91 needs the first stopped
+      // zero-input callback to emit the preceding final hop. Defer that reset
+      // until after this callback renders, then start subsequent stopped
+      // callbacks from deterministic zero state.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
+        resetAfterCurrentCallback = false;
       }
     }
   }
@@ -855,8 +881,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           break;
         }
 
-        // Failed runs publish invalid markers so the exact-timeline consumer
-        // can advance. Sequence zero is a valid current-chunk result.
+        // Failed runs and c91's successful sequence-zero pre-roll both publish
+        // invalid markers so the exact-timeline consumer can advance.
         if (!consumeRequest->outputValid) {
           inferenceQueue_.releaseOutputSlot();
           ++consumedResults;
@@ -985,6 +1011,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // without deployment-time level normalization. Queue submission remains
     // entirely on the 44.1 kHz clock.
     const bool synchronousOfflineRender = nonRealtimeRender;
+    const bool synchronousRealtimeCallback =
+        !nonRealtimeRender && !unsafeRealtimeCallback &&
+        callbackMatchesSameCallbackContract;
     bool offlineInferenceTimedOut = false;
     const auto submitAccumulatedModelHop = [&]() {
       if (!overlapAdd_.readyForInference()) {
@@ -1015,7 +1044,39 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const uint32_t submittedEpoch = inferenceQueue_.getEpoch();
         inferenceQueue_.submitWriteSlot(submittedEpoch);
 
-        if (synchronousOfflineRender) {
+        if (synchronousRealtimeCallback) {
+          const auto waitStarted = std::chrono::steady_clock::now();
+          const auto deadline =
+              callbackEntryTime +
+              std::chrono::microseconds(
+                  kSameCallbackWaitBudgetMicroseconds);
+          const bool completed = inferenceQueue_.waitUntilProcessed(
+              request, submittedEpoch, deadline);
+          const auto waitFinished = std::chrono::steady_clock::now();
+          const auto waitMicroseconds =
+              std::chrono::duration_cast<std::chrono::microseconds>(
+                  waitFinished - waitStarted)
+                  .count();
+          const int boundedWaitMicroseconds = static_cast<int>(std::min<
+              int64_t>(waitMicroseconds,
+                       static_cast<int64_t>(std::numeric_limits<int>::max())));
+          lastSameCallbackWaitMicroseconds_.store(
+              boundedWaitMicroseconds, std::memory_order_release);
+          int observedMaximum = maximumSameCallbackWaitMicroseconds_.load(
+              std::memory_order_relaxed);
+          while (boundedWaitMicroseconds > observedMaximum &&
+                 !maximumSameCallbackWaitMicroseconds_.compare_exchange_weak(
+                     observedMaximum, boundedWaitMicroseconds,
+                     std::memory_order_release, std::memory_order_relaxed)) {
+          }
+
+          if (completed && inferenceQueue_.getEpoch() == submittedEpoch) {
+            drainReadyInferenceResults();
+          } else {
+            sameCallbackTimeoutCount_.fetch_add(1,
+                                                std::memory_order_relaxed);
+          }
+        } else if (synchronousOfflineRender) {
           constexpr auto kOfflineHopTimeout = std::chrono::seconds(5);
           const auto deadline =
               std::chrono::steady_clock::now() + kOfflineHopTimeout;
@@ -1103,7 +1164,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
     const auto writeStats = outputWriter_.writeBlock(
         overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
-        numSamples, underrunTelemetryEnabled, !unsafeRealtimeCallback,
+        numSamples, underrunTelemetryEnabled,
+        !unsafeRealtimeCallback && callbackMatchesSameCallbackContract,
         !sampleRateConversionActive_);
 
     // Report exact-timeline model samples that remain scheduled after this
@@ -1135,6 +1197,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // history. Now invalidate the stalled request and graph generation so
       // the next callback starts from deterministic zero state without
       // splicing a mid-callback reset onto the output timeline.
+      resetStreamingBuffersRT();
+      resetAfterCurrentCallback = false;
+    }
+
+    if (resetAfterCurrentCallback) {
       resetStreamingBuffersRT();
     }
 
@@ -1172,6 +1239,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 #endif
   }
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  if (resetAfterCurrentCallback) {
+    resetStreamingBuffersRT();
+  }
+#endif
 }
 
 bool AudioPluginAudioProcessor::hasEditor() const {

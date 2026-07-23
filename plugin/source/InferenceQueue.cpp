@@ -139,7 +139,13 @@ bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
   }
 
   constexpr uint64_t kChunkSize = static_cast<uint64_t>(kOutputChunkSize);
-  const uint64_t alignedSequence = request.chunkSequence;
+  if (request.chunkSequence <
+      static_cast<uint64_t>(kModelOutputDelayChunks)) {
+    return false;
+  }
+  const uint64_t alignedSequence =
+      request.chunkSequence -
+      static_cast<uint64_t>(kModelOutputDelayChunks);
   if (alignedSequence > std::numeric_limits<uint64_t>::max() / kChunkSize) {
     return false;
   }
@@ -298,6 +304,32 @@ void InferenceQueue::submitWriteSlot(uint32_t epoch) {
 
     // Notify inference thread
     cv_.notify_one();
+  }
+}
+
+bool InferenceQueue::waitUntilProcessed(
+    const InferenceRequest* request,
+    uint32_t epoch,
+    std::chrono::steady_clock::time_point deadline) const noexcept {
+  if (request == nullptr) {
+    return false;
+  }
+
+  while (true) {
+    if (getEpoch() != epoch || request->getEpoch() != epoch) {
+      return false;
+    }
+    if (request->isProcessed()) {
+      // Admission is based on when the audio thread can observe completion,
+      // not merely when the worker may have published it. A callback that was
+      // preempted past its deadline must fall back instead of scheduling a
+      // result and returning late.
+      return std::chrono::steady_clock::now() <= deadline;
+    }
+    if (std::chrono::steady_clock::now() >= deadline) {
+      return false;
+    }
+    std::this_thread::yield();
   }
 }
 
@@ -679,8 +711,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = false;
       }
 
-      // Run inference. The current-chunk graph emits this exact input sequence,
-      // including the first run after reset; there is no pre-roll marker.
+      // Run inference. c91 emits the preceding input hop, so a successful run
+      // immediately after reset publishes outputValid=false as normal pre-roll.
       bool inferenceOk = false;
       request->outputValid = false;
       request->hostOutputValid = false;
@@ -694,10 +726,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         inferenceOk = callbacks.run(callbacks.context, *request);
       }
 
-      if (inferenceOk && !request->outputValid) {
-        inferenceOk = false;
-      }
-      if (inferenceOk && !convertOutputToHost(*request)) {
+      if (inferenceOk && request->outputValid &&
+          !convertOutputToHost(*request)) {
         inferenceOk = false;
         request->outputValid = false;
         request->hostOutputValid = false;
@@ -717,7 +747,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
 
       // Publish an invalid marker so the consumer can advance past a
       // failed slot instead of deadlocking behind it. Reset runtime state
-      // first so the next successful current-sequence run starts cleanly.
+      // first so the next successful run starts with exactly one pre-roll.
       if (!inferenceOk) {
         uint64_t nextModelSample = 0U;
         const bool haveNextModelSample =
@@ -730,6 +760,13 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         }
         hasPreviousInputSequence = false;
       } else {
+        if (!request->outputValid && outputSampleRateConversionEnabled_) {
+          uint64_t nextAlignedModelSample = 0U;
+          if (!modelSampleForSequence(inputSequence, nextAlignedModelSample) ||
+              !resetOutputConversionAtModelSample(nextAlignedModelSample)) {
+            request->hostOutputValid = false;
+          }
+        }
         previousInputSequence = inputSequence;
         hasPreviousInputSequence = true;
       }

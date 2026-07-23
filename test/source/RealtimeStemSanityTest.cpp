@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <thread>
+#include <vector>
 
 namespace audio_plugin_test {
 namespace {
@@ -44,6 +46,9 @@ TEST(RealtimeStemSanityTest,
   int64_t sampleIndex = 0;
   float maxAbsRetainedStem = 0.0f;
   float maxAbsReconstructionError = 0.0f;
+  std::vector<double> completeCallbackMicroseconds;
+  completeCallbackMicroseconds.reserve(kMeasureBlocks);
+  uint64_t completeCallbackDeadlineMisses = 0U;
   auto nextDeadline = std::chrono::steady_clock::now();
   const auto blockDuration = std::chrono::duration<double>(
       static_cast<double>(kBlockSize) / kSampleRate);
@@ -67,9 +72,20 @@ TEST(RealtimeStemSanityTest,
       inputBus.setSample(1, i, r);
     }
 
+    const auto processStarted = std::chrono::steady_clock::now();
     processor.processBlock(buffer, midiBuffer);
+    const auto processFinished = std::chrono::steady_clock::now();
 
     if (b >= kWarmupBlocks) {
+      const double processMicroseconds =
+          std::chrono::duration<double, std::micro>(
+              processFinished - processStarted)
+              .count();
+      completeCallbackMicroseconds.push_back(processMicroseconds);
+      if (processFinished - processStarted > blockDuration) {
+        ++completeCallbackDeadlineMisses;
+      }
+
       const int numOutputBuses = processor.getBusCount(false /* isInput */);
       ASSERT_GE(numOutputBuses, 5)
           << "Expected 5 output buses (Main + 4 stems)";
@@ -98,8 +114,9 @@ TEST(RealtimeStemSanityTest,
 
     sampleIndex += buffer.getNumSamples();
 
-    // Pace at the real 512-sample callback interval. If processing overruns,
-    // sleep_until returns immediately and queue/underrun telemetry records it.
+    // Pace at the real 512-sample callback interval. sleep_until returns
+    // immediately after a complete processBlock overrun; the explicit timing
+    // above covers drain/write time beyond the inference-only 10 ms gate.
     nextDeadline +=
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(
             blockDuration);
@@ -115,6 +132,21 @@ TEST(RealtimeStemSanityTest,
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0u);
   EXPECT_EQ(processor.getRingOverflowEventCount(), 0u);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0u);
+  EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0u)
+      << "Same-callback deadline misses; maximum observed wait was "
+      << processor.getMaximumSameCallbackWaitMicroseconds() << " us";
+  EXPECT_LT(processor.getMaximumSameCallbackWaitMicroseconds(),
+            audio_plugin::kSameCallbackWaitBudgetMicroseconds);
+  ASSERT_FALSE(completeCallbackMicroseconds.empty());
+  std::sort(completeCallbackMicroseconds.begin(),
+            completeCallbackMicroseconds.end());
+  const double maximumCompleteCallbackMicroseconds =
+      completeCallbackMicroseconds.back();
+  EXPECT_EQ(completeCallbackDeadlineMisses, 0U)
+      << "Complete processBlock deadline misses; maximum callback was "
+      << maximumCompleteCallbackMicroseconds << " us";
+  EXPECT_LT(maximumCompleteCallbackMicroseconds,
+            1.0e6 * static_cast<double>(kBlockSize) / kSampleRate);
 
   processor.releaseResources();
 }

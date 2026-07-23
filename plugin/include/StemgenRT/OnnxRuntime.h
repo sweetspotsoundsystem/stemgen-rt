@@ -78,8 +78,8 @@ public:
   void resetStreamingState();
 
   // Run one stateful graph hop. The returned samples and alignedInput belong
-  // to the current input hop. Every successful run is valid; there is no
-  // pre-roll output or zero-hop flush in the c126 boundary contract.
+  // to the previous input hop. The first successful run after reset is
+  // pre-roll (outputValid=false); one final zero hop flushes the last input.
   bool runInference(
       const std::array<std::vector<float>, kNumChannels>& inputChunk,
       std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
@@ -119,19 +119,23 @@ private:
   std::unique_ptr<OrtSession, OrtSessionDeleter> ortSession_;
   OrtMemoryInfo* ortMemoryInfo_{nullptr};
 
-  // Pre-allocated graph inputs/state. Audio enters the graph at its native
-  // floating-point level: the c126 quality evaluation used this exact path,
-  // and hop-varying deployment gain was measured to damage bass and drum
-  // quality. Only the inference worker mutates these during normal operation;
-  // the mutex protects non-RT control-path resets.
+  // Pre-allocated graph inputs/state. Audio enters the graph at its exact
+  // native floating-point level. previousAlignedInput_ remains in that raw
+  // domain so Main/residual alignment never depends on provider copies of
+  // recurrent state. Only the inference worker mutates these during normal
+  // operation; the mutex protects non-RT control-path resets.
   std::vector<float> audioChunkBuffer_;
   std::vector<float> pastAudio_;
+  std::vector<float> overlapAddBuffer_;
   std::vector<float> fusionHidden_;
+  std::vector<float> previousAlignedInput_;
   std::vector<float> separatedOutputBuffer_;
   std::vector<float> nextPastAudioBuffer_;
+  std::vector<float> nextOverlapAddBuffer_;
   std::vector<float> nextFusionHiddenBuffer_;
-  std::array<OrtValue*, 3> inputTensorValues_{};
-  std::array<OrtValue*, 3> outputTensorValues_{};
+  std::array<OrtValue*, 4> inputTensorValues_{};
+  std::array<OrtValue*, 4> outputTensorValues_{};
+  bool hasPreviousAlignedInput_{false};
   std::mutex streamingStateMutex_;
 
   // State
