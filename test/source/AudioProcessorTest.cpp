@@ -1935,8 +1935,7 @@ protected:
     std::cerr << "  BASS DIAGNOSTIC REPORT\n";
     std::cerr << "============================================================="
                  "=======\n";
-    std::cerr
-        << "  Model input: fullband with state-aware boost normalization\n";
+    std::cerr << "  Model input: exact raw fullband level\n";
     std::cerr << "  Block size: " << kBlockSize
               << ", Sample rate: " << kSampleRate << "\n";
     std::cerr << "============================================================="

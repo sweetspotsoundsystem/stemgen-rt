@@ -5,7 +5,7 @@ A real-time music source separation plugin. Drop it on a track and get 4 separat
 This c126 listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
 
 > [!WARNING]
-> The bundled c126 step-100k model is an unqualified listening candidate. Its aggregate validation quality is better than c91, but three frozen per-stem quality guards remain unresolved. Test and compare it by ear; do not publish it as a qualified release yet.
+> The bundled c126 step-100k model is an unqualified listening candidate. Its aggregate validation quality is better than c91, but three frozen per-stem quality guards remain unresolved and its no-overlap current-chunk synthesis has a measured low-frequency hop seam. Test and compare it by ear; do not publish it as a qualified release yet.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
 
@@ -86,8 +86,8 @@ The installer uses Release artifacts by default, so this listening candidate mus
 The plugin runs a stateful HS-TasNet graph on a background inference thread so the audio callback never waits for the model:
 
 1. The audio thread preserves the native host-rate mix for Main and the dry fallback and collects one 512-sample request.
-2. The inference thread applies stereo-linked model-input gain staging and runs one current-chunk hop while carrying previous-audio and fusion-GRU state.
-3. The worker restores the graph's original gain. The audio thread publishes the result on the exact sequence-N timeline and derives Other as the exact residual of raw current-chunk Main.
+2. The inference thread runs one current-chunk hop at the input's native floating-point level while carrying previous-audio and fusion-GRU state.
+3. The audio thread publishes the result on the exact sequence-N timeline and derives Other as the exact residual of raw current-chunk Main.
 
 At 44.1 kHz both converters are bypassed with zero added delay and a bit-exact input copy. The preserved higher-rate bridge is disabled by this listening contract until it is requalified with c126.
 
@@ -104,7 +104,7 @@ The model graph has three inputs and three outputs:
 
 Both persistent state tensors start at zero. `separated_chunk` is aligned with the same call's `audio_chunk`, including sequence zero after a reset. There is no boundary overlap-add tensor, pre-roll result, or graph flush hop.
 
-The model is observably sensitive to input level: lowering the same material can change which stem receives it. The inference worker measures one stereo RMS and one stereo-linked peak over the graph's exact raw `[past hop, current hop]` analysis window. Its boost is the minimum of the gain needed to reach -12 dBFS RMS, the headroom available below the 0 dBFS peak ceiling, and the +40 dB maximum boost. The result is clamped to a minimum gain of one. If the gain changes, the runtime moves `past_audio` into the new amplitude domain while leaving nonlinear fusion-GRU state untouched. It divides the separated output by the same gain and uses the untouched raw current hop for Main and the residual. Exact digital silence holds the preceding gain.
+The model is observably sensitive to input level: lowering the same material can change which stem receives it. This listening build deliberately sends the unmodified finite input level into the graph. The former per-hop RMS boost was not part of the trained or frozen evaluation contract; deployment-path measurements showed that it modulated sub-bass and materially reduced c126 drum and bass quality. Main and the residual use the same exact raw current hop.
 
 There is one host-visible 512-sample stage: collect and queue the current request. The causal graph adds zero output-delay hops. With a fixed 512-sample callback, the worker receives one complete 11.61 ms callback interval before sequence N is consumed at sequence N+1, so PDC is exactly 512 samples.
 
@@ -120,11 +120,11 @@ Other = Main - Drums - Bass - Vocals
 
 The plugin enforces the same invariant after runtime-provider differences, during dry fallback, and through its near-silence safety fade, so the four stem buses sum to the latency-aligned main bus to floating-point precision. This means the separation is mixture-lossless; it does not mean the estimated stems are identical to unrecoverable studio-original recordings. Independent clipping, normalization, or PCM quantization downstream can also break exact summation.
 
-The model path has no external crossover, low-frequency reinjection, vocals-specific gate, chunk-boundary crossfade, or boundary overlap-add tensor. Apart from the state-aware fullband gain staging above, the audio goes directly to the stateful graph, whose causal analysis/synthesis is internal.
+The model path has no external gain normalization, crossover, low-frequency reinjection, vocals-specific gate, chunk-boundary crossfade, or boundary overlap-add tensor. Finite audio goes directly to the stateful graph, whose causal analysis/synthesis is internal.
 
 The graph has a small, approximately level-independent floor in its individual stem estimates near silence. The final output stage therefore uses one stereo-linked peak envelope of the latency-aligned mixture to fade only the available model contribution. The envelope maps to fully enabled separation at and above -72 dBFS peak, fully disabled separation at and below -96 dBFS peak, and a smooth blend over the linear-amplitude interval between them. The detector opens immediately, holds peaks for 50 ms, then releases by 60 dB per 100 ms. Main and the dry underrun fallback are unchanged; as confidence falls, `Other` receives the residual.
 
-Every processed hop is tagged with its exact output sample range. A result that misses part or all of that range is trimmed or discarded, never replayed later against newer audio. On those missing samples StemgenRT uses the complete latency-aligned dry split immediately, then fades exact-timeline model output back in and routes the final residual to `Other`. Transport starts, seeks, stopped scrubs, and loop wraps reset previous-audio, fusion-hidden, normalization, output-crossfade, confidence, queue epoch, and SRC phase state. The first successful result after reset is valid sequence-N current-chunk output.
+Every processed hop is tagged with its exact output sample range. A result that misses part or all of that range is trimmed or discarded, never replayed later against newer audio. On those missing samples StemgenRT uses the complete latency-aligned dry split immediately, then fades exact-timeline model output back in and routes the final residual to `Other`. Transport starts, seeks, stopped scrubs, and loop wraps reset previous-audio, fusion-hidden, output-crossfade, confidence, queue epoch, and SRC phase state. The first successful result after reset is valid sequence-N current-chunk output.
 
 ### Model identity
 

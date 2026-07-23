@@ -9,7 +9,6 @@
 #include <array>
 #include <juce_core/juce_core.h>
 #include "Constants.h"
-#include "ModelInputNormalizer.h"
 
 // Forward declarations to avoid exposing ORT headers
 struct OrtEnv;
@@ -21,8 +20,7 @@ struct OrtApiBase;
 
 namespace audio_plugin {
 
-// RAII wrapper for the qualified CPU ONNX Runtime session, stateful graph, and
-// state-aware model-domain gain staging.
+// RAII wrapper for the qualified CPU ONNX Runtime session and stateful graph.
 class OnnxRuntime {
 public:
   OnnxRuntime();
@@ -121,11 +119,11 @@ private:
   std::unique_ptr<OrtSession, OrtSessionDeleter> ortSession_;
   OrtMemoryInfo* ortMemoryInfo_{nullptr};
 
-  // Pre-allocated graph inputs/state. Audio-domain state remains in the
-  // current normalized model domain; inputNormalizer_ preserves raw past for
-  // gain analysis and returns the exact raw current hop for Main alignment and
-  // the final residual. Only the inference worker mutates these during normal
-  // operation; the mutex protects non-RT control-path resets.
+  // Pre-allocated graph inputs/state. Audio enters the graph at its native
+  // floating-point level: the c126 quality evaluation used this exact path,
+  // and hop-varying deployment gain was measured to damage bass and drum
+  // quality. Only the inference worker mutates these during normal operation;
+  // the mutex protects non-RT control-path resets.
   std::vector<float> audioChunkBuffer_;
   std::vector<float> pastAudio_;
   std::vector<float> fusionHidden_;
@@ -134,7 +132,6 @@ private:
   std::vector<float> nextFusionHiddenBuffer_;
   std::array<OrtValue*, 3> inputTensorValues_{};
   std::array<OrtValue*, 3> outputTensorValues_{};
-  ModelInputNormalizer inputNormalizer_;
   std::mutex streamingStateMutex_;
 
   // State

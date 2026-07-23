@@ -741,7 +741,6 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     separatedOutputBuffer_.resize(separatedElements);
     nextPastAudioBuffer_.resize(audioElements);
     nextFusionHiddenBuffer_.resize(hiddenElements);
-    inputNormalizer_.allocate();
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -772,7 +771,6 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
 void OnnxRuntime::resetStreamingStateUnlocked() {
     std::fill(pastAudio_.begin(), pastAudio_.end(), 0.0f);
     std::fill(fusionHidden_.begin(), fusionHidden_.end(), 0.0f);
-    inputNormalizer_.reset();
 }
 
 void OnnxRuntime::resetStreamingState() {
@@ -821,12 +819,29 @@ bool OnnxRuntime::runInference(
       return false;
     }
 
-    float normalizationGain = 1.0f;
-    if (!inputNormalizer_.prepare(inputChunk, audioChunkBuffer_, pastAudio_,
-                                  alignedInput, normalizationGain)) {
-      DBG("[ORT] Invalid streaming input or normalization state");
-      resetStreamingStateUnlocked();
-      return false;
+    // Feed the graph at the exact native input level used by its frozen
+    // quality evaluation. The former per-hop RMS boost could move by several
+    // decibels at sub-bass frequencies and materially worsened c126 bass and
+    // drum separation. Keep Main/residual alignment as an exact raw copy.
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+      if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
+          alignedInput[ch].size() != static_cast<size_t>(kOutputChunkSize)) {
+        DBG("[ORT] Invalid streaming input or aligned-output shape");
+        resetStreamingStateUnlocked();
+        return false;
+      }
+      const size_t channelOffset =
+          ch * static_cast<size_t>(kOutputChunkSize);
+      for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+        const float sample = inputChunk[ch][i];
+        if (!std::isfinite(sample)) {
+          DBG("[ORT] Non-finite streaming input");
+          resetStreamingStateUnlocked();
+          return false;
+        }
+        audioChunkBuffer_[channelOffset + i] = sample;
+        alignedInput[ch][i] = sample;
+      }
     }
 
     const std::array<const char*, 3> inputNames = {
@@ -889,7 +904,6 @@ bool OnnxRuntime::runInference(
     }
 
     outputValid = true;
-    const float inverseNormalizationGain = 1.0f / normalizationGain;
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
       for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         auto& destination = outputChunks[stem][ch];
@@ -901,8 +915,7 @@ bool OnnxRuntime::runInference(
         const size_t offset = (stem * static_cast<size_t>(kNumChannels) + ch) *
                               static_cast<size_t>(kOutputChunkSize);
         for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-          destination[i] =
-              separatedOutputBuffer_[offset + i] * inverseNormalizationGain;
+          destination[i] = separatedOutputBuffer_[offset + i];
         }
       }
     }
@@ -918,9 +931,8 @@ bool OnnxRuntime::runInference(
       }
     }
 
-    // Validate the actual native-domain values returned to the queue, not only
-    // the normalized ORT tensors. Inverse gain and residual subtraction are
-    // additional floating-point operations and can overflow independently.
+    // Validate the actual native-domain values returned to the queue, including
+    // the residual subtraction performed after ORT.
     bool finalOutputIsFinite = true;
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
       finalOutputIsFinite =
@@ -952,7 +964,6 @@ bool OnnxRuntime::runInference(
                 audioElements * sizeof(float));
     std::memcpy(fusionHidden_.data(), nextFusionHiddenBuffer_.data(),
                 hiddenElements * sizeof(float));
-    inputNormalizer_.commit(inputChunk, normalizationGain);
 
     return true;
 }

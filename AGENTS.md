@@ -38,7 +38,7 @@ The plugin uses a dual-threaded architecture:
 - **Audio thread**: Preserves native host-rate input for Main/fallback, converts qualified higher rates onto the model clock, collects 512-sample model requests, and returns completed host-rate ranges through bounded ring buffers.
 - **Inference thread**: Owns the model's previous-audio and fusion-GRU state, runs ONNX inference asynchronously, and converts retained stems back to the host clock before publishing them.
 
-Do not reintroduce the former external context/reflection padding, HP/LP crossover, LP reinjection, vocals-specific or input soft gates, low-band stabilizer, or chunk-tail crossfade before or around the graph. The graph owns its analysis and overlap-add processing. The only model-input preprocessing is the state-aware, boost-only fullband normalization described below; the final writer also has a residual-preserving low-level separation-confidence fade.
+Do not reintroduce the former external context/reflection padding, HP/LP crossover, LP reinjection, vocals-specific or input soft gates, low-band stabilizer, or chunk-tail crossfade before or around the graph. The graph owns its analysis and synthesis processing. Finite model input is passed through at its exact native floating-point level; the final writer has a residual-preserving low-level separation-confidence fade.
 
 ### Stateful ONNX Contract
 
@@ -55,7 +55,7 @@ The graph processes stereo float32 audio at exactly 44.1 kHz. It has a fixed 512
 
 Initialize both persistent state tensors to zero. `separated_chunk` is aligned to the same call's `audio_chunk`, so sequence zero after a reset is valid. There is no graph pre-roll result, boundary overlap-add state, or zero-hop flush.
 
-Only the inference worker may advance model state. Reset `past_audio`, the raw prior-hop copy, `fusion_hidden`, and the model-input gain on transport starts, seeks, scrubs, loop wraps, inference failures, and input-sequence gaps. Epoch changes during an in-flight run invalidate that output; zero the state before accepting another sequence. The next successful current-sequence result is immediately valid.
+Only the inference worker may advance model state. Reset `past_audio` and `fusion_hidden` on transport starts, seeks, scrubs, loop wraps, inference failures, and input-sequence gaps. Epoch changes during an in-flight run invalidate that output; zero the state before accepting another sequence. The next successful current-sequence result is immediately valid.
 
 ### Host Sample-Rate Bridge
 
@@ -67,11 +67,9 @@ Keep Main and the dry fallback at the native host rate. Never round-trip them th
 
 ### Model-Input Level
 
-The c126 graph remains materially level-sensitive, and a -10 dB copy can separate differently from the same content at ordinary level. On the inference worker, calculate one stereo-linked RMS and peak over the exact raw analysis window: current 512-sample hop after reset, then raw past plus current hops. Apply a boost-only gain equal to the minimum of the gain toward `kModelInputTargetRms` (-12 dBFS RMS), the peak headroom below `kModelInputPeakCeiling` (0 dBFS), and `kModelInputMaxBoost` (+40 dB). Clamp the result to a minimum of one, so input already at or above the RMS target or peak ceiling is not attenuated. Hold the previous gain through exact digital silence.
+The c126 graph remains materially level-sensitive, and a quieter copy can separate differently from the same content at ordinary level. Pass every finite sample to `audio_chunk` unchanged and preserve the returned `next_past_audio` in that same raw amplitude domain. Non-finite input must fail closed and reset all streaming state.
 
-When gain changes from `Gprev` to `G`, multiply `past_audio` by `G / Gprev`, multiply the raw current hop by `G`, and do not scale `fusion_hidden` because it is nonlinear feature state. Keep a separate raw past hop for the next detector window. Divide the emitted separated tensor by `G`, preserve drums/bass/vocals, and calculate Other from the raw current hop. This keeps every amplitude-domain tensor coherent without changing Main, fallback level, latency, or the graph interface. Non-finite input or gain state must fail closed and reset all streaming state.
-
-The target and maximum boost originate from the former deployment wrapper and listening evidence, not an embedded ONNX training-level contract; the stereo-linked raw-window peak cap is part of the qualified native policy. Changes to the target, maximum boost, peak ceiling, detector window, state migration, or boost-only policy require requalification.
+Do not restore the former per-hop RMS/peak boost. It was inherited from an older deployment wrapper rather than the training or frozen evaluation contract. On the frozen validation excerpt used for the listening diagnosis, it reduced c126 drum SDR from 4.31 to 3.37 dB and bass SDR from 5.44 to 3.81 dB. Its 1,024-sample detector also varied by 1.90 dB on a steady 30 Hz sine, while `fusion_hidden` could not be amplitude-migrated coherently. Raw input is therefore the bounded audition policy until a level-robust model is trained and requalified.
 
 ### Latency and Fallback
 
@@ -89,13 +87,13 @@ If a real-time callback size requires more scheduling latency than the PDC estab
 
 ### Mixture-Lossless Invariant
 
-The model output order is `[drums, bass, vocals, other]`. After inverse model-input gain, preserve drums, bass, and vocals at every level, then calculate:
+The model output order is `[drums, bass, vocals, other]`. Preserve drums, bass, and vocals, then calculate:
 
 ```text
 other = aligned_mixture - drums - bass - vocals
 ```
 
-The ONNX graph applies a model-domain correction, and the runtime reapplies it against the raw aligned mixture after inverse gain. The native output stage applies it again after provider-specific numerical differences, fallback crossfades, or the low-level confidence fade. In floating-point processing, the four internal stems must reconstruct the latency-aligned Main mixture. Do not independently normalize, clip, gate, or quantize stems after the final correction. “Mixture-lossless” does not claim recovery of the studio-original sources; integer PCM exports require another residual correction after final quantization.
+The ONNX graph applies a model-domain correction, and the runtime reapplies it against the raw aligned mixture. The native output stage applies it again after provider-specific numerical differences, fallback crossfades, or the low-level confidence fade. In floating-point processing, the four internal stems must reconstruct the latency-aligned Main mixture. Do not independently normalize, clip, gate, or quantize stems after the final correction. “Mixture-lossless” does not claim recovery of the studio-original sources; integer PCM exports require another residual correction after final quantization.
 
 The native writer reproduces those tensor estimates unchanged only when model output is available, the underrun crossfade is complete, and separation confidence is fully open. The graph has an approximately level-independent per-stem floor near silence. `OutputWriter` must suppress that unreliable presentation without changing the graph input or recurrent state: detect the latency-aligned mixture with one stereo-linked peak envelope; open immediately; hold peaks for 50 ms; then release by 60 dB per 100 ms; map the envelope to confidence with a smoothstep over the linear-amplitude interval that is zero at and below -96 dBFS peak and one at and above -72 dBFS peak. If `x` is the underrun crossfade and `g` is the low-level confidence, apply:
 
@@ -141,7 +139,7 @@ Prefer preallocated input/output/state storage and avoid allocations in both the
 
 Tests are in `test/source/`. Run with `ctest --preset default`.
 
-Changes to the streaming path should cover, at minimum: exact graph names/shapes and model identity; state progression; first-current-hop validity and absence of a flush protocol; reset determinism; sequence-gap recovery; exact reported main/stem alignment across host rates and block sizes; callback-phase latency calculation; prepared/actual block-size mismatch diagnostics and complete-Other fallback; timestamped late-result rejection; bus ordering; finite outputs; boost-only normalization at ordinary level; -10/-20 dB gain invariance; gain changes with coherent past state; raw current-input preservation; exact-zero gain hold; non-finite failure/reset; SRC passband, alias/image rejection, exact bypass, rational frame counts, long-run drift, block-partition invariance, integer paired delay, absolute-phase reset, and ultrasonic residual routing; the low-level confidence endpoints, transition, stereo linking, attack/hold/release timing, reset, and host-block independence; isolation of the dry fallback from confidence; and `Main == Drums + Bass + Other + Vocals` during normal inference, near-silence fading, startup, and underrun fallback. Keep performance benchmarks stateful and include both bridge directions—the old stateless 2,560-sample benchmark is not representative.
+Changes to the streaming path should cover, at minimum: exact graph names/shapes and model identity; state progression; first-current-hop validity and absence of a flush protocol; reset determinism; sequence-gap recovery; exact reported main/stem alignment across host rates and block sizes; callback-phase latency calculation; prepared/actual block-size mismatch diagnostics and complete-Other fallback; timestamped late-result rejection; bus ordering; finite outputs; exact raw-level graph input and aligned-input preservation across ordinary, quiet, alternating-level, transient, and zero hops; non-finite failure/reset; explicit low-frequency hop-seam measurements; SRC passband, alias/image rejection, exact bypass, rational frame counts, long-run drift, block-partition invariance, integer paired delay, absolute-phase reset, and ultrasonic residual routing; the low-level confidence endpoints, transition, stereo linking, attack/hold/release timing, reset, and host-block independence; isolation of the dry fallback from confidence; and `Main == Drums + Bass + Other + Vocals` during normal inference, near-silence fading, startup, and underrun fallback. Keep performance benchmarks stateful and include both bridge directions—the old stateless 2,560-sample benchmark is not representative.
 
 ## Platform Notes
 

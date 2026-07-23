@@ -981,9 +981,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
-    // The inference worker applies one stereo-linked, state-aware boost before
-    // binding the graph tensors and restores the original gain on separated
-    // output. Queue submission remains entirely on the 44.1 kHz clock.
+    // The inference worker binds these exact finite samples to the graph
+    // without deployment-time level normalization. Queue submission remains
+    // entirely on the 44.1 kHz clock.
     const bool synchronousOfflineRender = nonRealtimeRender;
     bool offlineInferenceTimedOut = false;
     const auto submitAccumulatedModelHop = [&]() {

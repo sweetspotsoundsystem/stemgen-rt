@@ -221,47 +221,6 @@ float maxChunkDifference(const SeparatedChunk& lhs, const SeparatedChunk& rhs) {
   return maximum;
 }
 
-float maxScaledChunkDifference(const AudioChunk& actual,
-                               const AudioChunk& reference,
-                               float scale) {
-  float maximum = 0.0f;
-  for (size_t ch = 0; ch < actual.size(); ++ch) {
-    EXPECT_EQ(actual[ch].size(), reference[ch].size());
-    const size_t count = std::min(actual[ch].size(), reference[ch].size());
-    for (size_t i = 0; i < count; ++i) {
-      const float difference =
-          std::abs(actual[ch][i] - reference[ch][i] * scale);
-      if (!std::isfinite(difference)) {
-        return std::numeric_limits<float>::infinity();
-      }
-      maximum = std::max(maximum, difference);
-    }
-  }
-  return maximum;
-}
-
-float maxScaledChunkDifference(const SeparatedChunk& actual,
-                               const SeparatedChunk& reference,
-                               float scale) {
-  float maximum = 0.0f;
-  for (size_t stem = 0; stem < actual.size(); ++stem) {
-    for (size_t ch = 0; ch < actual[stem].size(); ++ch) {
-      EXPECT_EQ(actual[stem][ch].size(), reference[stem][ch].size());
-      const size_t count =
-          std::min(actual[stem][ch].size(), reference[stem][ch].size());
-      for (size_t i = 0; i < count; ++i) {
-        const float difference =
-            std::abs(actual[stem][ch][i] - reference[stem][ch][i] * scale);
-        if (!std::isfinite(difference)) {
-          return std::numeric_limits<float>::infinity();
-        }
-        maximum = std::max(maximum, difference);
-      }
-    }
-  }
-  return maximum;
-}
-
 float maxMixtureReconstructionError(const SeparatedChunk& separated,
                                     const AudioChunk& alignedInput) {
   float maximum = 0.0f;
@@ -520,7 +479,7 @@ TEST(OrtStreamingRuntimeTest,
 }
 
 TEST(OrtStreamingRuntimeTest,
-     ModelInputBoostMakesUnityReferenceAndQuietCopiesGainInvariant) {
+     RawInputLevelsRemainExactFiniteAndMixtureConsistent) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
@@ -554,11 +513,9 @@ TEST(OrtStreamingRuntimeTest,
   for (size_t hop = 0; hop < kHopCount; ++hop) {
     const auto firstSample =
         static_cast<std::int64_t>(hop) * audio_plugin::kOutputChunkSize;
-    // Every reference hop is exactly at the boost-only threshold, so its
-    // model-domain gain is unity. The quieter copies normalize back to that
-    // same domain and must inverse-scale to their original levels.
-    const AudioChunk referenceInput = scaledToStereoRms(
-        makeAudioChunk(firstSample), audio_plugin::kModelInputTargetRms);
+    // The deployment wrapper must preserve each distinct input level instead
+    // of remapping quiet copies into a shared model domain.
+    const AudioChunk referenceInput = makeAudioChunk(firstSample);
     const AudioChunk quietInput = scaledAudioChunk(referenceInput, kQuietScale);
     const AudioChunk veryQuietInput =
         scaledAudioChunk(referenceInput, kVeryQuietScale);
@@ -576,18 +533,22 @@ TEST(OrtStreamingRuntimeTest,
     EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, referenceInput), 0.0f);
     EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, quietInput), 0.0f);
     EXPECT_FLOAT_EQ(maxChunkDifference(veryQuietAligned, veryQuietInput), 0.0f);
-    EXPECT_LE(
-        maxScaledChunkDifference(quietAligned, referenceAligned, kQuietScale),
-        2.0e-7f);
-    EXPECT_LE(maxScaledChunkDifference(quietSeparated, referenceSeparated,
-                                       kQuietScale),
-              2.0e-5f);
-    EXPECT_LE(maxScaledChunkDifference(veryQuietAligned, referenceAligned,
-                                       kVeryQuietScale),
-              2.0e-7f);
-    EXPECT_LE(maxScaledChunkDifference(veryQuietSeparated, referenceSeparated,
-                                       kVeryQuietScale),
-              2.0e-5f);
+    EXPECT_TRUE(std::isfinite(maxAbsoluteValue(referenceSeparated)));
+    EXPECT_TRUE(std::isfinite(maxAbsoluteValue(quietSeparated)));
+    EXPECT_TRUE(std::isfinite(maxAbsoluteValue(veryQuietSeparated)));
+    if (hop == 0) {
+      // Golden values from a direct ORT run of the contract-pinned c126 graph
+      // with this exact raw input and zero state. The removed +6.4 dB
+      // deployment normalizer misses these values by 4e-3 to 27e-3, so this
+      // is an input-binding regression test rather than only an aligned-Main
+      // check.
+      EXPECT_NEAR(referenceSeparated[0][0][0], 0.016884943f, 3.0e-5f);
+      EXPECT_NEAR(referenceSeparated[0][0][17], 0.008217704f, 3.0e-5f);
+      EXPECT_NEAR(referenceSeparated[1][0][0], 0.004469482f, 3.0e-5f);
+      EXPECT_NEAR(referenceSeparated[1][1][255], 0.005644727f, 3.0e-5f);
+      EXPECT_NEAR(referenceSeparated[2][0][17], -0.012955057f, 3.0e-5f);
+      EXPECT_NEAR(referenceSeparated[3][0][17], 0.002754772f, 3.0e-5f);
+    }
     EXPECT_LE(
         maxMixtureReconstructionError(referenceSeparated, referenceAligned),
         1.0e-6f);
@@ -603,8 +564,7 @@ TEST(OrtStreamingRuntimeTest,
     }
   }
 
-  // An ordinary zero current hop holds each stream's model-domain gain, so
-  // scale equivalence must survive a silent region without a flush protocol.
+  // An ordinary zero current hop remains exact without a flush protocol.
   const AudioChunk zero = makeZeroAudioChunk();
   ASSERT_TRUE(referenceRuntime.runInference(zero, referenceSeparated,
                                             referenceAligned, referenceValid));
@@ -618,31 +578,121 @@ TEST(OrtStreamingRuntimeTest,
   EXPECT_FLOAT_EQ(maxAbsoluteValue(referenceAligned), 0.0f);
   EXPECT_FLOAT_EQ(maxAbsoluteValue(quietAligned), 0.0f);
   EXPECT_FLOAT_EQ(maxAbsoluteValue(veryQuietAligned), 0.0f);
+  EXPECT_LE(maxMixtureReconstructionError(referenceSeparated, referenceAligned),
+            1.0e-6f);
+  EXPECT_LE(maxMixtureReconstructionError(quietSeparated, quietAligned),
+            1.0e-6f);
   EXPECT_LE(
-      maxScaledChunkDifference(quietAligned, referenceAligned, kQuietScale),
-      2.0e-7f);
-  EXPECT_LE(
-      maxScaledChunkDifference(quietSeparated, referenceSeparated, kQuietScale),
-      2.0e-5f);
-  EXPECT_LE(maxScaledChunkDifference(veryQuietAligned, referenceAligned,
-                                     kVeryQuietScale),
-            2.0e-7f);
-  EXPECT_LE(maxScaledChunkDifference(veryQuietSeparated, referenceSeparated,
-                                     kVeryQuietScale),
-            2.0e-5f);
+      maxMixtureReconstructionError(veryQuietSeparated, veryQuietAligned),
+      1.0e-6f);
   for (size_t stem = 0; stem < referenceStemPeaks.size(); ++stem) {
     referenceStemPeaks[stem] =
         std::max(referenceStemPeaks[stem],
                  maxAbsoluteStemValue(referenceSeparated, stem));
     EXPECT_GT(referenceStemPeaks[stem], 1.0e-4f)
-        << "Retained reference stem " << stem
-        << " was degenerate, so scale invariance was not exercised";
+        << "Retained reference stem " << stem << " was degenerate";
   }
 #endif
 }
 
 TEST(OrtStreamingRuntimeTest,
-     AlternatingLevelsAndSparseTransientsRemainScaleInvariant) {
+     LowFrequencyBassHopSeamIsMeasuredAndBoundedForListeningOnly) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#else
+  audio_plugin::OnnxRuntime runtime;
+  std::string failureMessage;
+  ASSERT_TRUE(prepareRuntime(runtime, failureMessage)) << failureMessage;
+
+  SeparatedChunk separated = makeSeparatedChunk();
+  AudioChunk aligned = makeZeroAudioChunk();
+  bool outputValid = false;
+  constexpr size_t kWarmupHops = 12;
+  constexpr size_t kMeasuredHops = 32;
+  constexpr double kFrequencyHz = 50.0;
+  constexpr float kInputPeak = 0.12589254f;  // -18 dBFS
+  constexpr double kTwoPi = 6.28318530717958647692;
+
+  constexpr std::array<size_t, 2> kMeasuredStemIndices = {0, 1};
+  std::array<double, kMeasuredStemIndices.size()> boundarySumSquares{};
+  std::array<double, kMeasuredStemIndices.size()> internalSumSquares{};
+  std::array<size_t, kMeasuredStemIndices.size()> boundaryCounts{};
+  std::array<size_t, kMeasuredStemIndices.size()> internalCounts{};
+  std::array<std::array<float, audio_plugin::kNumChannels>,
+             kMeasuredStemIndices.size()>
+      previousLastSamples{};
+  bool havePreviousStems = false;
+
+  for (size_t hop = 0; hop < kWarmupHops + kMeasuredHops; ++hop) {
+    AudioChunk input = makeZeroAudioChunk();
+    for (size_t i = 0;
+         i < static_cast<size_t>(audio_plugin::kOutputChunkSize); ++i) {
+      const auto sampleIndex =
+          hop * static_cast<size_t>(audio_plugin::kOutputChunkSize) + i;
+      const double phase =
+          kTwoPi * kFrequencyHz * static_cast<double>(sampleIndex) /
+          static_cast<double>(audio_plugin::kModelSampleRate);
+      const float sample = kInputPeak * static_cast<float>(std::sin(phase));
+      input[0][i] = sample;
+      input[1][i] = sample;
+    }
+
+    ASSERT_TRUE(
+        runtime.runInference(input, separated, aligned, outputValid));
+    ASSERT_TRUE(outputValid);
+    if (hop >= kWarmupHops) {
+      for (size_t measuredStem = 0;
+           measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
+        const size_t stem = kMeasuredStemIndices[measuredStem];
+        for (size_t ch = 0;
+             ch < static_cast<size_t>(audio_plugin::kNumChannels); ++ch) {
+          const auto& channel = separated[stem][ch];
+          ASSERT_EQ(channel.size(),
+                    static_cast<size_t>(audio_plugin::kOutputChunkSize));
+          if (havePreviousStems) {
+            const double delta = static_cast<double>(
+                channel[0] - previousLastSamples[measuredStem][ch]);
+            boundarySumSquares[measuredStem] += delta * delta;
+            ++boundaryCounts[measuredStem];
+          }
+          for (size_t i = 1; i < channel.size(); ++i) {
+            const double delta =
+                static_cast<double>(channel[i] - channel[i - 1]);
+            internalSumSquares[measuredStem] += delta * delta;
+            ++internalCounts[measuredStem];
+          }
+          previousLastSamples[measuredStem][ch] = channel.back();
+        }
+      }
+      havePreviousStems = true;
+    }
+  }
+
+  // This is a ceiling around the explicitly unqualified c126 listening graph,
+  // not a promotion threshold. A replacement must tighten this to the c91 OLA
+  // baseline (within +3 dB) before release.
+  for (size_t measuredStem = 0;
+       measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
+    ASSERT_GT(boundaryCounts[measuredStem], 0U);
+    ASSERT_GT(internalCounts[measuredStem], 0U);
+    const double boundaryRms = std::sqrt(
+        boundarySumSquares[measuredStem] /
+        static_cast<double>(boundaryCounts[measuredStem]));
+    const double internalRms =
+        std::sqrt(internalSumSquares[measuredStem] /
+                  static_cast<double>(internalCounts[measuredStem]));
+    ASSERT_GT(internalRms, 0.0);
+    const double seamRatio = boundaryRms / internalRms;
+    EXPECT_LT(seamRatio, 45.0)
+        << "Stem index " << kMeasuredStemIndices[measuredStem];
+    EXPECT_LT(boundaryRms / static_cast<double>(kInputPeak), 0.16)
+        << "Stem index " << kMeasuredStemIndices[measuredStem];
+  }
+#endif
+}
+
+TEST(OrtStreamingRuntimeTest,
+     AlternatingRawLevelsAndSparseTransientsRemainFinite) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
@@ -689,15 +739,12 @@ TEST(OrtStreamingRuntimeTest,
   bool quietValid = false;
   std::array<float, 3> retainedStemPeaks{};
 
-  const auto verifyResult = [&]() {
+  const auto verifyResult = [&](const AudioChunk& referenceInput,
+                                const AudioChunk& quietInput) {
     ASSERT_TRUE(referenceValid);
     ASSERT_TRUE(quietValid);
-    EXPECT_LE(
-        maxScaledChunkDifference(quietAligned, referenceAligned, kQuietScale),
-        3.0e-7f);
-    EXPECT_LE(maxScaledChunkDifference(quietSeparated, referenceSeparated,
-                                       kQuietScale),
-              3.0e-5f);
+    EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, referenceInput), 0.0f);
+    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, quietInput), 0.0f);
     EXPECT_LE(
         maxMixtureReconstructionError(referenceSeparated, referenceAligned),
         1.0e-6f);
@@ -718,10 +765,10 @@ TEST(OrtStreamingRuntimeTest,
         referenceInput, referenceSeparated, referenceAligned, referenceValid));
     ASSERT_TRUE(quietRuntime.runInference(quietInput, quietSeparated,
                                           quietAligned, quietValid));
-    verifyResult();
+    verifyResult(referenceInput, quietInput);
   }
 
-  // Exercise an ordinary silent current hop while preserving gain domains.
+  // Exercise an ordinary silent current hop.
   const AudioChunk zero = makeZeroAudioChunk();
   ASSERT_TRUE(referenceRuntime.runInference(zero, referenceSeparated,
                                             referenceAligned, referenceValid));
@@ -729,12 +776,11 @@ TEST(OrtStreamingRuntimeTest,
                                         quietValid));
   ASSERT_TRUE(referenceValid);
   ASSERT_TRUE(quietValid);
-  verifyResult();
+  verifyResult(zero, zero);
 
   for (size_t stem = 0; stem < retainedStemPeaks.size(); ++stem) {
     EXPECT_GT(retainedStemPeaks[stem], 1.0e-5f)
-        << "Retained reference stem " << stem
-        << " was degenerate, so dynamic gain migration was not exercised";
+        << "Retained reference stem " << stem << " was degenerate";
   }
 #endif
 }

@@ -59,7 +59,6 @@ set(SOURCE_FILES
   source/PluginProcessor.cpp
   source/OnnxRuntime.cpp
   source/InferenceQueue.cpp
-  source/ModelInputNormalizer.cpp
   source/StreamingSampleRateAdapter.cpp
   source/OverlapAddProcessor.cpp
   source/OutputWriter.cpp
@@ -71,7 +70,6 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/Constants.h
   ${INCLUDE_DIR}/OnnxRuntime.h
   ${INCLUDE_DIR}/InferenceQueue.h
-  ${INCLUDE_DIR}/ModelInputNormalizer.h
   ${INCLUDE_DIR}/StreamingSampleRateAdapter.h
   ${INCLUDE_DIR}/ModelOutputScheduler.h
   ${INCLUDE_DIR}/OverlapAddProcessor.h

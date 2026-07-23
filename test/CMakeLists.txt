@@ -9,7 +9,6 @@ enable_testing()
 set(SOURCE_FILES
   source/AudioProcessorTest.cpp
   source/InferenceQueueTest.cpp
-  source/ModelInputNormalizerTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
   source/ModelOutputSchedulerTest.cpp
   source/OverlapAddProcessorTest.cpp

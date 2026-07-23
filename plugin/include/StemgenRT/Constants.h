@@ -186,23 +186,6 @@ constexpr int kOutputRingBufferChunks =
 // cannot overwrite unread latency history when a host exceeds its estimate.
 constexpr int kMinimumHostBlockCapacity = 65536;
 
-// Keep quiet material near the nominal operating level established by the
-// former deployment wrapper and listening tests. This is deliberately
-// boost-only: input already at or above the target is passed to the graph
-// unchanged. Gain is stereo-linked, capped, and undone on the separated output
-// while Main remains at its original level.
-constexpr float kModelInputTargetRms = 0.25118864f;  // -12 dBFS RMS
-constexpr float kModelInputMaxBoost = 100.0f;        // +40 dB
-// Boost must not push an otherwise in-range raw analysis-window peak above
-// full scale. Input that is already hotter than this remains unchanged because
-// normalization is deliberately boost-only rather than a limiter.
-constexpr float kModelInputPeakCeiling = 1.0f;  // 0 dBFS peak
-
-static_assert(kModelInputTargetRms > 0.0f);
-static_assert(kModelInputTargetRms < 1.0f);
-static_assert(kModelInputMaxBoost >= 1.0f);
-static_assert(kModelInputPeakCeiling > 0.0f);
-
 // Smooth transitions between model output and the latency-aligned dry fallback.
 constexpr int kUnderrunCrossfadeSamples = 64;
 
