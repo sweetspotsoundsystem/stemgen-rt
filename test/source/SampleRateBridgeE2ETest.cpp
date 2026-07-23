@@ -26,13 +26,13 @@ float makeInputSample(std::size_t timelineSample,
                              0.08 * std::sin(2.0 * kPi * 7311.0 * time)));
 }
 
-void expectQualifiedRateRoundTrip(double sampleRate) {
+void expectFutureQualifiedRateRoundTrip(double sampleRate) {
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.setNonRealtime(true);
   processor.prepareToPlay(sampleRate, kBlockSize);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Qualified model/runtime unavailable";
+    GTEST_SKIP() << "Future-qualified multi-rate model/runtime unavailable";
   }
 
   const int latency = processor.getLatencySamples();
@@ -115,13 +115,13 @@ void expectQualifiedRateRoundTrip(double sampleRate) {
   processor.releaseResources();
 }
 
-void expectFiniteRenderFlush(double sampleRate) {
+void expectFutureQualifiedFiniteRenderCompletion(double sampleRate) {
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.setNonRealtime(true);
   processor.prepareToPlay(sampleRate, kBlockSize);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Qualified model/runtime unavailable";
+    GTEST_SKIP() << "Future-qualified multi-rate model/runtime unavailable";
   }
 
   constexpr std::size_t kSignalSamples =
@@ -220,14 +220,15 @@ void expectFiniteRenderFlush(double sampleRate) {
   processor.releaseResources();
 }
 
-void expectRealtimeWorkerBridge(double sampleRate,
-                                int blockSize,
-                                std::chrono::microseconds callbackAllowance) {
+void expectFutureQualifiedRealtimeWorkerBridge(
+    double sampleRate,
+    int blockSize,
+    std::chrono::microseconds callbackAllowance) {
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(sampleRate, blockSize);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Qualified model/runtime unavailable";
+    GTEST_SKIP() << "Future-qualified multi-rate model/runtime unavailable";
   }
 
   const int latency = processor.getLatencySamples();
@@ -306,26 +307,28 @@ void expectRealtimeWorkerBridge(double sampleRate,
 }
 
 TEST(SampleRateBridgeE2ETest,
-     HigherRateModelPathPreservesNativeMainAndExactResidual) {
+     DISABLED_FutureQualifiedHigherRatePathPreservesMainAndExactResidual) {
   for (const double sampleRate :
        {48000.0, 88200.0, 96000.0, 176400.0, 192000.0}) {
     SCOPED_TRACE(::testing::Message() << "sampleRate=" << sampleRate);
-    expectQualifiedRateRoundTrip(sampleRate);
+    expectFutureQualifiedRateRoundTrip(sampleRate);
   }
 }
 
 TEST(SampleRateBridgeE2ETest,
-     ConvertedFiniteRenderFlushesPartialFinalHopWithinDeclaredTail) {
+     DISABLED_FutureQualifiedFiniteRenderCompletesPartialCurrentChunk) {
   for (const double sampleRate : {48000.0, 192000.0}) {
     SCOPED_TRACE(::testing::Message() << "sampleRate=" << sampleRate);
-    expectFiniteRenderFlush(sampleRate);
+    expectFutureQualifiedFiniteRenderCompletion(sampleRate);
   }
 }
 
 TEST(SampleRateBridgeE2ETest,
-     RealtimeWorkerPublishesConvertedRangesWithoutTimelineDrops) {
-  expectRealtimeWorkerBridge(48000.0, 64, std::chrono::microseconds(2000));
-  expectRealtimeWorkerBridge(192000.0, 512, std::chrono::microseconds(4000));
+     DISABLED_FutureQualifiedRealtimeWorkerPublishesExactConvertedRanges) {
+  expectFutureQualifiedRealtimeWorkerBridge(48000.0, 64,
+                                             std::chrono::microseconds(2000));
+  expectFutureQualifiedRealtimeWorkerBridge(192000.0, 512,
+                                             std::chrono::microseconds(4000));
 }
 
 TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
@@ -333,7 +336,36 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported sample rate"));
+      "Unsupported c126 host configuration"));
+  processor.releaseResources();
+}
+
+TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedPreparedBlockSizeFailClosed) {
+  audio_plugin::AudioPluginAudioProcessor processor;
+  processor.prepareToPlay(44100.0, 256);
+  EXPECT_EQ(processor.getLatencySamples(), 0);
+  EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
+      "44100 Hz / 512 samples"));
+  processor.releaseResources();
+}
+
+TEST(SampleRateBridgeE2ETest,
+     OfflineActualCallbacksMayVaryAfterQualifiedFixedPrepare) {
+  audio_plugin::AudioPluginAudioProcessor processor;
+  processor.setNonRealtime(true);
+  processor.prepareToPlay(44100.0, 512);
+  if (processor.getLatencySamples() == 0) {
+    processor.releaseResources();
+    GTEST_SKIP() << "Accepted c126 model/runtime unavailable";
+  }
+
+  juce::MidiBuffer midi;
+  for (const int callbackSize : {256, 1024, 137}) {
+    juce::AudioBuffer<float> buffer(12, callbackSize);
+    buffer.clear();
+    processor.processBlock(buffer, midi);
+    EXPECT_FALSE(processor.isRealtimeCallbackTimingUnsafe());
+  }
   processor.releaseResources();
 }
 

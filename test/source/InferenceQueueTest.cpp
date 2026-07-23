@@ -94,9 +94,8 @@ public:
       }
     }
 
-    const uint32_t ordinal =
-        runsSinceReset.fetch_add(1, std::memory_order_relaxed);
-    request.outputValid = ordinal != 0;
+    runsSinceReset.fetch_add(1, std::memory_order_relaxed);
+    request.outputValid = true;
     return true;
   }
 
@@ -184,7 +183,7 @@ TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
 }
 
 TEST(InferenceQueueTest,
-     ResetDuringInFlightRunDiscardsStaleOutputAndCreatesOnePreroll) {
+     ResetDuringInFlightRunDiscardsStaleOutputAndKeepsSequenceZeroValid) {
   FakeRuntime runtime;
   InferenceQueue queue;
   queue.allocate();
@@ -211,11 +210,11 @@ TEST(InferenceQueueTest,
   submit(queue, currentEpoch, 1);
   runtime.releaseFirstRun.store(true, std::memory_order_release);
 
-  InferenceRequest* preroll = waitForOutput(queue, currentEpoch);
-  ASSERT_NE(preroll, nullptr);
-  EXPECT_EQ(preroll->chunkSequence, 0U);
-  EXPECT_FALSE(preroll->outputValid);
-  EXPECT_EQ(queue.getCurrentOutputSlot(), preroll);
+  InferenceRequest* first = waitForOutput(queue, currentEpoch);
+  ASSERT_NE(first, nullptr);
+  EXPECT_EQ(first->chunkSequence, 0U);
+  EXPECT_TRUE(first->outputValid);
+  EXPECT_EQ(queue.getCurrentOutputSlot(), first);
   queue.releaseOutputSlot();
 
   InferenceRequest* output = waitForOutput(queue, currentEpoch);
@@ -255,11 +254,11 @@ TEST(InferenceQueueTest,
     submit(queue, currentEpoch, 0);
     submit(queue, currentEpoch, 1);
 
-    InferenceRequest* preroll = waitForOutput(queue, currentEpoch);
-    ASSERT_NE(preroll, nullptr);
-    EXPECT_EQ(preroll->getEpoch(), currentEpoch);
-    EXPECT_EQ(preroll->chunkSequence, 0U);
-    EXPECT_FALSE(preroll->outputValid);
+    InferenceRequest* first = waitForOutput(queue, currentEpoch);
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(first->getEpoch(), currentEpoch);
+    EXPECT_EQ(first->chunkSequence, 0U);
+    EXPECT_TRUE(first->outputValid);
     queue.releaseOutputSlot();
 
     InferenceRequest* output = waitForOutput(queue, currentEpoch);
@@ -294,12 +293,6 @@ TEST(InferenceQueueTest,
   submit(queue, epoch, 1U);
   submit(queue, epoch, 2U);
 
-  InferenceRequest* preroll = waitForOutput(queue, epoch);
-  ASSERT_NE(preroll, nullptr);
-  EXPECT_FALSE(preroll->outputValid);
-  EXPECT_FALSE(preroll->hostOutputValid);
-  queue.releaseOutputSlot();
-
   InferenceRequest* first = waitForOutput(queue, epoch);
   ASSERT_NE(first, nullptr);
   EXPECT_TRUE(first->outputValid);
@@ -310,29 +303,37 @@ TEST(InferenceQueueTest,
 
   InferenceRequest* second = waitForOutput(queue, epoch);
   ASSERT_NE(second, nullptr);
+  EXPECT_TRUE(second->outputValid);
   EXPECT_TRUE(second->hostOutputValid);
   EXPECT_EQ(second->hostOutputStartSample, 558U);
   EXPECT_EQ(second->hostOutputSampleCount, 557U);
   queue.releaseOutputSlot();
 
-  // Sequence five is pre-roll after the worker detects the missing hops. The
-  // next valid result aligns to model frame 5 * 512, not to the previous local
-  // converter phase.
-  submit(queue, epoch, 5U);
-  submit(queue, epoch, 6U);
-  InferenceRequest* gapPreroll = waitForOutput(queue, epoch);
-  ASSERT_NE(gapPreroll, nullptr);
-  EXPECT_EQ(gapPreroll->chunkSequence, 5U);
-  EXPECT_FALSE(gapPreroll->outputValid);
-  EXPECT_FALSE(gapPreroll->hostOutputValid);
+  InferenceRequest* third = waitForOutput(queue, epoch);
+  ASSERT_NE(third, nullptr);
+  EXPECT_TRUE(third->hostOutputValid);
+  EXPECT_EQ(third->hostOutputStartSample, 1115U);
   queue.releaseOutputSlot();
 
+  // A sequence gap resets state and converter phase before processing the new
+  // sequence. Sequence five itself remains valid and aligns to model frame
+  // 5 * 512 rather than the previous local converter phase.
+  submit(queue, epoch, 5U);
+  submit(queue, epoch, 6U);
   InferenceRequest* afterGap = waitForOutput(queue, epoch);
   ASSERT_NE(afterGap, nullptr);
+  EXPECT_EQ(afterGap->chunkSequence, 5U);
   EXPECT_TRUE(afterGap->outputValid);
   EXPECT_TRUE(afterGap->hostOutputValid);
   EXPECT_EQ(afterGap->hostOutputStartSample, 2787U);
-  EXPECT_EQ(afterGap->hostOutputSampleCount, 557U);
+  queue.releaseOutputSlot();
+
+  InferenceRequest* next = waitForOutput(queue, epoch);
+  ASSERT_NE(next, nullptr);
+  EXPECT_EQ(next->chunkSequence, 6U);
+  EXPECT_TRUE(next->outputValid);
+  EXPECT_TRUE(next->hostOutputValid);
+  EXPECT_EQ(next->hostOutputStartSample, 3344U);
   queue.releaseOutputSlot();
   queue.stopThread();
 }

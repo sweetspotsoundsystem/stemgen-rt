@@ -154,105 +154,17 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     SmallHostBlocksKeepModelOnExactTimelineWithoutDistortion) {
+     SmallPreparedHostBlocksFailClosedForC126ListeningContract) {
   constexpr int kSmallBlockSize = 64;
-  constexpr int kExpectedLatency =
-      3 * audio_plugin::kOutputChunkSize - kSmallBlockSize;
-  constexpr int kTotalBlocks = 96;
-  constexpr int kMeasurementStartBlock = 32;
-  constexpr auto kCallbackInterval = std::chrono::microseconds(1400);
 
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kSmallBlockSize);
-  if (processor.getLatencySamples() <= 0) {
-    GTEST_SKIP() << "Qualified model is unavailable";
-  }
-  ASSERT_EQ(processor.getLatencySamples(), kExpectedLatency);
-
-  TransportPlayHead playHead;
-  processor.setPlayHead(&playHead);
-  juce::MidiBuffer midiBuffer;
-  int64_t inputTimelineSample = 0;
-  float maximumMainDelayError = 0.0f;
-  float maximumRetainedStemMagnitude = 0.0f;
-  float maximumReconstructionError = 0.0f;
-
-  for (int block = 0; block < kTotalBlocks; ++block) {
-    playHead.setPosition(true, inputTimelineSample);
-    juce::AudioBuffer<float> buffer(kTotalChannels, kSmallBlockSize);
-    buffer.clear();
-    auto inputBus = processor.getBusBuffer(buffer, true, 0);
-    for (int sample = 0; sample < kSmallBlockSize; ++sample) {
-      const int64_t timelineSample = inputTimelineSample + sample;
-      inputBus.setSample(0, sample,
-                         sineAtSample(timelineSample, 73.0f, 0.30f) +
-                             sineAtSample(timelineSample, 509.0f, 0.20f));
-      inputBus.setSample(1, sample,
-                         sineAtSample(timelineSample, 97.0f, 0.30f) +
-                             sineAtSample(timelineSample, 761.0f, 0.20f));
-    }
-
-    processor.processBlock(buffer, midiBuffer);
-
-    auto mainBus = processor.getBusBuffer(buffer, false, 0);
-    auto drumsBus = processor.getBusBuffer(buffer, false, 1);
-    auto bassBus = processor.getBusBuffer(buffer, false, 2);
-    auto otherBus = processor.getBusBuffer(buffer, false, 3);
-    auto vocalsBus = processor.getBusBuffer(buffer, false, 4);
-    for (int channel = 0; channel < audio_plugin::kNumChannels; ++channel) {
-      for (int sample = 0; sample < kSmallBlockSize; ++sample) {
-        const int64_t outputTimelineSample = inputTimelineSample + sample;
-        float expectedMain = 0.0f;
-        if (outputTimelineSample >= kExpectedLatency) {
-          const int64_t delayedSample = outputTimelineSample - kExpectedLatency;
-          expectedMain = channel == 0
-                             ? sineAtSample(delayedSample, 73.0f, 0.30f) +
-                                   sineAtSample(delayedSample, 509.0f, 0.20f)
-                             : sineAtSample(delayedSample, 97.0f, 0.30f) +
-                                   sineAtSample(delayedSample, 761.0f, 0.20f);
-        }
-        maximumMainDelayError = std::max(
-            maximumMainDelayError,
-            std::abs(mainBus.getSample(channel, sample) - expectedMain));
-
-        const float drums = drumsBus.getSample(channel, sample);
-        const float bass = bassBus.getSample(channel, sample);
-        const float other = otherBus.getSample(channel, sample);
-        const float vocals = vocalsBus.getSample(channel, sample);
-        maximumReconstructionError =
-            std::max(maximumReconstructionError,
-                     std::abs(mainBus.getSample(channel, sample) -
-                              (drums + bass + other + vocals)));
-        if (block >= kMeasurementStartBlock) {
-          maximumRetainedStemMagnitude =
-              std::max(maximumRetainedStemMagnitude, std::abs(drums));
-          maximumRetainedStemMagnitude =
-              std::max(maximumRetainedStemMagnitude, std::abs(bass));
-          maximumRetainedStemMagnitude =
-              std::max(maximumRetainedStemMagnitude, std::abs(vocals));
-        }
-      }
-    }
-
-    inputTimelineSample += kSmallBlockSize;
-    std::this_thread::sleep_for(kCallbackInterval);
-  }
-
-  EXPECT_LE(maximumMainDelayError, 1.0e-6f)
-      << "Main was not an exact latency-aligned copy of the input";
-  EXPECT_GT(maximumRetainedStemMagnitude, 1.0e-3f)
-      << "Small callbacks remained on complete Other fallback";
-  EXPECT_LE(maximumReconstructionError, 1.0e-6f);
-  EXPECT_FALSE(processor.isUnderrunActive());
-  EXPECT_EQ(processor.getUnderrunSamplesInLastBlock(), 0U);
-  EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
-  EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
-  EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
-  EXPECT_EQ(processor.getRingOverflowEventCount(), 0U);
-  EXPECT_FALSE(processor.isRealtimeCallbackTimingUnsafe());
-  EXPECT_EQ(processor.getUnsafeRealtimeCallbackCount(), 0U);
-
-  processor.setPlayHead(nullptr);
+  EXPECT_EQ(processor.getPreparedHostBlockSize(), kSmallBlockSize);
+  EXPECT_EQ(processor.getLatencySamples(), 0);
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  EXPECT_TRUE(processor.getOrtStatusString().contains(
+      "requires 44100 Hz / 512 samples"));
+#endif
   processor.releaseResources();
 }
 
@@ -261,7 +173,8 @@ TEST(TransportUnderrunE2ETest,
   constexpr int kPreparedBlockSize = 512;
   constexpr int kActualBlockSize = 64;
   constexpr int kTotalBlocks = 48;
-  constexpr int kRequiredLatency = 1472;
+  constexpr int kRequiredLatency =
+      audio_plugin::calculatePluginLatencySamples(kActualBlockSize);
 
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kPreparedBlockSize);

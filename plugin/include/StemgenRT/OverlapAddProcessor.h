@@ -18,9 +18,9 @@ public:
   OverlapAddProcessor();
 
   void allocate(
-      size_t maximumHostBlockSize = static_cast<size_t>(kOutputChunkSize),
-      size_t latencySamples = static_cast<size_t>(kPluginLatencySamples),
-      size_t maximumModelOutputSamples = static_cast<size_t>(kOutputChunkSize));
+      size_t maximumHostBlockSize = kOutputChunkSize,
+      size_t latencySamples = kPluginLatencySamples,
+      size_t maximumModelOutputSamples = kOutputChunkSize);
   void reset();
   // Audio-thread reset. Invalidate buffered model/dry data by generation and
   // counters; do not clear the backing storage here.
@@ -97,7 +97,7 @@ private:
   size_t dryDelayWritePos_{0};
   size_t dryDelayReadPos_{0};
   size_t dryDelayHostBlockCapacity_{0};
-  size_t latencySamples_{static_cast<size_t>(kPluginLatencySamples)};
+  size_t latencySamples_{kPluginLatencySamples};
   uint64_t dryInputSamplesWritten_{0};
   uint64_t dryOutputSamplesRead_{0};
 

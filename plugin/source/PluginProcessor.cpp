@@ -71,9 +71,9 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // A partial final hop plus the graph's required zero-hop flush can require
-  // up to the currently reported latency before the final separated samples
-  // emerge. Before prepareToPlay(), use the qualified two-hop minimum.
+  // Completing a partial final hop can require up to the currently reported
+  // latency before its separated samples emerge. The current-chunk graph has
+  // no additional zero-hop flush.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
       activeLatencySamples_.load(std::memory_order_acquire);
@@ -467,13 +467,15 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   const bool sampleRateSupported =
       sampleRateCanConvertToInt &&
       std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
-      isQualifiedHostSampleRate(roundedSampleRate);
+      isQualifiedCurrentChunkHostConfiguration(roundedSampleRate,
+                                               samplesPerBlock);
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
-    const juce::String error = juce::String("Unsupported sample rate ") +
-                               juce::String(sampleRate, 1) +
-                               " Hz; qualified rates are 44100, 48000, 88200, "
-                               "96000, 176400, and 192000 Hz";
+    const juce::String error =
+        juce::String("Unsupported c126 listening configuration ") +
+        juce::String(sampleRate, 1) + " Hz / " +
+        juce::String(samplesPerBlock) +
+        " samples; this build requires 44100 Hz / 512 samples";
     {
       const std::lock_guard<std::mutex> lock(statusMutex_);
       modelLoadError_ = error;
@@ -853,10 +855,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           break;
         }
 
-        // Every graph-state reset produces exactly one pre-roll marker.
-        // Sequence zero cannot otherwise have a valid aligned predecessor.
-        if (!consumeRequest->outputValid ||
-            consumeRequest->chunkSequence == 0) {
+        // Failed runs publish invalid markers so the exact-timeline consumer
+        // can advance. Sequence zero is a valid current-chunk result.
+        if (!consumeRequest->outputValid) {
           inferenceQueue_.releaseOutputSlot();
           ++consumedResults;
           continue;
@@ -1132,8 +1133,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (offlineInferenceTimedOut) {
       // The current callback has already rendered from its intact aligned-dry
       // history. Now invalidate the stalled request and graph generation so
-      // the next callback starts from deterministic pre-roll without splicing
-      // a mid-callback reset onto the output timeline.
+      // the next callback starts from deterministic zero state without
+      // splicing a mid-callback reset onto the output timeline.
       resetStreamingBuffersRT();
     }
 

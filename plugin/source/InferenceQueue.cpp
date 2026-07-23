@@ -134,13 +134,12 @@ bool InferenceQueue::resetOutputConversionAtModelSample(
 bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
   request.hostOutputValid = false;
   request.hostOutputSampleCount = 0U;
-  if (!outputSampleRateConversionEnabled_ || !request.outputValid ||
-      request.chunkSequence == 0U) {
+  if (!outputSampleRateConversionEnabled_ || !request.outputValid) {
     return true;
   }
 
   constexpr uint64_t kChunkSize = static_cast<uint64_t>(kOutputChunkSize);
-  const uint64_t alignedSequence = request.chunkSequence - 1U;
+  const uint64_t alignedSequence = request.chunkSequence;
   if (alignedSequence > std::numeric_limits<uint64_t>::max() / kChunkSize) {
     return false;
   }
@@ -680,8 +679,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = false;
       }
 
-      // Run inference. The graph emits the preceding input hop, so a run
-      // immediately after reset succeeds with outputValid=false (pre-roll).
+      // Run inference. The current-chunk graph emits this exact input sequence,
+      // including the first run after reset; there is no pre-roll marker.
       bool inferenceOk = false;
       request->outputValid = false;
       request->hostOutputValid = false;
@@ -695,8 +694,10 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         inferenceOk = callbacks.run(callbacks.context, *request);
       }
 
-      if (inferenceOk && request->outputValid &&
-          !convertOutputToHost(*request)) {
+      if (inferenceOk && !request->outputValid) {
+        inferenceOk = false;
+      }
+      if (inferenceOk && !convertOutputToHost(*request)) {
         inferenceOk = false;
         request->outputValid = false;
         request->hostOutputValid = false;
@@ -716,7 +717,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
 
       // Publish an invalid marker so the consumer can advance past a
       // failed slot instead of deadlocking behind it. Reset runtime state
-      // first so the next successful run is exactly one new pre-roll.
+      // first so the next successful current-sequence run starts cleanly.
       if (!inferenceOk) {
         uint64_t nextModelSample = 0U;
         const bool haveNextModelSample =
@@ -729,13 +730,6 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         }
         hasPreviousInputSequence = false;
       } else {
-        if (!request->outputValid && outputSampleRateConversionEnabled_) {
-          uint64_t nextAlignedModelSample = 0U;
-          if (!modelSampleForSequence(inputSequence, nextAlignedModelSample) ||
-              !resetOutputConversionAtModelSample(nextAlignedModelSample)) {
-            request->hostOutputValid = false;
-          }
-        }
         previousInputSequence = inputSequence;
         hasPreviousInputSequence = true;
       }

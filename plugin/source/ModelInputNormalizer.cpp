@@ -20,17 +20,13 @@ bool ModelInputNormalizer::prepare(
     const std::array<std::vector<float>, kNumChannels>& inputChunk,
     std::vector<float>& normalizedCurrent,
     std::vector<float>& normalizedPast,
-    std::vector<float>& normalizedOverlap,
     std::array<std::vector<float>, kNumChannels>& alignedInput,
     float& normalizationGain) {
   const size_t hopElements =
       static_cast<size_t>(kNumChannels * kOutputChunkSize);
-  const size_t overlapElements =
-      static_cast<size_t>(kNumStems * kNumChannels * kAnalysisWindowSize);
   if (rawPastAudio_.size() != hopElements ||
       normalizedCurrent.size() != hopElements ||
-      normalizedPast.size() != hopElements ||
-      normalizedOverlap.size() != overlapElements) {
+      normalizedPast.size() != hopElements) {
     return false;
   }
 
@@ -68,9 +64,10 @@ bool ModelInputNormalizer::prepare(
   }
   windowSumSquares += currentSumSquares;
 
-  // An exact-zero hop is also the finite-render flush marker. Holding the
-  // preceding gain emits the last real hop without moving amplitude state.
-  if (currentSumSquares == 0.0) {
+  // Hold the gain through exact digital silence. The current-chunk graph has
+  // no flush hop, but retaining the established gain avoids gratuitous state-
+  // domain changes across ordinary silent regions.
+  if (std::fpclassify(currentSumSquares) == FP_ZERO) {
     normalizationGain = hasPastAudio_ ? modelInputGain_ : 1.0f;
   } else {
     const size_t windowElements = hasPastAudio_ ? 2 * hopElements : hopElements;
@@ -108,12 +105,6 @@ bool ModelInputNormalizer::prepare(
         return false;
       }
     }
-    for (float& sample : normalizedOverlap) {
-      sample *= stateScale;
-      if (!std::isfinite(sample)) {
-        return false;
-      }
-    }
   }
 
   for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
@@ -125,7 +116,7 @@ bool ModelInputNormalizer::prepare(
         return false;
       }
       normalizedCurrent[offset] = normalized;
-      alignedInput[ch][i] = hasPastAudio_ ? rawPastAudio_[offset] : 0.0f;
+      alignedInput[ch][i] = inputChunk[ch][i];
     }
   }
   return true;

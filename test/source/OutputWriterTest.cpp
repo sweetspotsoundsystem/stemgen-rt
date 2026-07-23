@@ -318,11 +318,10 @@ TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
   constexpr float kTinyRight = -4.0e-6f;
 
   OutputWriterHarness harness;
-  // The fallback delay is 1,024 samples. Feed two more blocks so the first
-  // block reaches the writer without ever making model output available.
+  // The fallback delay is one 512-sample current-chunk hop. Feed one more
+  // block so the first reaches the writer without model output available.
   harness.writeDryFallback(
       makeConstantStereo(kBlockSize, kTinyLeft, kTinyRight));
-  harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.0f, 0.0f));
   const WriterOutput output =
       harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.0f, 0.0f));
 
@@ -349,18 +348,16 @@ TEST(OutputWriterTest, ReportsMissingModelOnlyAtOrAfterLatency) {
   EXPECT_FALSE(harness.getLastWriteResult().underrunTransition);
 
   harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));
-  EXPECT_FALSE(harness.getLastWriteResult().hadUnderrun);
-  EXPECT_FALSE(harness.getLastWriteResult().underrunTransition);
+  EXPECT_TRUE(harness.getLastWriteResult().hadUnderrun);
+  EXPECT_TRUE(harness.getLastWriteResult().isUnderrunNow);
+  EXPECT_TRUE(harness.getLastWriteResult().underrunTransition);
+  EXPECT_EQ(harness.getLastWriteResult().underrunSamples, kBlockSize);
 
   harness.writeDryFallback(makeConstantStereo(1, 0.2f, -0.1f));
   EXPECT_TRUE(harness.getLastWriteResult().hadUnderrun);
   EXPECT_TRUE(harness.getLastWriteResult().isUnderrunNow);
-  EXPECT_TRUE(harness.getLastWriteResult().underrunTransition);
-  EXPECT_EQ(harness.getLastWriteResult().underrunSamples, 1U);
-
-  harness.writeDryFallback(makeConstantStereo(1, 0.2f, -0.1f));
-  EXPECT_TRUE(harness.getLastWriteResult().hadUnderrun);
   EXPECT_FALSE(harness.getLastWriteResult().underrunTransition);
+  EXPECT_EQ(harness.getLastWriteResult().underrunSamples, 1U);
 }
 
 TEST(OutputWriterTest,

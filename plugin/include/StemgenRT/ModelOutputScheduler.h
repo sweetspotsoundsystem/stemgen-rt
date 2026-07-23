@@ -11,7 +11,7 @@ namespace audio_plugin {
 enum class ModelOutputScheduleAction {
   kSchedule,
   kWaitForHorizon,
-  kDiscardInvalidSequence,
+  kDiscardInvalidRange,
   kDiscardTimelineOverflow,
   kDiscardFullyLate,
 };
@@ -21,7 +21,7 @@ enum class ModelOutputScheduleAction {
 // never shifted onto a newer output timeline.
 struct ModelOutputSchedulePlan {
   ModelOutputScheduleAction action{
-      ModelOutputScheduleAction::kDiscardInvalidSequence};
+      ModelOutputScheduleAction::kDiscardInvalidRange};
   uint64_t firstTimelineSample{0};
   uint64_t scheduleTimelineSample{0};
   size_t sourceOffset{0};
@@ -58,11 +58,11 @@ constexpr ModelOutputSchedulePlan planModelOutputRange(
   }
 
   if (firstTimelineSample < outputTimelineSample) {
-    plan.sourceOffset =
-        static_cast<size_t>(outputTimelineSample - firstTimelineSample);
+    plan.sourceOffset = outputTimelineSample - firstTimelineSample;
   }
-  plan.scheduleTimelineSample =
-      firstTimelineSample + static_cast<uint64_t>(plan.sourceOffset);
+  plan.scheduleTimelineSample = firstTimelineSample < outputTimelineSample
+                                    ? outputTimelineSample
+                                    : firstTimelineSample;
   plan.sampleCount = sampleCount - plan.sourceOffset;
 
   const uint64_t scheduleDistance =
@@ -89,14 +89,14 @@ constexpr ModelOutputSchedulePlan planModelOutputSchedule(
     size_t schedulingCapacity,
     size_t chunkSize = static_cast<size_t>(kOutputChunkSize)) {
   ModelOutputSchedulePlan plan;
-  if (chunkSequence == 0 || chunkSize == 0 || schedulingCapacity == 0) {
+  if (chunkSize == 0 || schedulingCapacity == 0) {
     return plan;
   }
 
   constexpr uint64_t kMaximumTimelineSample =
       std::numeric_limits<uint64_t>::max();
   const uint64_t chunkSize64 = static_cast<uint64_t>(chunkSize);
-  const uint64_t alignedSequence = chunkSequence - 1U;
+  const uint64_t alignedSequence = chunkSequence;
   if (latencySamples > kMaximumTimelineSample - chunkSize64 ||
       alignedSequence >
           (kMaximumTimelineSample - latencySamples) / chunkSize64) {

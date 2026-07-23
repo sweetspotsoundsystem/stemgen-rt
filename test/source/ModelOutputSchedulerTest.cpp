@@ -19,7 +19,7 @@ constexpr size_t kChunkSize =
 
 TEST(ModelOutputSchedulerTest, FullyElapsedResultIsDiscarded) {
   const auto plan = planModelOutputSchedule(
-      1, kLatency, kLatency + static_cast<uint64_t>(kChunkSize),
+      0, kLatency, kLatency + static_cast<uint64_t>(kChunkSize),
       4 * kChunkSize);
 
   EXPECT_EQ(plan.action, ModelOutputScheduleAction::kDiscardFullyLate);
@@ -32,7 +32,7 @@ TEST(ModelOutputSchedulerTest, PartiallyLateResultKeepsItsSourceOffset) {
   const uint64_t outputTimeline =
       kLatency + static_cast<uint64_t>(kElapsedPrefix);
   const auto plan =
-      planModelOutputSchedule(1, kLatency, outputTimeline, 4 * kChunkSize);
+      planModelOutputSchedule(0, kLatency, outputTimeline, 4 * kChunkSize);
 
   ASSERT_EQ(plan.action, ModelOutputScheduleAction::kSchedule);
   EXPECT_EQ(plan.firstTimelineSample, kLatency);
@@ -45,7 +45,7 @@ TEST(ModelOutputSchedulerTest,
      FutureResultRetainsAbsoluteTimelineAndExpiresWithoutReplay) {
   constexpr uint64_t kChunkSequence = 6;
   constexpr uint64_t kFirstTimeline =
-      kLatency + (kChunkSequence - 1U) * static_cast<uint64_t>(kChunkSize);
+      kLatency + kChunkSequence * static_cast<uint64_t>(kChunkSize);
   constexpr size_t kCapacity = 2 * kChunkSize;
 
   const auto beyondHorizon =
@@ -70,6 +70,17 @@ TEST(ModelOutputSchedulerTest,
       kFirstTimeline + static_cast<uint64_t>(kChunkSize), kCapacity);
   EXPECT_EQ(afterExpiry.action, ModelOutputScheduleAction::kDiscardFullyLate);
   EXPECT_EQ(afterExpiry.sampleCount, 0U);
+}
+
+TEST(ModelOutputSchedulerTest, SequenceZeroMapsToCurrentInputHop) {
+  const auto plan =
+      planModelOutputSchedule(0U, kLatency, 0U, 4U * kChunkSize);
+
+  ASSERT_EQ(plan.action, ModelOutputScheduleAction::kSchedule);
+  EXPECT_EQ(plan.firstTimelineSample, kLatency);
+  EXPECT_EQ(plan.scheduleTimelineSample, kLatency);
+  EXPECT_EQ(plan.sourceOffset, 0U);
+  EXPECT_EQ(plan.sampleCount, kChunkSize);
 }
 
 TEST(ModelOutputSchedulerTest,

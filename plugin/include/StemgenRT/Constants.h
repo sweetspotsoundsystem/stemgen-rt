@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The qualified c91 deployment emits [drums, bass, vocals, other].
+// The c126 current-chunk deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -16,22 +16,35 @@ constexpr int kStemBass = qualified_model::kBassSourceIndex;
 constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
-// Fixed model contract. The graph consumes one 512-sample hop and emits the
-// preceding hop while carrying its analysis overlap and fusion-GRU state.
+// Fixed model contract. The graph consumes one 512-sample hop and emits that
+// same hop while carrying previous-audio and fusion-GRU state. Its 1,024-
+// sample analysis window is internal; there is no boundary overlap tensor.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
 constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
 constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 
-// The background design needs one hop to collect/queue audio and the graph has
-// one hop of output delay. Report both to the host for honest PDC.
+// The background design needs one hop to collect/queue audio. The causal graph
+// emits the current input hop, so it adds no further output-delay hop.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
 constexpr int kAsyncQueueDelayChunks = 1;
 constexpr int kPluginLatencyChunks =
     kModelOutputDelayChunks + kAsyncQueueDelayChunks;
 constexpr int kPluginLatencySamples = kPluginLatencyChunks * kOutputChunkSize;
+
+// This listening build deliberately starts with the one host configuration
+// that exposes the intended 512-sample PDC without borrowing qualification
+// claims from the previous-hop graph.
+constexpr int kCurrentChunkQualifiedHostSampleRate = kModelSampleRate;
+constexpr int kCurrentChunkQualifiedHostBlockSize = kOutputChunkSize;
+
+constexpr bool isQualifiedCurrentChunkHostConfiguration(int sampleRate,
+                                                        int blockSize) {
+  return sampleRate == kCurrentChunkQualifiedHostSampleRate &&
+         blockSize == kCurrentChunkQualifiedHostBlockSize;
+}
 
 // Host clocks explicitly covered by the native sample-rate bridge. The graph
 // contract itself remains fixed at 44.1 kHz. Keep this list qualification-
@@ -55,13 +68,10 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
          static_cast<std::uint64_t>(numerator % denominator != 0U);
 }
 
-// A result for hop N is produced only after hop N+1 has been submitted. The
-// worker still needs one complete 512-sample hop interval after the callback
-// that supplies the last samples of N+1. Results are consumed only at callback
-// boundaries, so reserve enough whole callbacks for that compute interval plus
-// the callback/model-hop phase offset. This is the minimum fixed latency for a
-// stable host block size; without the callback-count term, blocks below 512
-// leave only one short callback for inference and continuously fall back dry.
+// A result for hop N is aligned to input hop N. The worker needs one complete
+// 512-sample hop interval after the callback that supplies that request.
+// Results are consumed only at callback boundaries, so reserve enough whole
+// callbacks for that compute interval plus the callback/model-hop phase offset.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
   const int callbacksPerModelHop = 1 + (kOutputChunkSize - 1) / safeBlockSize;
@@ -69,14 +79,11 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
          std::gcd(safeBlockSize, kOutputChunkSize);
 }
 
-// Rate-aware form of the callback scheduling reserve. A source hop beginning
-// at model frame n is emitted only after model hop n+1 has been supplied. The
-// worker then receives one complete 512/44100 second compute interval before a
-// callback is expected to consume the result. For integer host-hop durations,
-// the gcd term is the exact callback/model phase bound. At 48/96/192 kHz the
-// phase is rational; ceil(2 * hop) plus whole callback intervals is a safe
-// bound and over-reserves by less than one rational phase quantum for the
-// qualified power-of-two callback sizes.
+// Rate-aware form of the callback scheduling reserve. For integer host-hop
+// durations, the gcd term is the exact callback/model phase bound. At rational
+// rates, ceil(plugin-latency hops) plus whole callback intervals is a safe
+// bound. This remains available for later requalification; this listening
+// build accepts only the exact 44.1 kHz / 512-sample configuration above.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
   const std::uint64_t safeSampleRate = static_cast<std::uint64_t>(
@@ -91,14 +98,16 @@ constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
   if (hopNumerator % modelRate == 0U) {
     const std::uint64_t hostHop = hopNumerator / modelRate;
     const std::uint64_t callbacksPerHop = ceilDivide(hostHop, safeBlockSize);
-    latency = 2U * hostHop + callbacksPerHop * safeBlockSize -
+    latency = static_cast<std::uint64_t>(kPluginLatencyChunks) * hostHop +
+              callbacksPerHop * safeBlockSize -
               std::gcd(hostHop, safeBlockSize);
   } else {
-    const std::uint64_t twoHopSamples =
-        ceilDivide(2U * hopNumerator, modelRate);
+    const std::uint64_t schedulingSamples = ceilDivide(
+        static_cast<std::uint64_t>(kPluginLatencyChunks) * hopNumerator,
+        modelRate);
     const std::uint64_t callbacksPerHop =
         ceilDivide(hopNumerator, modelRate * safeBlockSize);
-    latency = twoHopSamples + callbacksPerHop * safeBlockSize;
+    latency = schedulingSamples + callbacksPerHop * safeBlockSize;
   }
 
   return latency <= static_cast<std::uint64_t>(std::numeric_limits<int>::max())
@@ -121,22 +130,25 @@ constexpr int calculatePluginLatencySamples(int hostSampleRate,
 }
 
 static_assert(kAnalysisWindowSize == 2 * kOutputChunkSize);
-static_assert(kPluginLatencySamples == 1024);
-static_assert(calculatePluginLatencySamples(32) == 1504);
-static_assert(calculatePluginLatencySamples(64) == 1472);
-static_assert(calculatePluginLatencySamples(128) == 1408);
-static_assert(calculatePluginLatencySamples(256) == 1280);
-static_assert(calculatePluginLatencySamples(512) == 1024);
-static_assert(calculatePluginLatencySamples(768) == 1536);
-static_assert(calculatePluginLatencySamples(1024) == 1536);
+static_assert(kPluginLatencySamples == 512);
+static_assert(calculatePluginLatencySamples(32) == 992);
+static_assert(calculatePluginLatencySamples(64) == 960);
+static_assert(calculatePluginLatencySamples(128) == 896);
+static_assert(calculatePluginLatencySamples(256) == 768);
+static_assert(calculatePluginLatencySamples(512) == 512);
+static_assert(calculatePluginLatencySamples(768) == 1024);
+static_assert(calculatePluginLatencySamples(1024) == 1024);
+static_assert(isQualifiedCurrentChunkHostConfiguration(44100, 512));
+static_assert(!isQualifiedCurrentChunkHostConfiguration(48000, 512));
+static_assert(!isQualifiedCurrentChunkHostConfiguration(44100, 256));
 static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));
 static_assert(!isQualifiedHostSampleRate(48001));
-static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 1472);
-static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 1024);
-static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 2139);
-static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 2048);
+static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 960);
+static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 512);
+static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1582);
+static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1024);
 
 // A repeated, order-balanced Apple Silicon qualification found three ORT
 // intra-op threads had lower mean/tail latency and lower aggregate CPU cost

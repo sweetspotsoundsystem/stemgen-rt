@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // This accounts for one asynchronous collection hop and the graph's
-  // previous-hop output alignment.
+  // The c126 listening configuration accounts for one asynchronous
+  // collection hop; the graph itself emits the current input hop.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.

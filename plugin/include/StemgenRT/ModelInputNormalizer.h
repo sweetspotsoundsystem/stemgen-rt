@@ -16,12 +16,12 @@ public:
   void reset();
 
   // Calculate one stereo-linked boost from the exact raw analysis window,
-  // migrate normalizedPast/normalizedOverlap into that gain domain, fill the
-  // graph's normalized current hop, and return the raw aligned past hop.
+  // migrate normalizedPast into that gain domain, fill the graph's normalized
+  // current hop, and return the exact raw current hop for Main/residual
+  // alignment.
   bool prepare(const std::array<std::vector<float>, kNumChannels>& inputChunk,
                std::vector<float>& normalizedCurrent,
                std::vector<float>& normalizedPast,
-               std::vector<float>& normalizedOverlap,
                std::array<std::vector<float>, kNumChannels>& alignedInput,
                float& normalizationGain);
 
