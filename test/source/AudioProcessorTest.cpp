@@ -694,7 +694,7 @@ TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
 }
 
 TEST_F(AudioProcessorTest,
-       LargePreparedBlockFailsClosedForSameCallbackListeningContract) {
+       LargePreparedBlockFailsClosedForC157ListeningContract) {
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
@@ -793,9 +793,9 @@ TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
 }
 
-TEST(ConstantsTest, PluginLatencyIsOneModelHopWithNoQueueHop) {
-  EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
-  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 0);
+TEST(ConstantsTest, PluginLatencyIsOneQueueHopWithNoModelDelay) {
+  EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 0);
+  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 1);
   EXPECT_EQ(audio_plugin::kPluginLatencySamples, 512);
 }
@@ -811,7 +811,7 @@ TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
   EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2048);
 }
 
-TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromSameCallbackQualification) {
+TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromCurrentChunkQualification) {
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(48000));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(88200));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(96000));
@@ -820,11 +820,11 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromSameCallbackQualification) 
   EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
 
   EXPECT_TRUE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(44100, 512));
+      audio_plugin::isQualifiedCurrentChunkHostConfiguration(44100, 512));
   EXPECT_FALSE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(48000, 512));
+      audio_plugin::isQualifiedCurrentChunkHostConfiguration(48000, 512));
   EXPECT_FALSE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(44100, 256));
+      audio_plugin::isQualifiedCurrentChunkHostConfiguration(44100, 256));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
             1582);
@@ -1423,8 +1423,9 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
   float inputCorrelation = 0.0f;
   float outputCorrelation = 0.0f;
 
-  // The same-callback c91 path delays Main by one 512-sample block. Feed three
-  // continuous blocks and inspect a stable latency-aligned Main copy.
+  // The c157 graph emits the current hop, while the asynchronous publication
+  // path delays Main by one 512-sample block. Feed three continuous blocks and
+  // inspect a stable latency-aligned Main copy.
   for (int block = 0; block < 3; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     buffer.clear();

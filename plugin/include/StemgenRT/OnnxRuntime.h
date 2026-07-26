@@ -78,8 +78,8 @@ public:
   void resetStreamingState();
 
   // Run one stateful graph hop. The returned samples and alignedInput belong
-  // to the previous input hop. The first successful run after reset is
-  // pre-roll (outputValid=false); one final zero hop flushes the last input.
+  // to the current input hop. Every successful c157 run is valid; there is no
+  // pre-roll output and no zero-hop flush.
   bool runInference(
       const std::array<std::vector<float>, kNumChannels>& inputChunk,
       std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
@@ -120,22 +120,22 @@ private:
   OrtMemoryInfo* ortMemoryInfo_{nullptr};
 
   // Pre-allocated graph inputs/state. Audio enters the graph at its exact
-  // native floating-point level. previousAlignedInput_ remains in that raw
-  // domain so Main/residual alignment never depends on provider copies of
-  // recurrent state. Only the inference worker mutates these during normal
-  // operation; the mutex protects non-RT control-path resets.
+  // native floating-point level. Only the inference worker mutates these
+  // during normal operation; the mutex protects non-RT control-path resets.
   std::vector<float> audioChunkBuffer_;
   std::vector<float> pastAudio_;
-  std::vector<float> overlapAddBuffer_;
   std::vector<float> fusionHidden_;
-  std::vector<float> previousAlignedInput_;
+  std::vector<float> c130History_;
+  std::vector<float> previousHidden_;
+  std::vector<float> adapterValid_;
   std::vector<float> separatedOutputBuffer_;
   std::vector<float> nextPastAudioBuffer_;
-  std::vector<float> nextOverlapAddBuffer_;
   std::vector<float> nextFusionHiddenBuffer_;
-  std::array<OrtValue*, 4> inputTensorValues_{};
-  std::array<OrtValue*, 4> outputTensorValues_{};
-  bool hasPreviousAlignedInput_{false};
+  std::vector<float> nextC130HistoryBuffer_;
+  std::vector<float> nextPreviousHiddenBuffer_;
+  std::vector<float> nextAdapterValidBuffer_;
+  std::array<OrtValue*, 6> inputTensorValues_{};
+  std::array<OrtValue*, 6> outputTensorValues_{};
   std::mutex streamingStateMutex_;
 
   // State

@@ -42,16 +42,15 @@ struct InferenceRequest {
   std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>
       hostOutputChunk;
   std::array<std::vector<float>, kNumChannels> alignedInput;
-  // True only when the graph result aligned to the preceding input sequence is
-  // safe to publish. The first successful run after reset is invalid pre-roll.
+  // True when the current-chunk graph result is safe to publish. Every
+  // successful c157 run, including sequence zero after reset, is valid.
   bool outputValid{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};
   size_t hostOutputSampleCount{0};
 
   // Monotonic input chunk index assigned by the audio thread. The worker uses
-  // it for recurrent-state gap detection; the scheduler subtracts the graph's
-  // one-hop delay to recover the exact previous-hop output timestamp.
+  // it for recurrent-state gap detection and exact current-hop timestamps.
   uint64_t chunkSequence{0};
 
   // Allocate buffers to expected sizes

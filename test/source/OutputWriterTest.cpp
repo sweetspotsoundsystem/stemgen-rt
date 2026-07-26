@@ -318,7 +318,7 @@ TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
   constexpr float kTinyRight = -4.0e-6f;
 
   OutputWriterHarness harness;
-  // The fallback delay is one 512-sample same-callback c91 hop. Feed one more
+  // The asynchronous publication delay is one 512-sample hop. Feed one more
   // block so the first reaches the writer without model output available.
   harness.writeDryFallback(
       makeConstantStereo(kBlockSize, kTinyLeft, kTinyRight));

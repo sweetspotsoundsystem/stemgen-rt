@@ -208,17 +208,21 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     return false;
   }
 
-  const std::array<std::vector<std::int64_t>, 4> expectedInputShapes = {{
+  const std::array<std::vector<std::int64_t>, 6> expectedInputShapes = {{
       toShapeVector(qualified_model::kInputAudioShape),
       toShapeVector(qualified_model::kInputPastShape),
-      toShapeVector(qualified_model::kInputOverlapShape),
       toShapeVector(qualified_model::kInputHiddenShape),
+      toShapeVector(qualified_model::kInputC130HistoryShape),
+      toShapeVector(qualified_model::kInputPreviousHiddenShape),
+      toShapeVector(qualified_model::kInputAdapterValidShape),
   }};
-  const std::array<std::vector<std::int64_t>, 4> expectedOutputShapes = {{
+  const std::array<std::vector<std::int64_t>, 6> expectedOutputShapes = {{
       toShapeVector(qualified_model::kOutputSeparatedShape),
       toShapeVector(qualified_model::kOutputPastShape),
-      toShapeVector(qualified_model::kOutputOverlapShape),
       toShapeVector(qualified_model::kOutputHiddenShape),
+      toShapeVector(qualified_model::kOutputC130HistoryShape),
+      toShapeVector(qualified_model::kOutputPreviousHiddenShape),
+      toShapeVector(qualified_model::kOutputAdapterValidShape),
   }};
 
   size_t inputCount = 0;
@@ -361,8 +365,8 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
       api->ReleaseModelMetadata(metadata);
       return false;
     }
-    // ONNX Runtime returns nullptr when the key is absent. The c91 contract
-    // validates only metadata fields embedded by its original exporter.
+    // ONNX Runtime returns nullptr when the key is absent. Every c157 key in
+    // the generated contract must be present in the bundled artifact.
     if (rawValue == nullptr) {
       errorMessage = juce::String("Missing model metadata ") +
                      toJuceString(key);
@@ -646,10 +650,13 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
   const std::int64_t audioDims[3] = {1, kNumChannels, kOutputChunkSize};
   const std::int64_t separatedDims[4] = {1, kNumStems, kNumChannels,
                                          kOutputChunkSize};
-  const std::int64_t overlapDims[4] = {1, kNumStems, kNumChannels,
-                                       kAnalysisWindowSize};
   const std::int64_t hiddenDims[3] = {kFusionHiddenLayers, 1,
                                       kFusionHiddenSize};
+  const std::int64_t c130HistoryDims[3] = {
+      1, kC130FeatureChannels, kC130HistorySamples};
+  const std::int64_t previousHiddenDims[3] = {
+      1, kC155HiddenChannels, kC155HistorySamples};
+  const std::int64_t adapterValidDims[2] = {1, 1};
 
   const auto createTensor = [&](OrtValue*& value, std::vector<float>& data,
                                 const std::int64_t* dims, size_t rank,
@@ -673,19 +680,32 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
                     qualified_model::kInputNames[0].data()) ||
       !createTensor(inputTensorValues_[1], pastAudio_, audioDims, 3,
                     qualified_model::kInputNames[1].data()) ||
-      !createTensor(inputTensorValues_[2], overlapAddBuffer_, overlapDims, 4,
+      !createTensor(inputTensorValues_[2], fusionHidden_, hiddenDims, 3,
                     qualified_model::kInputNames[2].data()) ||
-      !createTensor(inputTensorValues_[3], fusionHidden_, hiddenDims, 3,
+      !createTensor(inputTensorValues_[3], c130History_, c130HistoryDims, 3,
                     qualified_model::kInputNames[3].data()) ||
+      !createTensor(inputTensorValues_[4], previousHidden_,
+                    previousHiddenDims, 3,
+                    qualified_model::kInputNames[4].data()) ||
+      !createTensor(inputTensorValues_[5], adapterValid_, adapterValidDims, 2,
+                    qualified_model::kInputNames[5].data()) ||
       !createTensor(outputTensorValues_[0], separatedOutputBuffer_,
                     separatedDims, 4,
                     qualified_model::kOutputNames[0].data()) ||
       !createTensor(outputTensorValues_[1], nextPastAudioBuffer_, audioDims, 3,
                     qualified_model::kOutputNames[1].data()) ||
-      !createTensor(outputTensorValues_[2], nextOverlapAddBuffer_, overlapDims,
-                    4, qualified_model::kOutputNames[2].data()) ||
-      !createTensor(outputTensorValues_[3], nextFusionHiddenBuffer_, hiddenDims,
-                    3, qualified_model::kOutputNames[3].data())) {
+      !createTensor(outputTensorValues_[2], nextFusionHiddenBuffer_,
+                    hiddenDims, 3,
+                    qualified_model::kOutputNames[2].data()) ||
+      !createTensor(outputTensorValues_[3], nextC130HistoryBuffer_,
+                    c130HistoryDims, 3,
+                    qualified_model::kOutputNames[3].data()) ||
+      !createTensor(outputTensorValues_[4], nextPreviousHiddenBuffer_,
+                    previousHiddenDims, 3,
+                    qualified_model::kOutputNames[4].data()) ||
+      !createTensor(outputTensorValues_[5], nextAdapterValidBuffer_,
+                    adapterValidDims, 2,
+                    qualified_model::kOutputNames[5].data())) {
     releasePreallocatedTensorValues();
     return false;
   }
@@ -738,21 +758,26 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
       static_cast<size_t>(kNumChannels * kOutputChunkSize);
   const size_t separatedElements =
       static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-  const size_t overlapElements =
-      static_cast<size_t>(kNumStems * kNumChannels * kAnalysisWindowSize);
   const size_t hiddenElements =
       static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
+  const size_t c130HistoryElements =
+      static_cast<size_t>(kC130FeatureChannels * kC130HistorySamples);
+  const size_t previousHiddenElements =
+      static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
 
   try {
     audioChunkBuffer_.resize(audioElements);
     pastAudio_.resize(audioElements);
-    overlapAddBuffer_.resize(overlapElements);
     fusionHidden_.resize(hiddenElements);
-    previousAlignedInput_.resize(audioElements);
+    c130History_.resize(c130HistoryElements);
+    previousHidden_.resize(previousHiddenElements);
+    adapterValid_.resize(1U);
     separatedOutputBuffer_.resize(separatedElements);
     nextPastAudioBuffer_.resize(audioElements);
-    nextOverlapAddBuffer_.resize(overlapElements);
     nextFusionHiddenBuffer_.resize(hiddenElements);
+    nextC130HistoryBuffer_.resize(c130HistoryElements);
+    nextPreviousHiddenBuffer_.resize(previousHiddenElements);
+    nextAdapterValidBuffer_.resize(1U);
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -782,10 +807,10 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
 
 void OnnxRuntime::resetStreamingStateUnlocked() {
     std::fill(pastAudio_.begin(), pastAudio_.end(), 0.0f);
-    std::fill(overlapAddBuffer_.begin(), overlapAddBuffer_.end(), 0.0f);
     std::fill(fusionHidden_.begin(), fusionHidden_.end(), 0.0f);
-    std::fill(previousAlignedInput_.begin(), previousAlignedInput_.end(), 0.0f);
-    hasPreviousAlignedInput_ = false;
+    std::fill(c130History_.begin(), c130History_.end(), 0.0f);
+    std::fill(previousHidden_.begin(), previousHidden_.end(), 0.0f);
+    std::fill(adapterValid_.begin(), adapterValid_.end(), 0.0f);
 }
 
 void OnnxRuntime::resetStreamingState() {
@@ -817,20 +842,25 @@ bool OnnxRuntime::runInference(
         static_cast<size_t>(kNumChannels * kOutputChunkSize);
     const size_t separatedElements =
         static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-    const size_t overlapElements =
-        static_cast<size_t>(kNumStems * kNumChannels * kAnalysisWindowSize);
     const size_t hiddenElements =
         static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
+    const size_t c130HistoryElements =
+        static_cast<size_t>(kC130FeatureChannels * kC130HistorySamples);
+    const size_t previousHiddenElements =
+        static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
 
     if (audioChunkBuffer_.size() != audioElements ||
         pastAudio_.size() != audioElements ||
-        overlapAddBuffer_.size() != overlapElements ||
         fusionHidden_.size() != hiddenElements ||
-        previousAlignedInput_.size() != audioElements ||
+        c130History_.size() != c130HistoryElements ||
+        previousHidden_.size() != previousHiddenElements ||
+        adapterValid_.size() != 1U ||
         separatedOutputBuffer_.size() != separatedElements ||
         nextPastAudioBuffer_.size() != audioElements ||
-        nextOverlapAddBuffer_.size() != overlapElements ||
         nextFusionHiddenBuffer_.size() != hiddenElements ||
+        nextC130HistoryBuffer_.size() != c130HistoryElements ||
+        nextPreviousHiddenBuffer_.size() != previousHiddenElements ||
+        nextAdapterValidBuffer_.size() != 1U ||
         std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
                     [](const OrtValue* value) { return value == nullptr; }) ||
         std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
@@ -840,9 +870,8 @@ bool OnnxRuntime::runInference(
     }
 
     // Feed the graph at the exact native input level used by its frozen
-    // quality evaluation. The graph emits the preceding input hop, so retain
-    // a separate raw-domain copy for Main and the final residual instead of
-    // deriving presentation alignment from provider-owned recurrent state.
+    // quality evaluation. c157 emits the current hop, so Main and the residual
+    // use the same raw input samples directly.
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
       if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
           alignedInput[ch].size() != static_cast<size_t>(kOutputChunkSize)) {
@@ -860,27 +889,28 @@ bool OnnxRuntime::runInference(
           return false;
         }
         audioChunkBuffer_[channelOffset + i] = sample;
-        alignedInput[ch][i] =
-            hasPreviousAlignedInput_
-                ? previousAlignedInput_[channelOffset + i]
-                : 0.0f;
+        alignedInput[ch][i] = sample;
       }
     }
 
-    const std::array<const char*, 4> inputNames = {
+    const std::array<const char*, 6> inputNames = {
         qualified_model::kInputNames[0].data(),
         qualified_model::kInputNames[1].data(),
         qualified_model::kInputNames[2].data(),
-        qualified_model::kInputNames[3].data()};
-    const std::array<const char*, 4> outputNames = {
+        qualified_model::kInputNames[3].data(),
+        qualified_model::kInputNames[4].data(),
+        qualified_model::kInputNames[5].data()};
+    const std::array<const char*, 6> outputNames = {
         qualified_model::kOutputNames[0].data(),
         qualified_model::kOutputNames[1].data(),
         qualified_model::kOutputNames[2].data(),
-        qualified_model::kOutputNames[3].data()};
-    const OrtValue* constInputValues[4] = {
+        qualified_model::kOutputNames[3].data(),
+        qualified_model::kOutputNames[4].data(),
+        qualified_model::kOutputNames[5].data()};
+    const OrtValue* constInputValues[6] = {
         inputTensorValues_[0], inputTensorValues_[1], inputTensorValues_[2],
-        inputTensorValues_[3]};
-    std::array<OrtValue*, 4> runOutputValues = outputTensorValues_;
+        inputTensorValues_[3], inputTensorValues_[4], inputTensorValues_[5]};
+    std::array<OrtValue*, 6> runOutputValues = outputTensorValues_;
 
     OrtStatus* runStatus =
         api->Run(ortSession_.get(), nullptr, inputNames.data(),
@@ -923,14 +953,16 @@ bool OnnxRuntime::runInference(
     };
     if (!allFinite(separatedOutputBuffer_.data(), separatedElements) ||
         !allFinite(nextPastAudioBuffer_.data(), audioElements) ||
-        !allFinite(nextOverlapAddBuffer_.data(), overlapElements) ||
-        !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements)) {
+        !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements) ||
+        !allFinite(nextC130HistoryBuffer_.data(), c130HistoryElements) ||
+        !allFinite(nextPreviousHiddenBuffer_.data(), previousHiddenElements) ||
+        !allFinite(nextAdapterValidBuffer_.data(), 1U)) {
       DBG("[ORT] Non-finite streaming output; resetting recurrent state");
       resetStreamingStateUnlocked();
       return false;
     }
 
-    outputValid = hasPreviousAlignedInput_;
+    outputValid = true;
     for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
       for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         auto& destination = outputChunks[stem][ch];
@@ -941,12 +973,8 @@ bool OnnxRuntime::runInference(
         }
         const size_t offset = (stem * static_cast<size_t>(kNumChannels) + ch) *
                               static_cast<size_t>(kOutputChunkSize);
-        if (outputValid) {
-          for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-            destination[i] = separatedOutputBuffer_[offset + i];
-          }
-        } else {
-          std::fill(destination.begin(), destination.end(), 0.0f);
+        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+          destination[i] = separatedOutputBuffer_[offset + i];
         }
       }
     }
@@ -954,14 +982,12 @@ bool OnnxRuntime::runInference(
     // Enforce the tensor-level deployment invariant again after
     // provider-specific numerical differences: keep drums/bass/vocals and route
     // the residual to Other.
-    if (outputValid) {
-      for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-          outputChunks[kStemOther][ch][i] =
-              alignedInput[ch][i] - outputChunks[kStemDrums][ch][i] -
-              outputChunks[kStemBass][ch][i] -
-              outputChunks[kStemVocals][ch][i];
-        }
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+      for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+        outputChunks[kStemOther][ch][i] =
+            alignedInput[ch][i] - outputChunks[kStemDrums][ch][i] -
+            outputChunks[kStemBass][ch][i] -
+            outputChunks[kStemVocals][ch][i];
       }
     }
 
@@ -996,13 +1022,14 @@ bool OnnxRuntime::runInference(
 
     std::memcpy(pastAudio_.data(), nextPastAudioBuffer_.data(),
                 audioElements * sizeof(float));
-    std::memcpy(overlapAddBuffer_.data(), nextOverlapAddBuffer_.data(),
-                overlapElements * sizeof(float));
     std::memcpy(fusionHidden_.data(), nextFusionHiddenBuffer_.data(),
                 hiddenElements * sizeof(float));
-    std::memcpy(previousAlignedInput_.data(), audioChunkBuffer_.data(),
-                audioElements * sizeof(float));
-    hasPreviousAlignedInput_ = true;
+    std::memcpy(c130History_.data(), nextC130HistoryBuffer_.data(),
+                c130HistoryElements * sizeof(float));
+    std::memcpy(previousHidden_.data(), nextPreviousHiddenBuffer_.data(),
+                previousHiddenElements * sizeof(float));
+    std::memcpy(adapterValid_.data(), nextAdapterValidBuffer_.data(),
+                sizeof(float));
 
     return true;
 }

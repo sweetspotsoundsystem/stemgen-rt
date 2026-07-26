@@ -2,10 +2,10 @@
 
 A real-time music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
 
-This c91 listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
+This c157 step-6 listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
 
 > [!WARNING]
-> The bundled model is the frozen, seamless c91 OLA graph, but the new one-hop plugin scheduler is an unqualified listening candidate. It waits for inference inside the same callback and may fall back dry on a CPU or DAW session that misses the 10 ms audition budget. Test it on the target Mac; do not publish it as a qualified release yet.
+> The bundled model is the c157 step-6 current-chunk graph. It passed 23 of 24 formal safety checks; the only shortfall was `0.000004162764 dB`, so it is intentionally labelled an unqualified listening candidate. Test its sound, low-frequency behavior, and complete-path timing on the target Mac before treating it as a release.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
 
@@ -65,7 +65,7 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-The one-hop same-callback scheduler is not yet qualified for a public release. For local listening on macOS, use the default build and install it explicitly as a debug build:
+The one-hop current-chunk scheduler is not yet qualified for a public release. For local listening on macOS, use the default build and install it explicitly as a debug build:
 
 ```bash
 ./scripts/install-plugins.sh --debug
@@ -83,32 +83,36 @@ The installer uses Release artifacts by default, so this listening candidate mus
 
 ## How it works
 
-The plugin runs a stateful HS-TasNet graph on a high-priority inference thread and performs a bounded same-callback wait:
+The plugin runs a stateful HS-TasNet graph on a high-priority inference thread:
 
 1. Callback N preserves the native mix for Main/fallback and submits one complete 512-sample request.
-2. The inference thread carries previous-audio, overlap-add, and fusion-GRU state. c91 emits the separated result for input N-1.
-3. The audio thread waits only until 10.0 ms after callback entry, publishes an on-time N-1 result at host sample `N * 512`, and derives Other as the exact residual of the raw aligned mixture.
+2. The inference thread carries previous-audio, fusion-GRU, c130 feature-history, c157 hidden-history, and adapter-valid state. c157 emits the separated result aligned to input N.
+3. The result is scheduled one queue hop later at host sample `(N + 1) * 512`, and Other is re-derived as the exact residual of the raw aligned mixture.
 
 At 44.1 kHz both converters are bypassed with zero added delay and a bit-exact input copy. The preserved higher-rate bridge is disabled by this listening contract until it is requalified.
 
-The model graph has four inputs and four outputs:
+The model graph has six inputs and six outputs:
 
 | Direction | Tensor | Shape |
 | --- | --- | --- |
 | Input | `audio_chunk` | `[1, 2, 512]` |
 | Input | `past_audio` | `[1, 2, 512]` |
-| Input | `overlap_add_buffer` | `[1, 4, 2, 1024]` |
 | Input | `fusion_hidden` | `[2, 1, 1000]` |
+| Input | `c130_history` | `[1, 20, 128]` |
+| Input | `previous_hidden` | `[1, 32, 512]` |
+| Input | `adapter_valid` | `[1, 1]` |
 | Output | `separated_chunk` | `[1, 4, 2, 512]` |
 | Output | `next_past_audio` | `[1, 2, 512]` |
-| Output | `next_overlap_add_buffer` | `[1, 4, 2, 1024]` |
 | Output | `next_fusion_hidden` | `[2, 1, 1000]` |
+| Output | `next_c130_history` | `[1, 20, 128]` |
+| Output | `next_previous_hidden` | `[1, 32, 512]` |
+| Output | `next_adapter_valid` | `[1, 1]` |
 
-All persistent state tensors start at zero. `separated_chunk` is aligned with the preceding call's `audio_chunk`. Sequence zero after reset is a successful pre-roll with no valid output; one final zero input hop flushes the last real hop. On a play-to-stop transition, the qualified 512-sample zero-input callback renders that final hop before the plugin resets state.
+All five persistent state tensors start at zero. `separated_chunk` is aligned with the current call's `audio_chunk`. Sequence zero after reset is already a valid exact-c126 bypass while the adapter histories initialize. There is no invalid pre-roll and no graph tail or zero-hop flush.
 
-This listening build deliberately sends the unmodified finite input level into the graph. The former per-hop RMS boost was not part of the trained or frozen evaluation contract; deployment-path measurements showed that it modulated sub-bass and damaged drum and bass quality. Main and the residual use the same exact raw previous hop.
+This listening build deliberately sends the unmodified finite input level into the graph. The former per-hop RMS boost was not part of the trained or frozen evaluation contract; deployment-path measurements showed that it modulated sub-bass and damaged drum and bass quality. Main and the residual use the same exact raw current hop.
 
-The c91 graph contributes one previous-hop delay and the queue contributes zero additional hops. Callback N supplies the lookahead needed to emit N-1 during that same callback, so PDC is exactly 512 samples. The wait budget is 10.0 ms from callback entry, leaving about 1.61 ms for publication, output writing, and host return.
+The c157 graph contributes zero output-delay hops and the asynchronous collection/queue contributes one hop, so PDC remains exactly 512 samples without blocking the audio callback for inference.
 
 The preserved bridge can map the interval onto other exact rational host clocks and include paired SRC delay in PDC, but those paths are disabled until separately qualified.
 
@@ -122,21 +126,21 @@ Other = Main - Drums - Bass - Vocals
 
 The plugin enforces the same invariant after runtime-provider differences, during dry fallback, and through its near-silence safety fade, so the four stem buses sum to the latency-aligned main bus to floating-point precision. This means the separation is mixture-lossless; it does not mean the estimated stems are identical to unrecoverable studio-original recordings. Independent clipping, normalization, or PCM quantization downstream can also break exact summation.
 
-The model path has no external gain normalization, crossover, low-frequency reinjection, vocals-specific gate, or chunk-boundary crossfade. Finite audio goes directly to the stateful graph, whose Hann-windowed overlap-add synthesis is internal.
+The model path has no external gain normalization, crossover, low-frequency reinjection, vocals-specific gate, or chunk-boundary crossfade. Finite audio goes directly to the causal current-chunk graph; there is no native overlap-add state.
 
 The graph has a small, approximately level-independent floor in its individual stem estimates near silence. The final output stage therefore uses one stereo-linked peak envelope of the latency-aligned mixture to fade only the available model contribution. The envelope maps to fully enabled separation at and above -72 dBFS peak, fully disabled separation at and below -96 dBFS peak, and a smooth blend over the linear-amplitude interval between them. The detector opens immediately, holds peaks for 50 ms, then releases by 60 dB per 100 ms. Main and the dry underrun fallback are unchanged; as confidence falls, `Other` receives the residual.
 
-Every processed hop is tagged with its exact output sample range. A result that misses its same-callback deadline remains on the worker only long enough to preserve recurrent continuity, then is discarded when its range has elapsed; it is never replayed against newer audio. On missing samples StemgenRT uses the complete latency-aligned dry split and routes the mixture to `Other`. Transport starts, seeks, stopped scrubs, and loop wraps reset previous-audio, overlap-add, fusion-hidden, output-crossfade, confidence, queue epoch, and SRC phase state. The first successful result after reset is pre-roll; the next result is the first valid separated hop.
+Every processed hop is tagged with its exact output sample range. A result that arrives after its scheduled range has elapsed is discarded; it is never replayed against newer audio. On missing samples StemgenRT uses the complete latency-aligned dry split and routes the mixture to `Other`. Transport changes, seeks, scrubs, loop wraps, input gaps, and inference failures reset previous-audio, fusion-hidden, c130 history, c157 hidden history, adapter-valid, output-crossfade, confidence, queue epoch, and SRC phase state. A play-to-stop transition first drains the final result already owed by the one-hop plugin PDC, then resets after that callback; this is queue-tail drainage, not a graph flush. The first successful result after reset is valid.
 
 ### Model identity
 
-The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the frozen c91 streaming artifact (SHA-256 `52fdc46d015819821dae19ef272b6bc4ccf441a0274d7d9c8bb44af50eafef8c`, 129,088,022 bytes). The authoritative artifact identity, checkpoint identity, tensor interface, streaming metadata, dimensions, residual index, and previous-hop alignment live in `cmake/QualifiedModelContract.cmake`.
+The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the c157 step-6 streaming artifact (SHA-256 `8a66a08635c3bdc0df71ba4614811f507a3060086747a635219f3eb971320ba9`, 127,294,420 bytes) from checkpoint SHA-256 `4eb21aad7dffebd2a98cefdc3078f669dec9fb54f6583701c6cb79e0a83ad07a`. The authoritative artifact identity, tensor interface, streaming metadata, dimensions, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`.
 
 The runtime validates the artifact, graph input/output contract, and embedded deployment metadata before enabling separation.
 
 ## CPU operation
 
-CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit the same callback. A native control on the research Ryzen measured the exact c91 ONNX at 3.84 ms mean, 6.01 ms p99, and 9.10 ms p99.9, but still saw 7 misses in 10,000 direct calls. That shows feasibility, not release qualification; repeat the complete path under DAW load on the target Mac.
+CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The new c157 artifact has not yet completed target-Mac native timing qualification; measure the complete path under DAW load before promotion.
 
 Use a modern CPU, close competing real-time workloads, and watch the plugin's underrun diagnostics when qualifying a system. The shipping runtime is deliberately CPU-only so host hardware cannot silently select a different numerical or scheduling path.
 
@@ -157,11 +161,11 @@ build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
   --gtest_filter=OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuWithPreservedSampleRateBridges
 ```
 
-Re-run the bridge and complete same-callback path before enabling any non-native rate.
+Re-run the bridge and complete current-chunk path before enabling any non-native rate.
 
 ### Streaming diagnostics
 
-The Release editor keeps the logo and adds a lightweight health panel showing model status, active PDC, the prepared and current host block sizes, same-callback wait time and deadline misses, dry-fallback samples, callback-timing warnings, and inference-worker priority. A `PDC timing warning` means the host is delivering a callback size that needs more latency than the value established in `prepareToPlay`. StemgenRT does not change PDC from the audio thread or splice late model fragments into the output; it keeps Main latency-aligned and routes the complete mixture to Other until callback timing is safe again. Stop playback and make the host re-prepare the plugin at 44.1 kHz / 512 samples (or reload the plugin) before judging separation. Persistent dry fallback at that exact configuration means inference is missing the 10 ms audition deadline; reduce competing CPU load or use a faster target CPU.
+The Release editor keeps the logo and adds a lightweight health panel showing model status, active PDC, the prepared and current host block sizes, dry-fallback samples, callback-timing warnings, and inference-worker priority. A `PDC timing warning` means the host is delivering a callback size that needs more latency than the value established in `prepareToPlay`. StemgenRT does not change PDC from the audio thread or splice late model fragments into the output; it keeps Main latency-aligned and routes the complete mixture to Other until callback timing is safe again. Stop playback and make the host re-prepare the plugin at 44.1 kHz / 512 samples (or reload the plugin) before judging separation. Persistent dry fallback at that exact configuration means inference is not completing within the one-hop reserve; reduce competing CPU load or use a faster target CPU.
 
 ## License
 

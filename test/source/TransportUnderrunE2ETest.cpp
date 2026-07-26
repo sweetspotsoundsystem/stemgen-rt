@@ -52,9 +52,9 @@ TEST(TransportUnderrunE2ETest,
   processor.setPlayHead(&playHead);
   juce::MidiBuffer midiBuffer;
 
-  // A 4,096-sample actual callback is outside the prepared same-callback
-  // contract and therefore renders fail-closed fallback. While stopped, this
-  // is idle pipeline fill rather than a missed real-time playback deadline.
+  // Output is consumed before requests from the same callback are published.
+  // A callback extending beyond PDC therefore has no possible model result for
+  // its post-latency samples. While stopped, this is idle pipeline fill.
   constexpr int kStoppedCallbackSize = 4096;
   juce::AudioBuffer<float> stoppedBuffer(kTotalChannels, kStoppedCallbackSize);
   stoppedBuffer.clear();
@@ -130,9 +130,10 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
 
-  // c91's previous-hop output needs one zero-input callback to flush the final
-  // playing hop. Make that callback non-real-time so this is a deterministic
-  // tail/state test rather than another CPU deadline measurement.
+  // c157 itself has no graph flush, but the plugin still owes the final
+  // current-chunk result already in its one-hop asynchronous PDC. Make the
+  // first stopped callback non-real-time so this is a deterministic queue-tail
+  // and state-reset test rather than another CPU deadline measurement.
   processor.setNonRealtime(true);
   playHead.setPosition(false, playbackSample);
   juce::AudioBuffer<float> afterStop(kTotalChannels, kBlockSize);
@@ -166,10 +167,10 @@ TEST(TransportUnderrunE2ETest,
     }
   }
   EXPECT_GT(maximumTailRetainedStem, 1.0e-3f)
-      << "The play-to-stop callback did not flush c91's final separated hop";
+      << "The play-to-stop callback did not drain c157's queued final hop";
 
-  // The flush callback resets the graph only after rendering. A subsequent
-  // stopped callback must therefore be clean pre-roll, with no repeated tail.
+  // The callback above resets the stream only after rendering. A subsequent
+  // stopped callback must be clean, with no repeated queue tail.
   juce::AudioBuffer<float> afterTail(kTotalChannels, kBlockSize);
   afterTail.clear();
   processor.processBlock(afterTail, midiBuffer);
@@ -191,7 +192,7 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     SmallPreparedHostBlocksFailClosedForSameCallbackListeningContract) {
+     SmallPreparedHostBlocksFailClosedForC157ListeningContract) {
   constexpr int kSmallBlockSize = 64;
 
   audio_plugin::AudioPluginAudioProcessor processor;
@@ -330,7 +331,7 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     OfflineMixedCallbacksFailClosedOutsideExactHop) {
+     OfflineRenderWaitsForModelAcrossMixedCallbackSizes) {
   constexpr std::array<int, 8> kCallbackSizes = {512, 64,   960, 128,
                                                  37,  1024, 255, 512};
   constexpr int kPatternRepeats = 8;
@@ -348,7 +349,7 @@ TEST(TransportUnderrunE2ETest,
   juce::MidiBuffer midiBuffer;
   int64_t timelineSample = 0;
   float maximumMainDelayError = 0.0f;
-  float maximumMismatchedCallbackRetainedStemMagnitude = 0.0f;
+  float maximumRetainedStemMagnitude = 0.0f;
   float maximumReconstructionError = 0.0f;
 
   for (int repeat = 0; repeat < kPatternRepeats; ++repeat) {
@@ -399,18 +400,13 @@ TEST(TransportUnderrunE2ETest,
               std::max(maximumReconstructionError,
                        std::abs(mainBus.getSample(channel, sample) -
                                 (drums + bass + other + vocals)));
-          if (outputSample >= kMeasurementStartSample &&
-              callbackSize !=
-                  audio_plugin::kSameCallbackQualifiedHostBlockSize) {
-            maximumMismatchedCallbackRetainedStemMagnitude =
-                std::max(maximumMismatchedCallbackRetainedStemMagnitude,
-                         std::abs(drums));
-            maximumMismatchedCallbackRetainedStemMagnitude =
-                std::max(maximumMismatchedCallbackRetainedStemMagnitude,
-                         std::abs(bass));
-            maximumMismatchedCallbackRetainedStemMagnitude =
-                std::max(maximumMismatchedCallbackRetainedStemMagnitude,
-                         std::abs(vocals));
+          if (outputSample >= kMeasurementStartSample) {
+            maximumRetainedStemMagnitude =
+                std::max(maximumRetainedStemMagnitude, std::abs(drums));
+            maximumRetainedStemMagnitude =
+                std::max(maximumRetainedStemMagnitude, std::abs(bass));
+            maximumRetainedStemMagnitude =
+                std::max(maximumRetainedStemMagnitude, std::abs(vocals));
           }
         }
       }
@@ -420,11 +416,13 @@ TEST(TransportUnderrunE2ETest,
   }
 
   EXPECT_LE(maximumMainDelayError, 1.0e-6f);
-  EXPECT_FLOAT_EQ(maximumMismatchedCallbackRetainedStemMagnitude, 0.0f)
-      << "A variable-size offline callback exposed model fragments despite "
-         "the exact-512 listening contract";
+  EXPECT_GT(maximumRetainedStemMagnitude, 1.0e-3f)
+      << "Offline bounce never consumed separated model output";
   EXPECT_LE(maximumReconstructionError, 1.0e-6f);
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor.getRingOverflowEventCount(), 0U);
+  EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
+  EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
   EXPECT_FALSE(processor.isRealtimeCallbackTimingUnsafe());
   EXPECT_EQ(processor.getUnsafeRealtimeCallbackCount(), 0U);
 

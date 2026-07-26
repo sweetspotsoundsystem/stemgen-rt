@@ -71,7 +71,8 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // c91 needs one final zero-input graph hop to flush the last real input hop.
+  // c157 has no graph tail, but hosts still need the declared 512-sample PDC
+  // horizon to drain already scheduled current-chunk output.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
       activeLatencySamples_.load(std::memory_order_acquire);
@@ -266,19 +267,6 @@ uint64_t AudioPluginAudioProcessor::getUnsafeRealtimeCallbackCount() const {
   return unsafeRealtimeCallbackCount_.load(std::memory_order_acquire);
 }
 
-uint64_t AudioPluginAudioProcessor::getSameCallbackTimeoutCount() const {
-  return sameCallbackTimeoutCount_.load(std::memory_order_acquire);
-}
-
-int AudioPluginAudioProcessor::getLastSameCallbackWaitMicroseconds() const {
-  return lastSameCallbackWaitMicroseconds_.load(std::memory_order_acquire);
-}
-
-int AudioPluginAudioProcessor::getMaximumSameCallbackWaitMicroseconds() const {
-  return maximumSameCallbackWaitMicroseconds_.load(
-      std::memory_order_acquire);
-}
-
 InferenceQueue::WorkerPriorityStatus
 AudioPluginAudioProcessor::getInferenceWorkerPriorityStatus() const {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
@@ -457,8 +445,6 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   lastHostBlockSize_.store(0, std::memory_order_release);
   requiredLatencySamplesForLastHostBlock_.store(0, std::memory_order_release);
   realtimeCallbackTimingUnsafe_.store(false, std::memory_order_release);
-  lastSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
-  maximumSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   inferenceQueue_.stopThread();
   // Every prepare attempt starts a new stream generation, including attempts
@@ -480,12 +466,12 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   const bool sampleRateSupported =
       sampleRateCanConvertToInt &&
       std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
-      isQualifiedSameCallbackHostConfiguration(roundedSampleRate,
+      isQualifiedCurrentChunkHostConfiguration(roundedSampleRate,
                                                samplesPerBlock);
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c91 same-callback configuration ") +
+        juce::String("Unsupported c157 current-chunk configuration ") +
         juce::String(sampleRate, 1) + " Hz / " +
         juce::String(samplesPerBlock) +
         " samples; this build requires 44100 Hz / 512 samples";
@@ -718,11 +704,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   juce::ScopedNoDenormals noDenormals;
   const int numSamples = buffer.getNumSamples();
   const bool nonRealtimeRender = isNonRealtime();
-  const bool callbackMatchesSameCallbackContract =
-      numSamples == kSameCallbackQualifiedHostBlockSize;
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  const auto callbackEntryTime = std::chrono::steady_clock::now();
-#endif
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int requiredLatencySamples =
       numSamples > 0
@@ -795,11 +776,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         hasExpectedPlayheadPosition_ = false;
       }
 
-      // Reset immediately on starts, seeks, scrubs, and loop wraps. A
-      // play-to-stop transition is different: c91 needs the first stopped
-      // zero-input callback to emit the preceding final hop. Defer that reset
-      // until after this callback renders, then start subsequent stopped
-      // callbacks from deterministic zero state.
+      // Reset immediately on starts, seeks, scrubs, and loop wraps. On a
+      // play-to-stop transition, first render the result already scheduled by
+      // the one-hop asynchronous PDC, then reset after this callback. This is
+      // queue-tail drainage; c157 itself has no graph flush call.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
         resetAfterCurrentCallback = false;
@@ -881,8 +861,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           break;
         }
 
-        // Failed runs and c91's successful sequence-zero pre-roll both publish
-        // invalid markers so the exact-timeline consumer can advance.
+        // Failed runs publish invalid markers so the exact-timeline consumer
+        // can advance. Sequence zero is a valid current-chunk result.
         if (!consumeRequest->outputValid) {
           inferenceQueue_.releaseOutputSlot();
           ++consumedResults;
@@ -1011,9 +991,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // without deployment-time level normalization. Queue submission remains
     // entirely on the 44.1 kHz clock.
     const bool synchronousOfflineRender = nonRealtimeRender;
-    const bool synchronousRealtimeCallback =
-        !nonRealtimeRender && !unsafeRealtimeCallback &&
-        callbackMatchesSameCallbackContract;
     bool offlineInferenceTimedOut = false;
     const auto submitAccumulatedModelHop = [&]() {
       if (!overlapAdd_.readyForInference()) {
@@ -1044,39 +1021,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const uint32_t submittedEpoch = inferenceQueue_.getEpoch();
         inferenceQueue_.submitWriteSlot(submittedEpoch);
 
-        if (synchronousRealtimeCallback) {
-          const auto waitStarted = std::chrono::steady_clock::now();
-          const auto deadline =
-              callbackEntryTime +
-              std::chrono::microseconds(
-                  kSameCallbackWaitBudgetMicroseconds);
-          const bool completed = inferenceQueue_.waitUntilProcessed(
-              request, submittedEpoch, deadline);
-          const auto waitFinished = std::chrono::steady_clock::now();
-          const auto waitMicroseconds =
-              std::chrono::duration_cast<std::chrono::microseconds>(
-                  waitFinished - waitStarted)
-                  .count();
-          const int boundedWaitMicroseconds = static_cast<int>(std::min<
-              int64_t>(waitMicroseconds,
-                       static_cast<int64_t>(std::numeric_limits<int>::max())));
-          lastSameCallbackWaitMicroseconds_.store(
-              boundedWaitMicroseconds, std::memory_order_release);
-          int observedMaximum = maximumSameCallbackWaitMicroseconds_.load(
-              std::memory_order_relaxed);
-          while (boundedWaitMicroseconds > observedMaximum &&
-                 !maximumSameCallbackWaitMicroseconds_.compare_exchange_weak(
-                     observedMaximum, boundedWaitMicroseconds,
-                     std::memory_order_release, std::memory_order_relaxed)) {
-          }
-
-          if (completed && inferenceQueue_.getEpoch() == submittedEpoch) {
-            drainReadyInferenceResults();
-          } else {
-            sameCallbackTimeoutCount_.fetch_add(1,
-                                                std::memory_order_relaxed);
-          }
-        } else if (synchronousOfflineRender) {
+        if (synchronousOfflineRender) {
           constexpr auto kOfflineHopTimeout = std::chrono::seconds(5);
           const auto deadline =
               std::chrono::steady_clock::now() + kOfflineHopTimeout;
@@ -1165,7 +1110,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const auto writeStats = outputWriter_.writeBlock(
         overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
         numSamples, underrunTelemetryEnabled,
-        !unsafeRealtimeCallback && callbackMatchesSameCallbackContract,
+        !unsafeRealtimeCallback,
         !sampleRateConversionActive_);
 
     // Report exact-timeline model samples that remain scheduled after this

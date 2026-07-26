@@ -132,11 +132,6 @@ TEST(RealtimeStemSanityTest,
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0u);
   EXPECT_EQ(processor.getRingOverflowEventCount(), 0u);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0u);
-  EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0u)
-      << "Same-callback deadline misses; maximum observed wait was "
-      << processor.getMaximumSameCallbackWaitMicroseconds() << " us";
-  EXPECT_LT(processor.getMaximumSameCallbackWaitMicroseconds(),
-            audio_plugin::kSameCallbackWaitBudgetMicroseconds);
   ASSERT_FALSE(completeCallbackMicroseconds.empty());
   std::sort(completeCallbackMicroseconds.begin(),
             completeCallbackMicroseconds.end());
