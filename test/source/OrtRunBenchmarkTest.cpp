@@ -146,19 +146,6 @@ SeparatedChunk makeSeparatedChunk() {
   return chunk;
 }
 
-float maxAbsoluteValue(const AudioChunk& chunk) {
-  float maximum = 0.0f;
-  for (const auto& channel : chunk) {
-    for (const float value : channel) {
-      if (!std::isfinite(value)) {
-        return std::numeric_limits<float>::infinity();
-      }
-      maximum = std::max(maximum, std::abs(value));
-    }
-  }
-  return maximum;
-}
-
 float maxAbsoluteValue(const SeparatedChunk& chunk) {
   float maximum = 0.0f;
   for (const auto& stem : chunk) {

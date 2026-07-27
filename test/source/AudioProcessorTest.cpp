@@ -310,15 +310,16 @@ TEST_F(AudioProcessorTest, NonFiniteInputIsSanitizedInSafePath) {
 // ============================================================================
 
 TEST_F(AudioProcessorTest, OrtStatusString) {
-  // Status string should indicate ORT state
+  // Status string should indicate the runtime, model, or listening-contract
+  // state.
   juce::String status = processor->getOrtStatusString();
   EXPECT_FALSE(status.isEmpty());
 
-  // Should mention ONNX Runtime in some form
   EXPECT_TRUE(
       status.containsIgnoreCase("ONNX") || status.containsIgnoreCase("ORT") ||
       status.containsIgnoreCase("not") || status.containsIgnoreCase("model") ||
-      status.containsIgnoreCase("HS-TasNet"));
+      status.containsIgnoreCase("HS-TasNet") ||
+      status.containsIgnoreCase("requires 44.1 kHz / 512 samples"));
 }
 
 // ============================================================================
