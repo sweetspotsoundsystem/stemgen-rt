@@ -711,7 +711,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = false;
       }
 
-      // Run inference. c157 emits the current input hop, including a valid
+      // Run inference. c166 emits the current input hop, including a valid
       // sequence-zero c126 bypass immediately after reset.
       bool inferenceOk = false;
       request->outputValid = false;
@@ -747,7 +747,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
 
       // Publish an invalid marker so the consumer can advance past a
       // failed slot instead of deadlocking behind it. Reset runtime state
-      // first so the next successful run starts from all-zero c157 state.
+      // first so the next successful run starts from all-zero c166 state.
       if (!inferenceOk) {
         uint64_t nextModelSample = 0U;
         const bool haveNextModelSample =

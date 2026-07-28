@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The c157 current-chunk deployment emits [drums, bass, vocals, other].
+// The c166 current-chunk deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -18,7 +18,8 @@ constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
 // Fixed model contract. The graph consumes and emits the same 512-sample hop.
 // Its recurrent state is explicit: previous audio, fusion GRU, c130 feature
-// history, c155 hidden history, and the adapter-valid gate.
+// history, c155 hidden history, the adapter-valid gate, and the raw
+// Drums/Bass parent history used by the causal boundary refiner.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
@@ -28,8 +29,11 @@ constexpr int kC130FeatureChannels = qualified_model::kC130FeatureChannels;
 constexpr int kC130HistorySamples = qualified_model::kC130HistorySamples;
 constexpr int kC155HiddenChannels = qualified_model::kC155HiddenChannels;
 constexpr int kC155HistorySamples = qualified_model::kC155HistorySamples;
+constexpr int kRawParentChannels = qualified_model::kRawParentChannels;
+constexpr int kRawParentHistorySamples =
+    qualified_model::kRawParentHistorySamples;
 
-// The worker gets one complete hop for inference. c157 emits its current input
+// The worker gets one complete hop for inference. c166 emits its current input
 // hop, so the asynchronous collection/queue hop is the entire 512-sample PDC.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;

@@ -290,6 +290,10 @@ TEST(QualifiedModelContractTest,
             contract::kAnalysisWindowSamples);
   EXPECT_EQ(audio_plugin::kFusionHiddenLayers, contract::kFusionHiddenLayers);
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, contract::kFusionHiddenSize);
+  EXPECT_EQ(audio_plugin::kRawParentChannels,
+            contract::kRawParentChannels);
+  EXPECT_EQ(audio_plugin::kRawParentHistorySamples,
+            contract::kRawParentHistorySamples);
   EXPECT_EQ(audio_plugin::kStemDrums, contract::kDrumsSourceIndex);
   EXPECT_EQ(audio_plugin::kStemBass, contract::kBassSourceIndex);
   EXPECT_EQ(audio_plugin::kStemVocals, contract::kVocalsSourceIndex);
@@ -298,9 +302,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 6U);
-  ASSERT_EQ(contract::kOutputNames.size(), 6U);
-  ASSERT_EQ(contract::kMetadata.size(), 30U);
+  ASSERT_EQ(contract::kInputNames.size(), 7U);
+  ASSERT_EQ(contract::kOutputNames.size(), 7U);
+  ASSERT_EQ(contract::kMetadata.size(), 36U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -416,33 +420,50 @@ TEST(OrtStreamingRuntimeTest,
   std::string failureMessage;
   ASSERT_TRUE(prepareRuntime(runtime, failureMessage)) << failureMessage;
 
-  const AudioChunk first = makeAudioChunk(0);
-  const AudioChunk second = makeAudioChunk(audio_plugin::kOutputChunkSize);
+  constexpr size_t kReplayHops = 5U;
+  std::array<AudioChunk, kReplayHops> inputs{};
+  std::array<SeparatedChunk, kReplayHops> firstPassResults{};
   SeparatedChunk separated = makeSeparatedChunk();
   AudioChunk alignedInput = makeZeroAudioChunk();
   bool outputValid = true;
 
-  ASSERT_TRUE(
-      runtime.runInference(first, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
-  const SeparatedChunk firstResult = separated;
-
-  ASSERT_TRUE(
-      runtime.runInference(second, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, second), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
+  for (size_t hop = 0; hop < kReplayHops; ++hop) {
+    inputs[hop] = makeAudioChunk(
+        static_cast<int>(hop) * audio_plugin::kOutputChunkSize);
+    ASSERT_TRUE(runtime.runInference(inputs[hop], separated, alignedInput,
+                                     outputValid));
+    ASSERT_TRUE(outputValid);
+    EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, inputs[hop]), 0.0f);
+    EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput),
+              1.0e-6f);
+    firstPassResults[hop] = separated;
+  }
 
   runtime.resetStreamingState();
 
-  ASSERT_TRUE(
-      runtime.runInference(first, separated, alignedInput, outputValid));
-  ASSERT_TRUE(outputValid);
-  EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, first), 0.0f);
-  EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput), 1.0e-6f);
-  EXPECT_FLOAT_EQ(maxChunkDifference(separated, firstResult), 0.0f);
+  for (size_t hop = 0; hop < kReplayHops; ++hop) {
+    ASSERT_TRUE(runtime.runInference(inputs[hop], separated, alignedInput,
+                                     outputValid));
+    ASSERT_TRUE(outputValid);
+    EXPECT_FLOAT_EQ(maxChunkDifference(alignedInput, inputs[hop]), 0.0f);
+    EXPECT_LE(maxMixtureReconstructionError(separated, alignedInput),
+              1.0e-6f);
+    EXPECT_FLOAT_EQ(
+        maxChunkDifference(separated, firstPassResults[hop]), 0.0f);
+  }
+
+  float maximumStatefulDifference = 0.0f;
+  for (size_t hop = 1; hop < kReplayHops; ++hop) {
+    runtime.resetStreamingState();
+    ASSERT_TRUE(runtime.runInference(inputs[hop], separated, alignedInput,
+                                     outputValid));
+    ASSERT_TRUE(outputValid);
+    maximumStatefulDifference = std::max(
+        maximumStatefulDifference,
+        maxChunkDifference(separated, firstPassResults[hop]));
+  }
+  EXPECT_GT(maximumStatefulDifference, 1.0e-7f)
+      << "The persistent streaming state did not affect later hops";
 #endif
 }
 
@@ -548,10 +569,9 @@ TEST(OrtStreamingRuntimeTest,
   constexpr double kTwoPi = 6.28318530717958647692;
 
   constexpr std::array<size_t, 2> kMeasuredStemIndices = {0, 1};
-  // CPU rebaseline for the exact unqualified c157 step-6 artifact. These
-  // ceilings tightly bound the candidate (Drums 20.23/0.0565, Bass
-  // 2.73/0.0151) and must not be read as parity with c91's lower seam values.
-  // Promotion still requires the target-Mac listening and numerical pass.
+  // Provisional listening ceilings inherited from c157. The c166 refiner is
+  // tested against the same explicit low-frequency seam bounds; promotion
+  // still requires the target-Mac listening and numerical pass.
   constexpr std::array<double, 2> kSeamRatioCeilings = {21.0, 3.0};
   constexpr std::array<double, 2> kBoundaryToInputCeilings = {0.06, 0.02};
   std::array<double, kMeasuredStemIndices.size()> boundarySumSquares{};
@@ -609,7 +629,7 @@ TEST(OrtStreamingRuntimeTest,
   }
 
   // Measure the current-chunk low-tone seam directly. These remain provisional
-  // listening ceilings until c157 is requalified on the target Mac.
+  // listening ceilings until c166 is requalified on the target Mac.
   for (size_t measuredStem = 0;
        measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);

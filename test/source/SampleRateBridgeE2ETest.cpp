@@ -336,7 +336,7 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported c157 current-chunk configuration"));
+      "Unsupported c166 current-chunk configuration"));
   processor.releaseResources();
 }
 
@@ -356,7 +356,7 @@ TEST(SampleRateBridgeE2ETest,
   processor.prepareToPlay(44100.0, 512);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Accepted c157 model/runtime unavailable";
+    GTEST_SKIP() << "Accepted c166 model/runtime unavailable";
   }
 
   juce::MidiBuffer midi;

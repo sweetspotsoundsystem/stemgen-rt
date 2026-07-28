@@ -1424,7 +1424,7 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
   float inputCorrelation = 0.0f;
   float outputCorrelation = 0.0f;
 
-  // The c157 graph emits the current hop, while the asynchronous publication
+  // The c166 graph emits the current hop, while the asynchronous publication
   // path delays Main by one 512-sample block. Feed three continuous blocks and
   // inspect a stable latency-aligned Main copy.
   for (int block = 0; block < 3; ++block) {

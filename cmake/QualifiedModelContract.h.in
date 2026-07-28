@@ -17,6 +17,16 @@ inline constexpr std::string_view kCheckpointSha256 =
     "@STEMGENRT_QUALIFIED_CHECKPOINT_SHA256@";
 inline constexpr std::string_view kHeadStateSha256 =
     "@STEMGENRT_QUALIFIED_HEAD_STATE_SHA256@";
+inline constexpr std::string_view kC157CheckpointSha256 =
+    "@STEMGENRT_QUALIFIED_C157_CHECKPOINT_SHA256@";
+inline constexpr std::string_view kC166CandidateId =
+    "@STEMGENRT_QUALIFIED_C166_CANDIDATE_ID@";
+inline constexpr std::string_view kC166RefinerStateSha256 =
+    "@STEMGENRT_QUALIFIED_C166_REFINER_STATE_SHA256@";
+inline constexpr std::string_view kC166TaperSha256 =
+    "@STEMGENRT_QUALIFIED_C166_TAPER_SHA256@";
+inline constexpr std::string_view kC166Full14EvaluationSha256 =
+    "@STEMGENRT_QUALIFIED_C166_FULL14_EVALUATION_SHA256@";
 
 inline constexpr int kSampleRate = @STEMGENRT_QUALIFIED_SAMPLE_RATE@;
 inline constexpr int kNumChannels = @STEMGENRT_QUALIFIED_CHANNELS@;
@@ -36,6 +46,10 @@ inline constexpr int kC155HiddenChannels =
     @STEMGENRT_QUALIFIED_C155_HIDDEN_CHANNELS@;
 inline constexpr int kC155HistorySamples =
     @STEMGENRT_QUALIFIED_C155_HISTORY_SAMPLES@;
+inline constexpr int kRawParentChannels =
+    @STEMGENRT_QUALIFIED_RAW_PARENT_CHANNELS@;
+inline constexpr int kRawParentHistorySamples =
+    @STEMGENRT_QUALIFIED_RAW_PARENT_HISTORY_SAMPLES@;
 inline constexpr int kModelOutputDelayChunks =
     @STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS@;
 inline constexpr int kPdcSamples = @STEMGENRT_QUALIFIED_HOP_SAMPLES@;
@@ -63,6 +77,7 @@ inline constexpr auto kInputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_INPUT_C130_HISTORY_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_PREVIOUS_HIDDEN_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_ADAPTER_VALID_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_RAW_PARENT_HISTORY_NAME@",
 });
 inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME@",
@@ -71,6 +86,7 @@ inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_C130_HISTORY_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_PREVIOUS_HIDDEN_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_ADAPTER_VALID_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_RAW_PARENT_HISTORY_NAME@",
 });
 
 inline constexpr auto kInputAudioShape =
@@ -85,6 +101,9 @@ inline constexpr auto kInputPreviousHiddenShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_PREVIOUS_HIDDEN_SHAPE@});
 inline constexpr auto kInputAdapterValidShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_ADAPTER_VALID_SHAPE@});
+inline constexpr auto kInputRawParentHistoryShape =
+    std::to_array<std::int64_t>(
+        {@STEMGENRT_QUALIFIED_INPUT_RAW_PARENT_HISTORY_SHAPE@});
 inline constexpr auto kOutputSeparatedShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE@});
 inline constexpr auto kOutputPastShape =
@@ -98,6 +117,9 @@ inline constexpr auto kOutputPreviousHiddenShape =
         {@STEMGENRT_QUALIFIED_OUTPUT_PREVIOUS_HIDDEN_SHAPE@});
 inline constexpr auto kOutputAdapterValidShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_ADAPTER_VALID_SHAPE@});
+inline constexpr auto kOutputRawParentHistoryShape =
+    std::to_array<std::int64_t>(
+        {@STEMGENRT_QUALIFIED_OUTPUT_RAW_PARENT_HISTORY_SHAPE@});
 
 inline constexpr std::string_view kExportMode =
     "@STEMGENRT_QUALIFIED_METADATA_EXPORT_MODE@";
@@ -120,6 +142,7 @@ inline constexpr std::string_view kC130HistoryShapeJson =
 inline constexpr std::string_view kPreviousHiddenShapeJson =
     "[1,32,512]";
 inline constexpr std::string_view kAdapterValidShapeJson = "[1,1]";
+inline constexpr std::string_view kRawParentHistoryShapeJson = "[1,4,2048]";
 
 struct MetadataEntry {
   std::string_view key;
@@ -128,9 +151,13 @@ struct MetadataEntry {
 
 inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
     {"hs_tasnet.checkpoint_sha256", kCheckpointSha256},
+    {"hs_tasnet.c157.checkpoint_sha256", kC157CheckpointSha256},
     {"hs_tasnet.c157.head_state_sha256", kHeadStateSha256},
-    {"hs_tasnet.c157.safety_shortfall_db",
-     "@STEMGENRT_QUALIFIED_METADATA_SAFETY_SHORTFALL_DB@"},
+    {"hs_tasnet.c166.candidate_id", kC166CandidateId},
+    {"hs_tasnet.c166.full14_evaluation_sha256",
+     kC166Full14EvaluationSha256},
+    {"hs_tasnet.c166.refiner_state_sha256", kC166RefinerStateSha256},
+    {"hs_tasnet.c166.taper_sha256", kC166TaperSha256},
     {"hs_tasnet.deployment.quality_guards",
      "@STEMGENRT_QUALIFIED_METADATA_QUALITY_GUARDS@"},
     {"hs_tasnet.deployment.status",
@@ -158,6 +185,7 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      "@STEMGENRT_QUALIFIED_METADATA_FIRST_CALLBACK@"},
     {"hs_tasnet.streaming.flush", "@STEMGENRT_QUALIFIED_METADATA_FLUSH@"},
     {"hs_tasnet.streaming.fusion_hidden_shape", kFusionHiddenShapeJson},
+    {"hs_tasnet.streaming.future_context_samples", "0"},
     {"hs_tasnet.streaming.initial_state",
      "@STEMGENRT_QUALIFIED_METADATA_INITIAL_STATE@"},
     {"hs_tasnet.streaming.output_alignment", kOutputAlignment},
@@ -167,6 +195,8 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
     {"hs_tasnet.streaming.preroll",
      "@STEMGENRT_QUALIFIED_METADATA_PREROLL@"},
     {"hs_tasnet.streaming.previous_hidden_shape", kPreviousHiddenShapeJson},
+    {"hs_tasnet.streaming.raw_parent_history_shape",
+     kRawParentHistoryShapeJson},
     {"hs_tasnet.streaming.reset", "@STEMGENRT_QUALIFIED_METADATA_RESET@"},
 });
 
@@ -184,6 +214,9 @@ static_assert(kInputPreviousHiddenShape ==
                                           kC155HistorySamples});
 static_assert(kInputAdapterValidShape ==
               std::array<std::int64_t, 2>{1, 1});
+static_assert(kInputRawParentHistoryShape ==
+              std::array<std::int64_t, 3>{1, kRawParentChannels,
+                                          kRawParentHistorySamples});
 static_assert(kOutputSeparatedShape ==
               std::array<std::int64_t, 4>{1, kNumStems, kNumChannels,
                                           kHopSamples});
@@ -192,9 +225,10 @@ static_assert(kOutputHiddenShape == kInputHiddenShape);
 static_assert(kOutputC130HistoryShape == kInputC130HistoryShape);
 static_assert(kOutputPreviousHiddenShape == kInputPreviousHiddenShape);
 static_assert(kOutputAdapterValidShape == kInputAdapterValidShape);
+static_assert(kOutputRawParentHistoryShape == kInputRawParentHistoryShape);
 static_assert(kAnalysisWindowSamples == 2 * kHopSamples);
-static_assert(kInputNames.size() == 6);
-static_assert(kOutputNames.size() == 6);
+static_assert(kInputNames.size() == 7);
+static_assert(kOutputNames.size() == 7);
 static_assert(kNumChannels == 2);
 static_assert(kNumStems == 4);
 static_assert(kModelOutputDelayChunks == 0);
@@ -224,6 +258,6 @@ static_assert(
 static_assert(kOtherSourceIndex == kResidualSourceIndex);
 static_assert(kResidualSourceIndex >= 0 && kResidualSourceIndex < kNumStems);
 static_assert(kOutputAlignment == "current_input_chunk",
-              "The c157 native scheduler requires current-hop alignment");
+              "The c166 native scheduler requires current-hop alignment");
 
 }  // namespace audio_plugin::qualified_model

@@ -208,21 +208,23 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     return false;
   }
 
-  const std::array<std::vector<std::int64_t>, 6> expectedInputShapes = {{
+  const std::array<std::vector<std::int64_t>, 7> expectedInputShapes = {{
       toShapeVector(qualified_model::kInputAudioShape),
       toShapeVector(qualified_model::kInputPastShape),
       toShapeVector(qualified_model::kInputHiddenShape),
       toShapeVector(qualified_model::kInputC130HistoryShape),
       toShapeVector(qualified_model::kInputPreviousHiddenShape),
       toShapeVector(qualified_model::kInputAdapterValidShape),
+      toShapeVector(qualified_model::kInputRawParentHistoryShape),
   }};
-  const std::array<std::vector<std::int64_t>, 6> expectedOutputShapes = {{
+  const std::array<std::vector<std::int64_t>, 7> expectedOutputShapes = {{
       toShapeVector(qualified_model::kOutputSeparatedShape),
       toShapeVector(qualified_model::kOutputPastShape),
       toShapeVector(qualified_model::kOutputHiddenShape),
       toShapeVector(qualified_model::kOutputC130HistoryShape),
       toShapeVector(qualified_model::kOutputPreviousHiddenShape),
       toShapeVector(qualified_model::kOutputAdapterValidShape),
+      toShapeVector(qualified_model::kOutputRawParentHistoryShape),
   }};
 
   size_t inputCount = 0;
@@ -365,7 +367,7 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
       api->ReleaseModelMetadata(metadata);
       return false;
     }
-    // ONNX Runtime returns nullptr when the key is absent. Every c157 key in
+    // ONNX Runtime returns nullptr when the key is absent. Every c166 key in
     // the generated contract must be present in the bundled artifact.
     if (rawValue == nullptr) {
       errorMessage = juce::String("Missing model metadata ") +
@@ -657,6 +659,8 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
   const std::int64_t previousHiddenDims[3] = {
       1, kC155HiddenChannels, kC155HistorySamples};
   const std::int64_t adapterValidDims[2] = {1, 1};
+  const std::int64_t rawParentHistoryDims[3] = {
+      1, kRawParentChannels, kRawParentHistorySamples};
 
   const auto createTensor = [&](OrtValue*& value, std::vector<float>& data,
                                 const std::int64_t* dims, size_t rank,
@@ -689,6 +693,9 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
                     qualified_model::kInputNames[4].data()) ||
       !createTensor(inputTensorValues_[5], adapterValid_, adapterValidDims, 2,
                     qualified_model::kInputNames[5].data()) ||
+      !createTensor(inputTensorValues_[6], rawParentHistory_,
+                    rawParentHistoryDims, 3,
+                    qualified_model::kInputNames[6].data()) ||
       !createTensor(outputTensorValues_[0], separatedOutputBuffer_,
                     separatedDims, 4,
                     qualified_model::kOutputNames[0].data()) ||
@@ -705,7 +712,10 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
                     qualified_model::kOutputNames[4].data()) ||
       !createTensor(outputTensorValues_[5], nextAdapterValidBuffer_,
                     adapterValidDims, 2,
-                    qualified_model::kOutputNames[5].data())) {
+                    qualified_model::kOutputNames[5].data()) ||
+      !createTensor(outputTensorValues_[6], nextRawParentHistoryBuffer_,
+                    rawParentHistoryDims, 3,
+                    qualified_model::kOutputNames[6].data())) {
     releasePreallocatedTensorValues();
     return false;
   }
@@ -764,6 +774,8 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
       static_cast<size_t>(kC130FeatureChannels * kC130HistorySamples);
   const size_t previousHiddenElements =
       static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
+  const size_t rawParentHistoryElements =
+      static_cast<size_t>(kRawParentChannels * kRawParentHistorySamples);
 
   try {
     audioChunkBuffer_.resize(audioElements);
@@ -772,12 +784,14 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     c130History_.resize(c130HistoryElements);
     previousHidden_.resize(previousHiddenElements);
     adapterValid_.resize(1U);
+    rawParentHistory_.resize(rawParentHistoryElements);
     separatedOutputBuffer_.resize(separatedElements);
     nextPastAudioBuffer_.resize(audioElements);
     nextFusionHiddenBuffer_.resize(hiddenElements);
     nextC130HistoryBuffer_.resize(c130HistoryElements);
     nextPreviousHiddenBuffer_.resize(previousHiddenElements);
     nextAdapterValidBuffer_.resize(1U);
+    nextRawParentHistoryBuffer_.resize(rawParentHistoryElements);
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -811,6 +825,7 @@ void OnnxRuntime::resetStreamingStateUnlocked() {
     std::fill(c130History_.begin(), c130History_.end(), 0.0f);
     std::fill(previousHidden_.begin(), previousHidden_.end(), 0.0f);
     std::fill(adapterValid_.begin(), adapterValid_.end(), 0.0f);
+    std::fill(rawParentHistory_.begin(), rawParentHistory_.end(), 0.0f);
 }
 
 void OnnxRuntime::resetStreamingState() {
@@ -848,6 +863,8 @@ bool OnnxRuntime::runInference(
         static_cast<size_t>(kC130FeatureChannels * kC130HistorySamples);
     const size_t previousHiddenElements =
         static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
+    const size_t rawParentHistoryElements =
+        static_cast<size_t>(kRawParentChannels * kRawParentHistorySamples);
 
     if (audioChunkBuffer_.size() != audioElements ||
         pastAudio_.size() != audioElements ||
@@ -855,12 +872,14 @@ bool OnnxRuntime::runInference(
         c130History_.size() != c130HistoryElements ||
         previousHidden_.size() != previousHiddenElements ||
         adapterValid_.size() != 1U ||
+        rawParentHistory_.size() != rawParentHistoryElements ||
         separatedOutputBuffer_.size() != separatedElements ||
         nextPastAudioBuffer_.size() != audioElements ||
         nextFusionHiddenBuffer_.size() != hiddenElements ||
         nextC130HistoryBuffer_.size() != c130HistoryElements ||
         nextPreviousHiddenBuffer_.size() != previousHiddenElements ||
         nextAdapterValidBuffer_.size() != 1U ||
+        nextRawParentHistoryBuffer_.size() != rawParentHistoryElements ||
         std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
                     [](const OrtValue* value) { return value == nullptr; }) ||
         std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
@@ -870,7 +889,7 @@ bool OnnxRuntime::runInference(
     }
 
     // Feed the graph at the exact native input level used by its frozen
-    // quality evaluation. c157 emits the current hop, so Main and the residual
+    // quality evaluation. c166 emits the current hop, so Main and the residual
     // use the same raw input samples directly.
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
       if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
@@ -893,24 +912,27 @@ bool OnnxRuntime::runInference(
       }
     }
 
-    const std::array<const char*, 6> inputNames = {
+    const std::array<const char*, 7> inputNames = {
         qualified_model::kInputNames[0].data(),
         qualified_model::kInputNames[1].data(),
         qualified_model::kInputNames[2].data(),
         qualified_model::kInputNames[3].data(),
         qualified_model::kInputNames[4].data(),
-        qualified_model::kInputNames[5].data()};
-    const std::array<const char*, 6> outputNames = {
+        qualified_model::kInputNames[5].data(),
+        qualified_model::kInputNames[6].data()};
+    const std::array<const char*, 7> outputNames = {
         qualified_model::kOutputNames[0].data(),
         qualified_model::kOutputNames[1].data(),
         qualified_model::kOutputNames[2].data(),
         qualified_model::kOutputNames[3].data(),
         qualified_model::kOutputNames[4].data(),
-        qualified_model::kOutputNames[5].data()};
-    const OrtValue* constInputValues[6] = {
+        qualified_model::kOutputNames[5].data(),
+        qualified_model::kOutputNames[6].data()};
+    const OrtValue* constInputValues[7] = {
         inputTensorValues_[0], inputTensorValues_[1], inputTensorValues_[2],
-        inputTensorValues_[3], inputTensorValues_[4], inputTensorValues_[5]};
-    std::array<OrtValue*, 6> runOutputValues = outputTensorValues_;
+        inputTensorValues_[3], inputTensorValues_[4], inputTensorValues_[5],
+        inputTensorValues_[6]};
+    std::array<OrtValue*, 7> runOutputValues = outputTensorValues_;
 
     OrtStatus* runStatus =
         api->Run(ortSession_.get(), nullptr, inputNames.data(),
@@ -956,7 +978,9 @@ bool OnnxRuntime::runInference(
         !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements) ||
         !allFinite(nextC130HistoryBuffer_.data(), c130HistoryElements) ||
         !allFinite(nextPreviousHiddenBuffer_.data(), previousHiddenElements) ||
-        !allFinite(nextAdapterValidBuffer_.data(), 1U)) {
+        !allFinite(nextAdapterValidBuffer_.data(), 1U) ||
+        !allFinite(nextRawParentHistoryBuffer_.data(),
+                   rawParentHistoryElements)) {
       DBG("[ORT] Non-finite streaming output; resetting recurrent state");
       resetStreamingStateUnlocked();
       return false;
@@ -1030,6 +1054,8 @@ bool OnnxRuntime::runInference(
                 previousHiddenElements * sizeof(float));
     std::memcpy(adapterValid_.data(), nextAdapterValidBuffer_.data(),
                 sizeof(float));
+    std::memcpy(rawParentHistory_.data(), nextRawParentHistoryBuffer_.data(),
+                rawParentHistoryElements * sizeof(float));
 
     return true;
 }

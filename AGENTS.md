@@ -4,7 +4,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ## Project Overview
 
-StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This tree carries the local c157 step-6 current-chunk graph in an explicitly unqualified one-queue-hop, 512-PDC listening path and exposes four stereo stems: drums, bass, other, and vocals.
+StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This tree carries the local c166i L13/g31-over-32 current-chunk graph in an explicitly unqualified one-queue-hop, 512-PDC listening path and exposes four stereo stems: drums, bass, other, and vocals.
 
 ## Build Commands
 
@@ -13,7 +13,7 @@ StemgenRT is a real-time music source separation plugin built with JUCE and ONNX
 ./scripts/download-onnxruntime.sh  # macOS
 ./scripts/download-onnxruntime.ps1  # Windows
 
-# Configure and build the c157 current-chunk listening candidate (debug)
+# Configure and build the c166 current-chunk listening candidate (debug)
 cmake --preset default
 cmake --build --preset default
 
@@ -25,7 +25,7 @@ cmake --build --preset release
 # Install plugins to the current user's plugin directories (macOS)
 # IMPORTANT: Always use this script instead of manual cp.
 # cp -R does NOT overwrite existing .component/.vst3 bundles reliably.
-./scripts/install-plugins.sh --debug    # current c157 listening build
+./scripts/install-plugins.sh --debug    # current c166 listening build
 ./scripts/install-plugins.sh            # future Release lane (default)
 ./scripts/install-plugins.sh --release  # future Release lane (explicit)
 ```
@@ -36,7 +36,7 @@ cmake --build --preset release
 
 The plugin uses a dual-threaded architecture:
 - **Audio thread**: Preserves native input for Main/fallback, submits one complete 512-sample request, and renders completed results one asynchronous queue hop later under the fixed 512-sample PDC. It never waits for inference in the real-time callback.
-- **Inference thread**: Runs at elevated priority, owns all five persistent graph states, and publishes current-chunk results through the bounded lock-free queue.
+- **Inference thread**: Runs at elevated priority, owns all six persistent graph states, and publishes current-chunk results through the bounded lock-free queue.
 
 Do not reintroduce the former external context/reflection padding, HP/LP crossover, LP reinjection, vocals-specific or input soft gates, low-band stabilizer, or chunk-tail crossfade before or around the graph. The graph owns its analysis and synthesis processing. Finite model input is passed through at its exact native floating-point level; the final writer has a residual-preserving low-level separation-confidence fade.
 
@@ -52,16 +52,18 @@ The graph processes stereo float32 audio at exactly 44.1 kHz. It has a fixed 512
 | Input | `c130_history` | `[1, 20, 128]` |
 | Input | `previous_hidden` | `[1, 32, 512]` |
 | Input | `adapter_valid` | `[1, 1]` |
+| Input | `raw_parent_history` | `[1, 4, 2048]` |
 | Output | `separated_chunk` | `[1, 4, 2, 512]` |
 | Output | `next_past_audio` | `[1, 2, 512]` |
 | Output | `next_fusion_hidden` | `[2, 1, 1000]` |
 | Output | `next_c130_history` | `[1, 20, 128]` |
 | Output | `next_previous_hidden` | `[1, 32, 512]` |
 | Output | `next_adapter_valid` | `[1, 1]` |
+| Output | `next_raw_parent_history` | `[1, 4, 2048]` |
 
-Initialize the five persistent state families—`past_audio`, `fusion_hidden`, `c130_history`, `previous_hidden`, and `adapter_valid`—to zero. `separated_chunk` is aligned to the current call's `audio_chunk`. Sequence zero after reset is valid output and uses the exact c126 bypass behavior while the adapter state becomes valid for subsequent calls. There is no invalid pre-roll and no end-of-stream flush.
+Initialize the six persistent state families—`past_audio`, `fusion_hidden`, `c130_history`, `previous_hidden`, `adapter_valid`, and `raw_parent_history`—to zero. `separated_chunk` is aligned to the current call's `audio_chunk`. Sequence zero after reset is valid output and is exactly c157 while the raw-parent history initializes. There is no invalid pre-roll and no end-of-stream flush.
 
-Only the inference worker may advance model state. Reset all five state families on transport starts, seeks, scrubs, loop wraps, inference failures, and input-sequence gaps. A play-to-stop transition first renders the final current-chunk result already owed by the one-hop plugin PDC, then resets after that callback; this drains the queue timeline and is not a graph flush. Epoch changes during an in-flight run invalidate that output; zero the state before accepting another sequence. The first successful result after every reset is current-aligned and valid.
+Only the inference worker may advance model state. Reset all six state families on transport starts, seeks, scrubs, loop wraps, inference failures, and input-sequence gaps. A play-to-stop transition first renders the final current-chunk result already owed by the one-hop plugin PDC, then resets after that callback; this drains the queue timeline and is not a graph flush. Epoch changes during an in-flight run invalidate that output; zero the state before accepting another sequence. The first successful result after every reset is current-aligned and valid.
 
 ### Host Sample-Rate Bridge
 
@@ -79,7 +81,7 @@ Do not restore the former per-hop RMS/peak boost. It was inherited from an older
 
 ### Latency and Fallback
 
-The c157 step-6 graph has zero graph-output delay: a successful call for input N returns the separated current chunk N. The asynchronous worker/queue contributes one scheduling hop, so callback N's result is rendered on callback N+1 and the host reports exactly 512 samples (11.61 ms) of PDC.
+The c166 graph has zero graph-output delay: a successful call for input N returns the separated current chunk N. The asynchronous worker/queue contributes one scheduling hop, so callback N's result is rendered on callback N+1 and the host reports exactly 512 samples (11.61 ms) of PDC.
 
 There is no same-callback wait, audition deadline, pre-roll, or flush in this path. Only an exact 44.1 kHz / 512-sample callback may use model output.
 
@@ -119,19 +121,19 @@ Drums (model index 0), Bass (model index 1), Other (model index 3), Vocals (mode
 
 ### Model
 
-`model/model.onnx` is the only model payload bundled into plugin Resources. It is the self-contained c157 step-6 current-chunk streaming graph, SHA-256 `8a66a08635c3bdc0df71ba4614811f507a3060086747a635219f3eb971320ba9`, size 127,294,420 bytes, from checkpoint SHA-256 `4eb21aad7dffebd2a98cefdc3078f669dec9fb54f6583701c6cb79e0a83ad07a` with head-state SHA-256 `c406fba72bb19c07b4747bc5864acee8e45dd414b7a1a313632739cd07cd07f6`. Do not require or ship the obsolete `model.onnx.data` file.
+`model/model.onnx` is the only model payload bundled into plugin Resources. It is the self-contained c166i current-chunk streaming graph, SHA-256 `91b4b1e65e3acdb49d4ea8b01a8fc4a6ee339da4834023d601e0835a468e30cd`, size 127,434,674 bytes, from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`, taper SHA-256 is `64089385204e324abbc3793a52f866697a45a52153464ebbee20af598497ce8a`, and its c157 parent retains checkpoint/head-state SHA-256 values `4eb21aad7dffebd2a98cefdc3078f669dec9fb54f6583701c6cb79e0a83ad07a` / `c406fba72bb19c07b4747bc5864acee8e45dd414b7a1a313632739cd07cd07f6`. Do not require or ship the obsolete `model.onnx.data` file.
 
-The contract ID is `c157-step6-current-chunk-unqualified-listening`, and the deployment status is unqualified listening only. The sealed quality/safety comparison passes 23 of 24 guards; its sole shortfall is the mixed-lane Bass low band (20–250 Hz) by `0.000004162764370236438` dB. This microscopic result does not qualify or promote the candidate. Complete target-Mac numerical, real-time, and listening qualification is still required.
+The contract ID is `c166i-L13-g31over32-current-chunk-unqualified-listening`, and the deployment status is unqualified listening only. The full14 validation score is 4.7146 dB, 0.1668 dB above c91, but only 37 of 40 guardrails pass. Bass SIR, isolated-Bass SDR, and isolated-Other gain remain explicit repair targets. Complete target-Mac numerical, real-time, and listening qualification is still required.
 
 `cmake/QualifiedModelContract.cmake` is the only editable source of qualified model identity and interface values. CMake generates `StemgenRT/QualifiedModelContract.h` from it for runtime and test code, while source-artifact checks and bundle sealing include the same CMake contract directly. A future model replacement starts there and requires requalification; do not duplicate contract literals in runtime, tests, or packaging scripts.
 
-Configuration and runtime loading must fail closed unless the artifact SHA/size, all six input and all six output names, float32 types, static shapes, streaming metadata, checkpoint and head-state SHAs, and residual-to-source-index-3 policy match the qualified contract.
+Configuration and runtime loading must fail closed unless the artifact SHA/size, all seven input and all seven output names, float32 types, static shapes, streaming metadata, deploy/refiner/parent identities, and residual-to-source-index-3 policy match the qualified contract.
 
 ### CPU Operations
 
-CPU is the reference and intended deployment path. The c157 step-6 graph does not yet have transferable target-Mac timing evidence. Promotion requires complete worker-run/publication/drain/write timing under DAW load on each target Mac, with paired control, p99.9 margin, and miss-delta evidence for the one-hop deadline.
+CPU is the reference and intended deployment path. The c166 graph does not yet have transferable target-Mac timing evidence. Promotion requires complete worker-run/publication/drain/write timing under DAW load on each target Mac, with paired control, p99.9 margin, and miss-delta evidence for the one-hop deadline.
 
-The existing automatic ORT intra-op implementation caps macOS sessions at three threads based on the repeated Apple Silicon 1–4 thread sweep and retains the previous four-thread cap on Windows. Treat those as current defaults, not c157 qualification evidence; rerun the complete-path sweeps before promotion. Explicit thread counts are qualification overrides only and must not silently replace either production default.
+The existing automatic ORT intra-op implementation caps macOS sessions at three threads based on the repeated Apple Silicon 1–4 thread sweep and retains the previous four-thread cap on Windows. Treat those as current defaults, not c166 qualification evidence; rerun the complete-path sweeps before promotion. Explicit thread counts are qualification overrides only and must not silently replace either production default.
 
 Prefer preallocated input/output/state storage and avoid allocations in both the audio callback and steady-state inference loop. The shipping runtime is CPU-only; do not add an execution provider without a separate numerical, packaging, and real-time qualification pass.
 
@@ -145,7 +147,7 @@ Prefer preallocated input/output/state storage and avoid allocations in both the
 
 Tests are in `test/source/`. Run with `ctest --preset default`.
 
-Changes to the streaming path should cover, at minimum: exact six-input/six-output graph names, shapes, and model identity; progression of all five persistent states; valid current-aligned callback zero with no pre-roll or flush; reset determinism; sequence-gap recovery; exact 512-sample PDC from graph delay zero plus one asynchronous queue hop; publication success, epoch invalidation, and late-result discard without a real-time wait; prepared/actual block-size mismatch and complete-Other fallback; bus ordering; finite outputs; raw-level current-input alignment; non-finite failure/reset; explicit low-frequency seam measurements; low-level confidence behavior; and `Main == Drums + Bass + Other + Vocals` during normal inference, startup, late results, and fallback. Keep performance benchmarks stateful and measure the complete worker-run/publication/drain/write path.
+Changes to the streaming path should cover, at minimum: exact seven-input/seven-output graph names, shapes, and model identity; progression of all six persistent states, including live/reset 2,048-sample raw-parent history; valid current-aligned callback zero with no pre-roll or flush; reset determinism; sequence-gap recovery; exact 512-sample PDC from graph delay zero plus one asynchronous queue hop; publication success, epoch invalidation, and late-result discard without a real-time wait; prepared/actual block-size mismatch and complete-Other fallback; bus ordering; finite outputs; raw-level current-input alignment; non-finite failure/reset; explicit low-frequency seam measurements; low-level confidence behavior; and `Main == Drums + Bass + Other + Vocals` during normal inference, startup, late results, and fallback. Keep performance benchmarks stateful and measure the complete worker-run/publication/drain/write path.
 
 ## Platform Notes
 

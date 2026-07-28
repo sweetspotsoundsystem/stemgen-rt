@@ -71,7 +71,7 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // c157 has no graph tail, but hosts still need the declared 512-sample PDC
+  // c166 has no graph tail, but hosts still need the declared 512-sample PDC
   // horizon to drain already scheduled current-chunk output.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
@@ -471,7 +471,7 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c157 current-chunk configuration ") +
+        juce::String("Unsupported c166 current-chunk configuration ") +
         juce::String(sampleRate, 1) + " Hz / " +
         juce::String(samplesPerBlock) +
         " samples; this build requires 44100 Hz / 512 samples";
@@ -779,7 +779,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // Reset immediately on starts, seeks, scrubs, and loop wraps. On a
       // play-to-stop transition, first render the result already scheduled by
       // the one-hop asynchronous PDC, then reset after this callback. This is
-      // queue-tail drainage; c157 itself has no graph flush call.
+      // queue-tail drainage; c166 itself has no graph flush call.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
         resetAfterCurrentCallback = false;

@@ -130,7 +130,7 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
 
-  // c157 itself has no graph flush, but the plugin still owes the final
+  // c166 itself has no graph flush, but the plugin still owes the final
   // current-chunk result already in its one-hop asynchronous PDC. Make the
   // first stopped callback non-real-time so this is a deterministic queue-tail
   // and state-reset test rather than another CPU deadline measurement.
@@ -167,7 +167,7 @@ TEST(TransportUnderrunE2ETest,
     }
   }
   EXPECT_GT(maximumTailRetainedStem, 1.0e-3f)
-      << "The play-to-stop callback did not drain c157's queued final hop";
+      << "The play-to-stop callback did not drain c166's queued final hop";
 
   // The callback above resets the stream only after rendering. A subsequent
   // stopped callback must be clean, with no repeated queue tail.
