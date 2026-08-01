@@ -2,10 +2,10 @@
 
 A real-time music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
 
-This c166i listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
+This native-DFT c166i listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
 
 > [!WARNING]
-> The bundled model is the c166i L13/g31-over-32 current-chunk graph. Its full validation score is 4.7146 dB, 0.1668 dB above c91, but it passes only 37 of 40 guardrails: Bass SIR, isolated-Bass SDR, and isolated-Other gain still need repair. It is intentionally labelled an unqualified listening candidate. Test its sound, especially Bass/Other low-frequency behavior, and complete-path timing on the target Mac before treating it as a release.
+> The bundled model keeps the c166i L13/g31-over-32 weights and replaces the former dense real-DFT export lowering with native ONNX `DFT` operators. This directly addresses the export error implicated in the audible sub-bass distortion without changing the trained model. Its full validation score remains 4.7146 dB, 0.1668 dB above c91, but it passes only 37 of 40 model guardrails: Bass SIR, isolated-Bass SDR, and isolated-Other gain still need repair. It is intentionally labelled an unqualified listening candidate. Test its sound, especially Bass/Other low-frequency behavior, and complete-path timing on the target Mac before treating it as a release.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
 
@@ -136,13 +136,13 @@ Every processed hop is tagged with its exact output sample range. A result that 
 
 ### Model identity
 
-The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the c166i streaming artifact (SHA-256 `91b4b1e65e3acdb49d4ea8b01a8fc4a6ee339da4834023d601e0835a468e30cd`, 127,434,674 bytes) from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`; the c157 step-6 parent remains bound by its checkpoint and head-state identities. The authoritative artifact identity, tensor interface, streaming metadata, dimensions, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`.
+The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the native-DFT c166i streaming artifact (SHA-256 `31a280e628f632d052d73828783f5ad974f0be6c7db18bd6233157153a781f02`, 114,526,643 bytes) from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`; the c157 step-6 parent remains bound by its checkpoint and head-state identities. The seven-input/seven-output ABI is unchanged. For compatibility with the bundled ONNX Runtime 1.26.0, inverse real DFT reconstructs the full Hermitian spectrum before invoking native inverse `DFT`; no dense Fourier matrices are restored. The public fusion state is an opaque state threaded at a `2^-18` scale so its ONNX round trip stays within the long-horizon numerical bound. The authoritative artifact identity, tensor interface, streaming metadata, dimensions, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`.
 
 The runtime validates the artifact, graph input/output contract, and embedded deployment metadata before enabling separation.
 
 ## CPU operation
 
-CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The c166 artifact has not yet completed target-Mac native timing qualification; measure the complete path under DAW load before promotion.
+CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The native-DFT c166i artifact has not yet completed target-Mac native timing qualification; measure the complete path under DAW load before promotion.
 
 Use a modern CPU, close competing real-time workloads, and watch the plugin's underrun diagnostics when qualifying a system. The shipping runtime is deliberately CPU-only so host hardware cannot silently select a different numerical or scheduling path.
 

@@ -4,7 +4,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ## Project Overview
 
-StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This tree carries the local c166i L13/g31-over-32 current-chunk graph in an explicitly unqualified one-queue-hop, 512-PDC listening path and exposes four stereo stems: drums, bass, other, and vocals.
+StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This tree carries the native-DFT c166i L13/g31-over-32 current-chunk graph in an explicitly unqualified one-queue-hop, 512-PDC listening path and exposes four stereo stems: drums, bass, other, and vocals.
 
 ## Build Commands
 
@@ -121,9 +121,9 @@ Drums (model index 0), Bass (model index 1), Other (model index 3), Vocals (mode
 
 ### Model
 
-`model/model.onnx` is the only model payload bundled into plugin Resources. It is the self-contained c166i current-chunk streaming graph, SHA-256 `91b4b1e65e3acdb49d4ea8b01a8fc4a6ee339da4834023d601e0835a468e30cd`, size 127,434,674 bytes, from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`, taper SHA-256 is `64089385204e324abbc3793a52f866697a45a52153464ebbee20af598497ce8a`, and its c157 parent retains checkpoint/head-state SHA-256 values `4eb21aad7dffebd2a98cefdc3078f669dec9fb54f6583701c6cb79e0a83ad07a` / `c406fba72bb19c07b4747bc5864acee8e45dd414b7a1a313632739cd07cd07f6`. Do not require or ship the obsolete `model.onnx.data` file.
+`model/model.onnx` is the only model payload bundled into plugin Resources. It is the self-contained native-DFT c166i current-chunk streaming graph, SHA-256 `31a280e628f632d052d73828783f5ad974f0be6c7db18bd6233157153a781f02`, size 114,526,643 bytes, from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`, taper SHA-256 is `64089385204e324abbc3793a52f866697a45a52153464ebbee20af598497ce8a`, and its c157 parent retains checkpoint/head-state SHA-256 values `4eb21aad7dffebd2a98cefdc3078f669dec9fb54f6583701c6cb79e0a83ad07a` / `c406fba72bb19c07b4747bc5864acee8e45dd414b7a1a313632739cd07cd07f6`. The seven-input/seven-output ABI is unchanged, inverse real DFT uses a full Hermitian spectrum with native inverse `DFT` for ONNX Runtime 1.26.0 compatibility, and the fusion state is opaque and threaded at the export's `2^-18` public scale. Do not require or ship the obsolete `model.onnx.data` file.
 
-The contract ID is `c166i-L13-g31over32-current-chunk-unqualified-listening`, and the deployment status is unqualified listening only. The full14 validation score is 4.7146 dB, 0.1668 dB above c91, but only 37 of 40 guardrails pass. Bass SIR, isolated-Bass SDR, and isolated-Other gain remain explicit repair targets. Complete target-Mac numerical, real-time, and listening qualification is still required.
+The contract ID is `c166i-L13-g31over32-native-dft-current-chunk-unqualified-listening`, and the deployment status is unqualified listening only. The model weights and full14 score are unchanged: 4.7146 dB, 0.1668 dB above c91, with 37 of 40 guardrails passing. This export replaces the old dense real-DFT lowering with three native ONNX `DFT` operators; it does not claim to repair the remaining Bass SIR, isolated-Bass SDR, or isolated-Other gain model guardrails. Complete target-Mac numerical, real-time, and listening qualification is still required.
 
 `cmake/QualifiedModelContract.cmake` is the only editable source of qualified model identity and interface values. CMake generates `StemgenRT/QualifiedModelContract.h` from it for runtime and test code, while source-artifact checks and bundle sealing include the same CMake contract directly. A future model replacement starts there and requires requalification; do not duplicate contract literals in runtime, tests, or packaging scripts.
 

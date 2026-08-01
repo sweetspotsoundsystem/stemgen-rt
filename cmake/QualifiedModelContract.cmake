@@ -1,15 +1,15 @@
 include_guard(GLOBAL)
 
 # Authoritative configure-time contract for the only model accepted by
-# StemgenRT. c166i is deliberately labelled as an unqualified listening
-# candidate until its remaining Bass/Other repairs and target-Mac
-# qualification are complete.
+# StemgenRT. This native-DFT c166i export is deliberately labelled as an
+# unqualified listening candidate until its remaining Bass/Other repairs and
+# target-Mac qualification are complete.
 set(STEMGENRT_QUALIFIED_CONTRACT_ID
-    "c166i-L13-g31over32-current-chunk-unqualified-listening")
+    "c166i-L13-g31over32-native-dft-current-chunk-unqualified-listening")
 
 set(STEMGENRT_QUALIFIED_MODEL_SHA256
-    "91b4b1e65e3acdb49d4ea8b01a8fc4a6ee339da4834023d601e0835a468e30cd")
-set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 127434674)
+    "31a280e628f632d052d73828783f5ad974f0be6c7db18bd6233157153a781f02")
+set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 114526643)
 set(STEMGENRT_QUALIFIED_CHECKPOINT_SHA256
     "c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173")
 set(STEMGENRT_QUALIFIED_HEAD_STATE_SHA256
