@@ -78,7 +78,7 @@ public:
   void resetStreamingState();
 
   // Run one stateful graph hop. The returned samples and alignedInput belong
-  // to the current input hop. Every successful c166 run is valid; there is no
+  // to the current input hop. Every successful c193 run is valid; there is no
   // pre-roll output and no zero-hop flush.
   bool runInference(
       const std::array<std::vector<float>, kNumChannels>& inputChunk,
@@ -129,6 +129,7 @@ private:
   std::vector<float> previousHidden_;
   std::vector<float> adapterValid_;
   std::vector<float> rawParentHistory_;
+  std::vector<float> emittedDbHistory_;
   std::vector<float> separatedOutputBuffer_;
   std::vector<float> nextPastAudioBuffer_;
   std::vector<float> nextFusionHiddenBuffer_;
@@ -136,8 +137,9 @@ private:
   std::vector<float> nextPreviousHiddenBuffer_;
   std::vector<float> nextAdapterValidBuffer_;
   std::vector<float> nextRawParentHistoryBuffer_;
-  std::array<OrtValue*, 7> inputTensorValues_{};
-  std::array<OrtValue*, 7> outputTensorValues_{};
+  std::vector<float> nextEmittedDbHistoryBuffer_;
+  std::array<OrtValue*, 8> inputTensorValues_{};
+  std::array<OrtValue*, 8> outputTensorValues_{};
   std::mutex streamingStateMutex_;
 
   // State

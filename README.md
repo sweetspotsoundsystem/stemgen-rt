@@ -2,10 +2,10 @@
 
 A real-time music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
 
-This native-DFT c166i listening build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
+This checked c212 export of the c193 current-chunk model processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
 
 > [!WARNING]
-> The bundled model keeps the c166i L13/g31-over-32 weights and replaces the former dense real-DFT export lowering with native ONNX `DFT` operators. This directly addresses the export error implicated in the audible sub-bass distortion without changing the trained model. Its full validation score remains 4.7146 dB, 0.1668 dB above c91, but it passes only 37 of 40 model guardrails: Bass SIR, isolated-Bass SDR, and isolated-Other gain still need repair. It is intentionally labelled an unqualified listening candidate. Test its sound, especially Bass/Other low-frequency behavior, and complete-path timing on the target Mac before treating it as a release.
+> The bundled model is the sealed c212 native-DFT export of c193. c194 measured a 4.7142 dB validation score and passed all 40 declared latency-adjusted production guardrails. On the 12-track c197 electronic holdout versus c91 it improved aggregate SI-SDR by 0.1813 dB and low-band SI-SDR by 0.2026 dB; projection SIR changed by -0.1928 dB, above its -0.25 dB floor, so all three holdout gates passed. Raw and optimized ONNX Runtime 1.26 checks also passed. Its status is nevertheless `checked_export_pending_native_plugin_qualification`: complete the target-Mac AU/VST numerical, reset, real-time, and listening qualification before treating it as a public release.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
 
@@ -31,7 +31,7 @@ To set it up:
 Check your DAW's documentation for multi-output plugin routing.
 
 > [!IMPORTANT]
-> This listening build accepts exactly 44.1 kHz with a 512-sample prepared callback. Other configurations fail closed. The existing higher-rate bridge remains in the source for later qualification.
+> This checked-export candidate accepts exactly 44.1 kHz with a 512-sample prepared callback. Other configurations fail closed. The existing higher-rate bridge remains in the source for later qualification.
 
 ## Downloads
 
@@ -65,7 +65,7 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-The one-hop current-chunk scheduler is not yet qualified for a public release. For local listening on macOS, use the default build and install it explicitly as a debug build:
+The one-hop current-chunk scheduler is not yet qualified for a public release on the target Mac. For local listening on macOS, use the default build and install it explicitly as a debug build:
 
 ```bash
 ./scripts/install-plugins.sh --debug
@@ -79,19 +79,19 @@ On macOS, install the sealed AU and VST3 bundles into your user plugin directori
 ./scripts/install-plugins.sh
 ```
 
-The installer uses Release artifacts by default, so this listening candidate must be selected with `./scripts/install-plugins.sh --debug`. Run `./scripts/install-plugins.sh --help` for signing and configuration options.
+The installer uses Release artifacts by default, so this checked-export candidate must be selected with `./scripts/install-plugins.sh --debug`. Run `./scripts/install-plugins.sh --help` for signing and configuration options.
 
 ## How it works
 
 The plugin runs a stateful HS-TasNet graph on a high-priority inference thread:
 
 1. Callback N preserves the native mix for Main/fallback and submits one complete 512-sample request.
-2. The inference thread carries previous-audio, fusion-GRU, c130 feature-history, c157 hidden-history, adapter-valid, and 2,048-sample raw-parent history state. c166 emits the separated result aligned to input N.
+2. The inference thread carries previous-audio, fusion-GRU, c130 feature-history, previous-hidden, adapter-valid, 2,048-sample raw-parent history, and 2,048-sample emitted-per-source history state. c193 emits the separated result aligned to input N.
 3. The result is scheduled one queue hop later at host sample `(N + 1) * 512`, and Other is re-derived as the exact residual of the raw aligned mixture.
 
-At 44.1 kHz both converters are bypassed with zero added delay and a bit-exact input copy. The preserved higher-rate bridge is disabled by this listening contract until it is requalified.
+At 44.1 kHz both converters are bypassed with zero added delay and a bit-exact input copy. The preserved higher-rate bridge is disabled by this candidate contract until it is requalified.
 
-The model graph has seven inputs and seven outputs:
+The model graph has eight inputs and eight outputs:
 
 | Direction | Tensor | Shape |
 | --- | --- | --- |
@@ -102,6 +102,7 @@ The model graph has seven inputs and seven outputs:
 | Input | `previous_hidden` | `[1, 32, 512]` |
 | Input | `adapter_valid` | `[1, 1]` |
 | Input | `raw_parent_history` | `[1, 4, 2048]` |
+| Input | `emitted_db_history` | `[1, 4, 2048]` |
 | Output | `separated_chunk` | `[1, 4, 2, 512]` |
 | Output | `next_past_audio` | `[1, 2, 512]` |
 | Output | `next_fusion_hidden` | `[2, 1, 1000]` |
@@ -109,12 +110,13 @@ The model graph has seven inputs and seven outputs:
 | Output | `next_previous_hidden` | `[1, 32, 512]` |
 | Output | `next_adapter_valid` | `[1, 1]` |
 | Output | `next_raw_parent_history` | `[1, 4, 2048]` |
+| Output | `next_emitted_db_history` | `[1, 4, 2048]` |
 
-All six persistent state tensors start at zero. `separated_chunk` is aligned with the current call's `audio_chunk`. Sequence zero after reset is already a valid exact-c157 output while the raw-parent history initializes. There is no invalid pre-roll and no graph tail or zero-hop flush.
+All seven persistent state tensors—`past_audio`, `fusion_hidden`, `c130_history`, `previous_hidden`, `adapter_valid`, `raw_parent_history`, and `emitted_db_history`—start at zero. `separated_chunk` is aligned with the current call's `audio_chunk`, and sequence zero after reset is already valid current-chunk output. There is no invalid pre-roll and no graph tail or zero-hop flush.
 
-This listening build deliberately sends the unmodified finite input level into the graph. The former per-hop RMS boost was not part of the trained or frozen evaluation contract; deployment-path measurements showed that it modulated sub-bass and damaged drum and bass quality. Main and the residual use the same exact raw current hop.
+This checked-export build deliberately sends the unmodified finite input level into the graph. The former per-hop RMS boost was not part of the trained or frozen evaluation contract; deployment-path measurements showed that it modulated sub-bass and damaged drum and bass quality. Main and the residual use the same exact raw current hop.
 
-The c166 graph contributes zero output-delay hops and the asynchronous collection/queue contributes one hop, so PDC remains exactly 512 samples without blocking the audio callback for inference.
+The c193 graph contributes zero output-delay hops and the asynchronous collection/queue contributes one hop, so PDC remains exactly 512 samples without blocking the audio callback for inference.
 
 The preserved bridge can map the interval onto other exact rational host clocks and include paired SRC delay in PDC, but those paths are disabled until separately qualified.
 
@@ -132,29 +134,65 @@ The model path has no external gain normalization, crossover, low-frequency rein
 
 The graph has a small, approximately level-independent floor in its individual stem estimates near silence. The final output stage therefore uses one stereo-linked peak envelope of the latency-aligned mixture to fade only the available model contribution. The envelope maps to fully enabled separation at and above -72 dBFS peak, fully disabled separation at and below -96 dBFS peak, and a smooth blend over the linear-amplitude interval between them. The detector opens immediately, holds peaks for 50 ms, then releases by 60 dB per 100 ms. Main and the dry underrun fallback are unchanged; as confidence falls, `Other` receives the residual.
 
-Every processed hop is tagged with its exact output sample range. A result that arrives after its scheduled range has elapsed is discarded; it is never replayed against newer audio. On missing samples StemgenRT uses the complete latency-aligned dry split and routes the mixture to `Other`. Transport changes, seeks, scrubs, loop wraps, input gaps, and inference failures reset previous-audio, fusion-hidden, c130 history, c157 hidden history, adapter-valid, raw-parent history, output-crossfade, confidence, queue epoch, and SRC phase state. A play-to-stop transition first drains the final result already owed by the one-hop plugin PDC, then resets after that callback; this is queue-tail drainage, not a graph flush. The first successful result after reset is valid.
+Every processed hop is tagged with its exact output sample range. A result that arrives after its scheduled range has elapsed is discarded; it is never replayed against newer audio. On missing samples StemgenRT uses the complete latency-aligned dry split and routes the mixture to `Other`. Host reset notifications plus observed transport changes, seeks, scrubs, loop wraps, input gaps, and inference failures reset previous-audio, fusion-hidden, c130 history, previous-hidden, adapter-valid, raw-parent history, emitted-per-source history, output-crossfade, confidence, queue epoch, and SRC phase state. A play-to-stop transition observed in the callback first drains the final result already owed by the one-hop plugin PDC, then resets after that callback; this is queue-tail drainage, not a graph flush. The first successful result after reset is valid.
+
+Real-time request publication and epoch reset use lock-free atomics only; they do not enter a condition-variable or OS wake path. The inference worker owns a bounded 100 microsecond idle polling backoff. The processor still reads the host transport snapshot once per callback to preserve exact start, stop, seek, scrub, and loop semantics; that host-provided call must be included in AU/VST target-host timing qualification.
 
 ### Model identity
 
-The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the native-DFT c166i streaming artifact (SHA-256 `31a280e628f632d052d73828783f5ad974f0be6c7db18bd6233157153a781f02`, 114,526,643 bytes) from deploy artifact SHA-256 `c1d75192192112122d30e5d94aad6b96e97eed466103914f3f7803b3bf06a173`. Its refiner state SHA-256 is `fdc71a7bbe4753343401c31ac92c176a48d9329550ed59c3b3ccbf77eb21ae1d`; the c157 step-6 parent remains bound by its checkpoint and head-state identities. The seven-input/seven-output ABI is unchanged. For compatibility with the bundled ONNX Runtime 1.26.0, inverse real DFT reconstructs the full Hermitian spectrum before invoking native inverse `DFT`; no dense Fourier matrices are restored. The public fusion state is an opaque state threaded at a `2^-18` scale so its ONNX round trip stays within the long-horizon numerical bound. The authoritative artifact identity, tensor interface, streaming metadata, dimensions, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`.
+The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the c212 native-DFT export of candidate `c193-selected-drums7-bass16-over128-c191-step128`, SHA-256 `07557c7756815c0a84960c02faed4becd31413b53e1e4bb5b28177f2d6a97159`, size 114,645,969 bytes. Its sealed qualification receipt has SHA-256 `d5141507cc75c3bb0157982a4b17a750ed46a706c0bf42a6c796e2ff35d37d03`, and its c212 terminal `SEAL.json` has SHA-256 `e7cad784bcef80e3a2b426170c78687d41042958eeaca5d848f18c154fe5232f`. The receipt binds the c193 selected head/runtime state, c194 40-of-40 qualification, c197 all-pass electronic holdout, exact residual policy, and native ONNX Runtime 1.26 checks.
+
+The graph has the eight-input/eight-output ABI above and seven explicit state tensors. For ONNX Runtime 1.26.0 compatibility, inverse real DFT reconstructs the full Hermitian spectrum before invoking native inverse `DFT`; no dense Fourier matrices are restored. The public fusion state remains opaque and is threaded at the export's `2^-18` scale. The authoritative artifact identity, tensor interface, streaming metadata, lineage, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`. The contract ID is `c212-c193-ort126-checked-export-pending-native-plugin`.
 
 The runtime validates the artifact, graph input/output contract, and embedded deployment metadata before enabling separation.
 
 ## CPU operation
 
-CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The native-DFT c166i artifact has not yet completed target-Mac native timing qualification; measure the complete path under DAW load before promotion.
+CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The native-DFT c212/c193 artifact has not yet completed target-Mac native-plugin timing qualification; measure the complete path under DAW load before promotion.
 
 Use a modern CPU, close competing real-time workloads, and watch the plugin's underrun diagnostics when qualifying a system. The shipping runtime is deliberately CPU-only so host hardware cannot silently select a different numerical or scheduling path.
+
+### Target-Mac candidate check
+
+Run this gate on an Apple Silicon Mac before the first listening test. It uses the pinned official ONNX Runtime 1.26.0 build, checks the normal test suite and both plugin bundles, compares the 1–4-thread CPU choices, then paces 10,000 measured 512-sample callbacks after 100 warmups:
+
+```bash
+./scripts/download-onnxruntime.sh
+cmake --preset release \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
+cmake --build --preset release --target AudioPluginTest_BundleModel
+ctest --preset release
+cmake --build --preset release --target StemgenRT_VerifyMacBundles
+
+build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
+  --gtest_filter=OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuIntraOpThreadSweep
+
+build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
+  --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced
+```
+
+The paced check takes about two minutes and fails closed if the accepted model/runtime is unavailable. Do not continue unless it ends with `STEMGENRT_QUALIFICATION_SUMMARY status=pass`, `worker_priority=applied`, zero deadline misses, zero underruns, zero queue/ring drops, zero unsafe callbacks, finite and distinct retained stems, and reconstruction error at or below `1e-6`. `STEMGENRT_QUALIFICATION_CALLBACKS` may raise the measured callback count, but values below 10,000 are rejected.
+
+After that automated gate passes, install both sealed Release bundles, force the Audio Unit rescan, validate the AU, and perform the same music listening test in the AU and VST3 hosts:
+
+```bash
+./scripts/install-plugins.sh --release
+killall AudioComponentRegistrar || true
+auval -v aufx Stem Swee
+```
+
+The synthetic soak is candidate-only evidence. Final promotion still requires the AU/VST listening result and complete-path behavior under representative DAW load; it does not manufacture paired-control miss-delta evidence.
 
 To compare ONNX Runtime's CPU thread-pool size on a macOS Release build, run the disabled stateful sweep explicitly:
 
 ```bash
-cmake --build --preset release --target AudioPluginTest
+cmake --build --preset release --target AudioPluginTest_BundleModel
 build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
   --gtest_filter=OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuIntraOpThreadSweep
 ```
 
-The sweep creates a fresh session for each 1–4 thread candidate and runs three order-balanced passes of 25 warmup plus 500 measured hops. It reports wall-clock percentiles, aggregate process CPU time, deadline misses, and the retained-stem numerical delta from the single-thread reference. The qualified Apple Silicon run selected three intra-op threads, so macOS production sessions cap the automatic policy at three. Windows retains the previous four-thread cap until the same target-platform qualification is completed there. Explicit benchmark overrides do not change either production policy.
+The sweep creates a fresh session for each 1–4 thread candidate and runs three order-balanced passes of 25 warmup plus 500 measured hops. It reports wall-clock percentiles, aggregate process CPU time, deadline misses, and the retained-stem numerical delta from the single-thread reference. A previous Apple Silicon qualification selected three intra-op threads, so macOS sessions currently retain that cap; it is not c193 timing evidence. Windows retains the previous four-thread cap until the same target-platform qualification is completed there. Explicit benchmark overrides do not change either production policy.
 
 The preserved multi-rate timing benchmark remains available for future qualification:
 

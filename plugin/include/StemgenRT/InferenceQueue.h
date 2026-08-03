@@ -4,9 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <condition_variable>
 #include <memory>
-#include <mutex>
 #include <thread>
 #include <vector>
 #include "Constants.h"
@@ -43,7 +41,7 @@ struct InferenceRequest {
       hostOutputChunk;
   std::array<std::vector<float>, kNumChannels> alignedInput;
   // True when the current-chunk graph result is safe to publish. Every
-  // successful c166 run, including sequence zero after reset, is valid.
+  // successful c193 run, including sequence zero after reset, is valid.
   bool outputValid{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};
@@ -80,7 +78,10 @@ static_assert(
     std::atomic<uint64_t>::is_always_lock_free,
     "Inference queue control must remain lock-free on the audio thread");
 
-// Lock-free producer-consumer queue for inference requests.
+// Lock-free producer-consumer queue for inference requests. The audio-thread
+// API publishes and resets with atomics only; it never notifies a condition
+// variable or enters an OS wait/wake primitive. The worker performs its own
+// bounded polling backoff when no request is ready.
 // Audio thread produces requests, inference thread consumes them.
 // Uses epoch tracking to handle resets without cross-thread buffer clearing.
 class InferenceQueue {
@@ -146,10 +147,10 @@ public:
   void submitWriteSlot(uint32_t epoch);
 
   // Wait for one just-submitted request until an absolute callback deadline.
-  // This performs only lock-free state reads and cooperative yields; it never
-  // takes the worker condition-variable mutex. A false result leaves the
-  // request and recurrent stream intact so exact-timeline consumption can
-  // discard a late completion instead of shifting it.
+  // This performs only lock-free state reads and cooperative yields; it does
+  // not enter an OS wait/wake primitive. A false result leaves the request and
+  // recurrent stream intact so exact-timeline consumption can discard a late
+  // completion instead of shifting it.
   bool waitUntilProcessed(
       const InferenceRequest* request,
       uint32_t epoch,
@@ -187,9 +188,6 @@ public:
 
   // Get current epoch
   uint32_t getEpoch() const;
-
-  // Notify the inference thread that work is available
-  void notifyThread();
 
 private:
   struct WorkerCallbacks {
@@ -240,8 +238,6 @@ private:
   std::atomic<bool> threadRunning_{false};
   std::atomic<WorkerPriorityStatus> workerPriorityStatus_{
       WorkerPriorityStatus::NotAttempted};
-  std::mutex mutex_;
-  std::condition_variable cv_;
 };
 
 }  // namespace audio_plugin

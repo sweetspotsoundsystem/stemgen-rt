@@ -365,6 +365,43 @@ TEST_F(AudioProcessorTest, ResetStreamingBuffersDoesNotCrash) {
   processor->releaseResources();
 }
 
+TEST_F(AudioProcessorTest, HostResetClearsPendingOneHopDryHistory) {
+  constexpr int kBlockSize = 512;
+  processor->prepareToPlay(44100.0, kBlockSize);
+  if (processor->getLatencySamples() == 0) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+
+  juce::MidiBuffer midiBuffer;
+  juce::AudioBuffer<float> primingBuffer(12, kBlockSize);
+  primingBuffer.clear();
+  auto inputBus = processor->getBusBuffer(primingBuffer, true, 0);
+  for (int i = 0; i < kBlockSize; ++i) {
+    inputBus.setSample(0, i, 0.25f);
+    inputBus.setSample(1, i, -0.125f);
+  }
+  processor->processBlock(primingBuffer, midiBuffer);
+
+  // AU/VST wrappers call AudioProcessor::reset() on host reset/processing
+  // stop. It must invalidate the worker epoch and clear the dry PDC history
+  // without stopping or joining the inference thread.
+  processor->reset();
+  EXPECT_EQ(processor->getRingFillLevel(), 0U);
+  EXPECT_FALSE(processor->isUnderrunActive());
+
+  juce::AudioBuffer<float> afterReset(12, kBlockSize);
+  afterReset.clear();
+  processor->processBlock(afterReset, midiBuffer);
+  const auto mainBus = processor->getBusBuffer(afterReset, false, 0);
+  for (int ch = 0; ch < mainBus.getNumChannels(); ++ch) {
+    for (int i = 0; i < mainBus.getNumSamples(); ++i) {
+      EXPECT_FLOAT_EQ(mainBus.getSample(ch, i), 0.0f);
+    }
+  }
+
+  processor->releaseResources();
+}
+
 TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
   constexpr int kPreparedBlockSize = 512;
   constexpr int kLargeCallbackSize = 4096;
@@ -695,7 +732,7 @@ TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
 }
 
 TEST_F(AudioProcessorTest,
-       LargePreparedBlockFailsClosedForC157ListeningContract) {
+       LargePreparedBlockFailsClosedForC193HostContract) {
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
@@ -792,6 +829,15 @@ TEST(ConstantsTest, StatefulStreamingWindowIsTwoHops) {
 TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
   EXPECT_EQ(audio_plugin::kFusionHiddenLayers, 2);
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
+}
+
+TEST(ConstantsTest, C193HistoryShapesMatchSevenStateContract) {
+  EXPECT_EQ(audio_plugin::kRawParentChannels, 4);
+  EXPECT_EQ(audio_plugin::kRawParentHistorySamples, 2048);
+  EXPECT_EQ(audio_plugin::kEmittedDbChannels, 4);
+  EXPECT_EQ(audio_plugin::kEmittedDbHistorySamples, 2048);
+  EXPECT_EQ(audio_plugin::qualified_model::kInputNames.size(), 8U);
+  EXPECT_EQ(audio_plugin::qualified_model::kOutputNames.size(), 8U);
 }
 
 TEST(ConstantsTest, PluginLatencyIsOneQueueHopWithNoModelDelay) {
@@ -1424,7 +1470,7 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
   float inputCorrelation = 0.0f;
   float outputCorrelation = 0.0f;
 
-  // The c166 graph emits the current hop, while the asynchronous publication
+  // The c193 graph emits the current hop, while the asynchronous publication
   // path delays Main by one 512-sample block. Feed three continuous blocks and
   // inspect a stable latency-aligned Main copy.
   for (int block = 0; block < 3; ++block) {

@@ -2,9 +2,18 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <numeric>
+#include <string_view>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -14,6 +23,10 @@ namespace {
 constexpr double kSampleRate = 44100.0;
 constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
 constexpr int kTotalChannels = 12;  // 2 input + 10 output (5 buses * 2ch)
+constexpr int kWarmupBlocks = 100;
+constexpr int kMinimumQualificationCallbacks = 10000;
+constexpr std::string_view kQualificationCallbacksEnvironment =
+    "STEMGENRT_QUALIFICATION_CALLBACKS";
 
 constexpr float kPi = 3.14159265358979323846f;
 
@@ -23,38 +36,98 @@ float sineAtSample(int64_t sampleIndex, float freqHz, float amplitude) {
   return amplitude * std::sin(2.0f * kPi * freqHz * t);
 }
 
+int qualificationCallbackCount() {
+  const char* overrideValue =
+      std::getenv(kQualificationCallbacksEnvironment.data());
+  if (overrideValue == nullptr || overrideValue[0] == '\0') {
+    return kMinimumQualificationCallbacks;
+  }
+
+  const std::string_view text(overrideValue);
+  int callbackCount = 0;
+  const auto parseResult =
+      std::from_chars(text.data(), text.data() + text.size(), callbackCount);
+  if (parseResult.ec != std::errc{} ||
+      parseResult.ptr != text.data() + text.size() ||
+      callbackCount < kMinimumQualificationCallbacks ||
+      callbackCount > std::numeric_limits<int>::max() - kWarmupBlocks) {
+    return -1;
+  }
+  return callbackCount;
+}
+
+double percentileFromSorted(const std::vector<double>& sortedValues,
+                            double percentile) {
+  if (sortedValues.empty()) {
+    return 0.0;
+  }
+
+  const double position =
+      percentile * static_cast<double>(sortedValues.size() - 1U);
+  const size_t lower = static_cast<size_t>(std::floor(position));
+  const size_t upper = static_cast<size_t>(std::ceil(position));
+  const double fraction = position - static_cast<double>(lower);
+  return sortedValues[lower] +
+         fraction * (sortedValues[upper] - sortedValues[lower]);
+}
+
+std::string_view workerPriorityStatusName(
+    audio_plugin::InferenceQueue::WorkerPriorityStatus status) {
+  using Status = audio_plugin::InferenceQueue::WorkerPriorityStatus;
+  switch (status) {
+    case Status::NotAttempted:
+      return "not_attempted";
+    case Status::Applied:
+      return "applied";
+    case Status::Failed:
+      return "failed";
+    case Status::Unsupported:
+      return "unsupported";
+  }
+  return "unknown";
+}
+
 }  // namespace
 
-// Real-time paced sanity check: with enough wall-clock time for the inference
-// thread to keep up, at least one retained model source must be present.
-// Complete fallback routes the mixture only to Other.
+// Explicit production-style real-time qualification soak. This remains
+// disabled by default because 10,000 paced callbacks take almost two minutes
+// at 44.1 kHz. Complete fallback routes the mixture only to Other, so every
+// retained model source must become observably nonzero.
 TEST(RealtimeStemSanityTest,
      DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced) {
+  const int measureBlocks = qualificationCallbackCount();
+  ASSERT_GE(measureBlocks, kMinimumQualificationCallbacks)
+      << kQualificationCallbacksEnvironment
+      << " must be an integer greater than or equal to "
+      << kMinimumQualificationCallbacks;
+
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kBlockSize);
 
-  if (processor.getLatencySamples() <= 0) {
-    GTEST_SKIP()
-        << "Model not loaded; skipping real-time paced stem sanity check";
-  }
+  ASSERT_GT(processor.getLatencySamples(), 0)
+      << "Qualified model/runtime failed to load: "
+      << processor.getOrtStatusString().toStdString();
+  ASSERT_EQ(processor.getLatencySamples(), kBlockSize)
+      << "The candidate must expose exactly one 512-sample PDC hop";
 
   juce::MidiBuffer midiBuffer;
-
-  constexpr int kWarmupBlocks = 8;
-  constexpr int kMeasureBlocks = 64;
+  juce::AudioBuffer<float> buffer(kTotalChannels, kBlockSize);
 
   int64_t sampleIndex = 0;
-  float maxAbsRetainedStem = 0.0f;
+  std::array<float, 3> maxAbsRetainedStems{};
+  std::array<float, 3> maxAbsRetainedPairDifferences{};
   float maxAbsReconstructionError = 0.0f;
+  bool allOutputSamplesFinite = true;
   std::vector<double> completeCallbackMicroseconds;
-  completeCallbackMicroseconds.reserve(kMeasureBlocks);
+  completeCallbackMicroseconds.reserve(static_cast<size_t>(measureBlocks));
   uint64_t completeCallbackDeadlineMisses = 0U;
   auto nextDeadline = std::chrono::steady_clock::now();
   const auto blockDuration = std::chrono::duration<double>(
       static_cast<double>(kBlockSize) / kSampleRate);
+  const double callbackDeadlineMicroseconds =
+      1.0e6 * static_cast<double>(kBlockSize) / kSampleRate;
 
-  for (int b = 0; b < (kWarmupBlocks + kMeasureBlocks); ++b) {
-    juce::AudioBuffer<float> buffer(kTotalChannels, kBlockSize);
+  for (int b = 0; b < (kWarmupBlocks + measureBlocks); ++b) {
     buffer.clear();
 
     // Fill input bus with a continuous multitone to encourage non-trivial stem
@@ -102,12 +175,28 @@ TEST(RealtimeStemSanityTest,
           const float b0 = bassBus.getSample(ch, i);
           const float o = otherBus.getSample(ch, i);
           const float v = vocalsBus.getSample(ch, i);
+          const float main = mainBus.getSample(ch, i);
 
-          maxAbsRetainedStem = std::max(
-              {maxAbsRetainedStem, std::abs(d), std::abs(b0), std::abs(v)});
+          allOutputSamplesFinite =
+              allOutputSamplesFinite && std::isfinite(d) &&
+              std::isfinite(b0) && std::isfinite(o) && std::isfinite(v) &&
+              std::isfinite(main);
+
+          maxAbsRetainedStems[0] =
+              std::max(maxAbsRetainedStems[0], std::abs(d));
+          maxAbsRetainedStems[1] =
+              std::max(maxAbsRetainedStems[1], std::abs(b0));
+          maxAbsRetainedStems[2] =
+              std::max(maxAbsRetainedStems[2], std::abs(v));
+          maxAbsRetainedPairDifferences[0] = std::max(
+              maxAbsRetainedPairDifferences[0], std::abs(d - b0));
+          maxAbsRetainedPairDifferences[1] =
+              std::max(maxAbsRetainedPairDifferences[1], std::abs(d - v));
+          maxAbsRetainedPairDifferences[2] =
+              std::max(maxAbsRetainedPairDifferences[2], std::abs(b0 - v));
           maxAbsReconstructionError =
               std::max(maxAbsReconstructionError,
-                       std::abs(mainBus.getSample(ch, i) - (d + b0 + o + v)));
+                       std::abs(main - (d + b0 + o + v)));
         }
       }
     }
@@ -123,25 +212,121 @@ TEST(RealtimeStemSanityTest,
     std::this_thread::sleep_until(nextDeadline);
   }
 
-  EXPECT_GT(maxAbsRetainedStem, 1.0e-3f)
-      << "Drums, Bass, and Vocals remained silent (complete fallback only); "
-         "maxAbsRetainedStem="
-      << maxAbsRetainedStem;
-  EXPECT_LE(maxAbsReconstructionError, 1.0e-6f)
-      << "Stem buses did not reconstruct latency-aligned Main";
-  EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0u);
-  EXPECT_EQ(processor.getRingOverflowEventCount(), 0u);
-  EXPECT_EQ(processor.getUnderrunBlockCount(), 0u);
-  ASSERT_FALSE(completeCallbackMicroseconds.empty());
+  ASSERT_EQ(completeCallbackMicroseconds.size(),
+            static_cast<size_t>(measureBlocks));
   std::sort(completeCallbackMicroseconds.begin(),
             completeCallbackMicroseconds.end());
+  const double meanCompleteCallbackMicroseconds =
+      std::accumulate(completeCallbackMicroseconds.begin(),
+                      completeCallbackMicroseconds.end(), 0.0) /
+      static_cast<double>(completeCallbackMicroseconds.size());
+  const double p50CompleteCallbackMicroseconds =
+      percentileFromSorted(completeCallbackMicroseconds, 0.50);
+  const double p95CompleteCallbackMicroseconds =
+      percentileFromSorted(completeCallbackMicroseconds, 0.95);
+  const double p99CompleteCallbackMicroseconds =
+      percentileFromSorted(completeCallbackMicroseconds, 0.99);
+  const double p999CompleteCallbackMicroseconds =
+      percentileFromSorted(completeCallbackMicroseconds, 0.999);
   const double maximumCompleteCallbackMicroseconds =
       completeCallbackMicroseconds.back();
+
+  const uint64_t underrunSamples = processor.getUnderrunSampleCount();
+  const uint64_t underrunBlocks = processor.getUnderrunBlockCount();
+  const uint64_t queueFullDrops = processor.getQueueFullChunkDropCount();
+  const uint64_t ringOverflowEvents = processor.getRingOverflowEventCount();
+  const uint64_t ringOverflowSamples =
+      processor.getRingOverflowSampleDropCount();
+  const uint64_t unsafeRealtimeCallbacks =
+      processor.getUnsafeRealtimeCallbackCount();
+  const auto workerPriorityStatus =
+      processor.getInferenceWorkerPriorityStatus();
+  const bool workerPriorityApplied =
+      workerPriorityStatus ==
+      audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied;
+  const bool retainedSourcesPresent =
+      std::all_of(maxAbsRetainedStems.begin(), maxAbsRetainedStems.end(),
+                  [](float peak) { return peak > 1.0e-3f; });
+  const bool retainedSourcesDistinct = std::all_of(
+      maxAbsRetainedPairDifferences.begin(),
+      maxAbsRetainedPairDifferences.end(),
+      [](float difference) { return difference > 1.0e-5f; });
+  const bool qualificationPassed =
+      completeCallbackDeadlineMisses == 0U && underrunSamples == 0U &&
+      underrunBlocks == 0U && queueFullDrops == 0U &&
+      ringOverflowEvents == 0U && ringOverflowSamples == 0U &&
+      unsafeRealtimeCallbacks == 0U && workerPriorityApplied &&
+      allOutputSamplesFinite &&
+      retainedSourcesPresent && retainedSourcesDistinct &&
+      maxAbsReconstructionError <= 1.0e-6f &&
+      p999CompleteCallbackMicroseconds < callbackDeadlineMicroseconds &&
+      maximumCompleteCallbackMicroseconds < callbackDeadlineMicroseconds;
+
+  std::cerr << std::fixed << std::setprecision(3)
+            << "STEMGENRT_QUALIFICATION_SUMMARY status="
+            << (qualificationPassed ? "pass" : "fail")
+            << " warmup_callbacks=" << kWarmupBlocks
+            << " measured_callbacks=" << measureBlocks
+            << " callback_samples=" << kBlockSize
+            << " sample_rate=" << static_cast<int>(kSampleRate)
+            << " deadline_us=" << callbackDeadlineMicroseconds
+            << " mean_us=" << meanCompleteCallbackMicroseconds
+            << " p50_us=" << p50CompleteCallbackMicroseconds
+            << " p95_us=" << p95CompleteCallbackMicroseconds
+            << " p99_us=" << p99CompleteCallbackMicroseconds
+            << " p99.9_us=" << p999CompleteCallbackMicroseconds
+            << " max_us=" << maximumCompleteCallbackMicroseconds
+            << " deadline_misses=" << completeCallbackDeadlineMisses
+            << " underrun_samples=" << underrunSamples
+            << " underrun_blocks=" << underrunBlocks
+            << " queue_full_drops=" << queueFullDrops
+            << " ring_overflow_events=" << ringOverflowEvents
+            << " ring_overflow_samples=" << ringOverflowSamples
+            << " unsafe_realtime_callbacks=" << unsafeRealtimeCallbacks
+            << " worker_priority="
+            << workerPriorityStatusName(workerPriorityStatus)
+            << " finite_outputs=" << (allOutputSamplesFinite ? 1 : 0)
+            << std::scientific << std::setprecision(9)
+            << " reconstruction_max_abs=" << maxAbsReconstructionError
+            << " drums_max_abs=" << maxAbsRetainedStems[0]
+            << " bass_max_abs=" << maxAbsRetainedStems[1]
+            << " vocals_max_abs=" << maxAbsRetainedStems[2]
+            << " drums_bass_max_abs_diff="
+            << maxAbsRetainedPairDifferences[0]
+            << " drums_vocals_max_abs_diff="
+            << maxAbsRetainedPairDifferences[1]
+            << " bass_vocals_max_abs_diff="
+            << maxAbsRetainedPairDifferences[2] << '\n';
+
+  EXPECT_TRUE(allOutputSamplesFinite);
+  EXPECT_GT(maxAbsRetainedStems[0], 1.0e-3f)
+      << "Drums remained silent (complete fallback only)";
+  EXPECT_GT(maxAbsRetainedStems[1], 1.0e-3f)
+      << "Bass remained silent (complete fallback only)";
+  EXPECT_GT(maxAbsRetainedStems[2], 1.0e-3f)
+      << "Vocals remained silent (complete fallback only)";
+  EXPECT_GT(maxAbsRetainedPairDifferences[0], 1.0e-5f)
+      << "Drums and Bass were identical throughout the soak";
+  EXPECT_GT(maxAbsRetainedPairDifferences[1], 1.0e-5f)
+      << "Drums and Vocals were identical throughout the soak";
+  EXPECT_GT(maxAbsRetainedPairDifferences[2], 1.0e-5f)
+      << "Bass and Vocals were identical throughout the soak";
+  EXPECT_LE(maxAbsReconstructionError, 1.0e-6f)
+      << "Stem buses did not reconstruct latency-aligned Main";
+  EXPECT_EQ(underrunSamples, 0U);
+  EXPECT_EQ(underrunBlocks, 0U);
+  EXPECT_EQ(queueFullDrops, 0U);
+  EXPECT_EQ(ringOverflowEvents, 0U);
+  EXPECT_EQ(ringOverflowSamples, 0U);
+  EXPECT_EQ(unsafeRealtimeCallbacks, 0U);
+  EXPECT_EQ(workerPriorityStatus,
+            audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied);
   EXPECT_EQ(completeCallbackDeadlineMisses, 0U)
       << "Complete processBlock deadline misses; maximum callback was "
       << maximumCompleteCallbackMicroseconds << " us";
+  EXPECT_LT(p999CompleteCallbackMicroseconds, callbackDeadlineMicroseconds);
   EXPECT_LT(maximumCompleteCallbackMicroseconds,
-            1.0e6 * static_cast<double>(kBlockSize) / kSampleRate);
+            callbackDeadlineMicroseconds);
 
   processor.releaseResources();
 }

@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The c166 current-chunk deployment emits [drums, bass, vocals, other].
+// The c193 current-chunk deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -18,8 +18,9 @@ constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
 // Fixed model contract. The graph consumes and emits the same 512-sample hop.
 // Its recurrent state is explicit: previous audio, fusion GRU, c130 feature
-// history, c155 hidden history, the adapter-valid gate, and the raw
-// Drums/Bass parent history used by the causal boundary refiner.
+// history, c155 hidden history, the adapter-valid gate, the raw Drums/Bass
+// parent history, and the emitted four-stem history used by the causal output
+// refiner.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
@@ -32,8 +33,11 @@ constexpr int kC155HistorySamples = qualified_model::kC155HistorySamples;
 constexpr int kRawParentChannels = qualified_model::kRawParentChannels;
 constexpr int kRawParentHistorySamples =
     qualified_model::kRawParentHistorySamples;
+constexpr int kEmittedDbChannels = qualified_model::kEmittedDbChannels;
+constexpr int kEmittedDbHistorySamples =
+    qualified_model::kEmittedDbHistorySamples;
 
-// The worker gets one complete hop for inference. c166 emits its current input
+// The worker gets one complete hop for inference. c193 emits its current input
 // hop, so the asynchronous collection/queue hop is the entire 512-sample PDC.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
@@ -42,8 +46,8 @@ constexpr int kPluginLatencyChunks =
     kModelOutputDelayChunks + kAsyncQueueDelayChunks;
 constexpr int kPluginLatencySamples = kPluginLatencyChunks * kOutputChunkSize;
 
-// This unqualified listening build starts with the exact host configuration
-// that exposes the intended 512-sample PDC.
+// This checked-export, native-plugin-pending candidate starts with the exact
+// host configuration that exposes the intended 512-sample PDC.
 constexpr int kCurrentChunkQualifiedHostSampleRate = kModelSampleRate;
 constexpr int kCurrentChunkQualifiedHostBlockSize = kOutputChunkSize;
 
@@ -85,8 +89,8 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
 }
 
 // Rate-aware form of the same diagnostic reserve. This remains available for
-// later requalification; the current-chunk listening build accepts only the
-// exact configuration above.
+// later requalification; the checked-export current-chunk candidate accepts
+// only the exact configuration above.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
   const std::uint64_t safeSampleRate = static_cast<std::uint64_t>(

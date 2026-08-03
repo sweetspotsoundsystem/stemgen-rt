@@ -294,6 +294,10 @@ TEST(QualifiedModelContractTest,
             contract::kRawParentChannels);
   EXPECT_EQ(audio_plugin::kRawParentHistorySamples,
             contract::kRawParentHistorySamples);
+  EXPECT_EQ(audio_plugin::kEmittedDbChannels,
+            contract::kEmittedDbChannels);
+  EXPECT_EQ(audio_plugin::kEmittedDbHistorySamples,
+            contract::kEmittedDbHistorySamples);
   EXPECT_EQ(audio_plugin::kStemDrums, contract::kDrumsSourceIndex);
   EXPECT_EQ(audio_plugin::kStemBass, contract::kBassSourceIndex);
   EXPECT_EQ(audio_plugin::kStemVocals, contract::kVocalsSourceIndex);
@@ -302,9 +306,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 7U);
-  ASSERT_EQ(contract::kOutputNames.size(), 7U);
-  ASSERT_EQ(contract::kMetadata.size(), 36U);
+  ASSERT_EQ(contract::kInputNames.size(), 8U);
+  ASSERT_EQ(contract::kOutputNames.size(), 8U);
+  ASSERT_EQ(contract::kMetadata.size(), 54U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -569,7 +573,7 @@ TEST(OrtStreamingRuntimeTest,
   constexpr double kTwoPi = 6.28318530717958647692;
 
   constexpr std::array<size_t, 2> kMeasuredStemIndices = {0, 1};
-  // Provisional listening ceilings inherited from c157. The c166 refiner is
+  // Provisional listening ceilings inherited from c157. The c193 refiner is
   // tested against the same explicit low-frequency seam bounds; promotion
   // still requires the target-Mac listening and numerical pass.
   constexpr std::array<double, 2> kSeamRatioCeilings = {21.0, 3.0};
@@ -629,7 +633,7 @@ TEST(OrtStreamingRuntimeTest,
   }
 
   // Measure the current-chunk low-tone seam directly. These remain provisional
-  // listening ceilings until c166 is requalified on the target Mac.
+  // listening ceilings until c193 is requalified on the target Mac.
   for (size_t measuredStem = 0;
        measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);

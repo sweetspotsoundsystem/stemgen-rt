@@ -208,7 +208,7 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     return false;
   }
 
-  const std::array<std::vector<std::int64_t>, 7> expectedInputShapes = {{
+  const std::array<std::vector<std::int64_t>, 8> expectedInputShapes = {{
       toShapeVector(qualified_model::kInputAudioShape),
       toShapeVector(qualified_model::kInputPastShape),
       toShapeVector(qualified_model::kInputHiddenShape),
@@ -216,8 +216,9 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
       toShapeVector(qualified_model::kInputPreviousHiddenShape),
       toShapeVector(qualified_model::kInputAdapterValidShape),
       toShapeVector(qualified_model::kInputRawParentHistoryShape),
+      toShapeVector(qualified_model::kInputEmittedDbHistoryShape),
   }};
-  const std::array<std::vector<std::int64_t>, 7> expectedOutputShapes = {{
+  const std::array<std::vector<std::int64_t>, 8> expectedOutputShapes = {{
       toShapeVector(qualified_model::kOutputSeparatedShape),
       toShapeVector(qualified_model::kOutputPastShape),
       toShapeVector(qualified_model::kOutputHiddenShape),
@@ -225,6 +226,7 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
       toShapeVector(qualified_model::kOutputPreviousHiddenShape),
       toShapeVector(qualified_model::kOutputAdapterValidShape),
       toShapeVector(qualified_model::kOutputRawParentHistoryShape),
+      toShapeVector(qualified_model::kOutputEmittedDbHistoryShape),
   }};
 
   size_t inputCount = 0;
@@ -367,7 +369,7 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
       api->ReleaseModelMetadata(metadata);
       return false;
     }
-    // ONNX Runtime returns nullptr when the key is absent. Every c166 key in
+    // ONNX Runtime returns nullptr when the key is absent. Every c193 key in
     // the generated contract must be present in the bundled artifact.
     if (rawValue == nullptr) {
       errorMessage = juce::String("Missing model metadata ") +
@@ -661,6 +663,8 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
   const std::int64_t adapterValidDims[2] = {1, 1};
   const std::int64_t rawParentHistoryDims[3] = {
       1, kRawParentChannels, kRawParentHistorySamples};
+  const std::int64_t emittedDbHistoryDims[3] = {
+      1, kEmittedDbChannels, kEmittedDbHistorySamples};
 
   const auto createTensor = [&](OrtValue*& value, std::vector<float>& data,
                                 const std::int64_t* dims, size_t rank,
@@ -696,6 +700,9 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
       !createTensor(inputTensorValues_[6], rawParentHistory_,
                     rawParentHistoryDims, 3,
                     qualified_model::kInputNames[6].data()) ||
+      !createTensor(inputTensorValues_[7], emittedDbHistory_,
+                    emittedDbHistoryDims, 3,
+                    qualified_model::kInputNames[7].data()) ||
       !createTensor(outputTensorValues_[0], separatedOutputBuffer_,
                     separatedDims, 4,
                     qualified_model::kOutputNames[0].data()) ||
@@ -715,7 +722,10 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
                     qualified_model::kOutputNames[5].data()) ||
       !createTensor(outputTensorValues_[6], nextRawParentHistoryBuffer_,
                     rawParentHistoryDims, 3,
-                    qualified_model::kOutputNames[6].data())) {
+                    qualified_model::kOutputNames[6].data()) ||
+      !createTensor(outputTensorValues_[7], nextEmittedDbHistoryBuffer_,
+                    emittedDbHistoryDims, 3,
+                    qualified_model::kOutputNames[7].data())) {
     releasePreallocatedTensorValues();
     return false;
   }
@@ -776,6 +786,8 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
       static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
   const size_t rawParentHistoryElements =
       static_cast<size_t>(kRawParentChannels * kRawParentHistorySamples);
+  const size_t emittedDbHistoryElements =
+      static_cast<size_t>(kEmittedDbChannels * kEmittedDbHistorySamples);
 
   try {
     audioChunkBuffer_.resize(audioElements);
@@ -785,6 +797,7 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     previousHidden_.resize(previousHiddenElements);
     adapterValid_.resize(1U);
     rawParentHistory_.resize(rawParentHistoryElements);
+    emittedDbHistory_.resize(emittedDbHistoryElements);
     separatedOutputBuffer_.resize(separatedElements);
     nextPastAudioBuffer_.resize(audioElements);
     nextFusionHiddenBuffer_.resize(hiddenElements);
@@ -792,6 +805,7 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     nextPreviousHiddenBuffer_.resize(previousHiddenElements);
     nextAdapterValidBuffer_.resize(1U);
     nextRawParentHistoryBuffer_.resize(rawParentHistoryElements);
+    nextEmittedDbHistoryBuffer_.resize(emittedDbHistoryElements);
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -826,6 +840,7 @@ void OnnxRuntime::resetStreamingStateUnlocked() {
     std::fill(previousHidden_.begin(), previousHidden_.end(), 0.0f);
     std::fill(adapterValid_.begin(), adapterValid_.end(), 0.0f);
     std::fill(rawParentHistory_.begin(), rawParentHistory_.end(), 0.0f);
+    std::fill(emittedDbHistory_.begin(), emittedDbHistory_.end(), 0.0f);
 }
 
 void OnnxRuntime::resetStreamingState() {
@@ -865,6 +880,8 @@ bool OnnxRuntime::runInference(
         static_cast<size_t>(kC155HiddenChannels * kC155HistorySamples);
     const size_t rawParentHistoryElements =
         static_cast<size_t>(kRawParentChannels * kRawParentHistorySamples);
+    const size_t emittedDbHistoryElements =
+        static_cast<size_t>(kEmittedDbChannels * kEmittedDbHistorySamples);
 
     if (audioChunkBuffer_.size() != audioElements ||
         pastAudio_.size() != audioElements ||
@@ -873,6 +890,7 @@ bool OnnxRuntime::runInference(
         previousHidden_.size() != previousHiddenElements ||
         adapterValid_.size() != 1U ||
         rawParentHistory_.size() != rawParentHistoryElements ||
+        emittedDbHistory_.size() != emittedDbHistoryElements ||
         separatedOutputBuffer_.size() != separatedElements ||
         nextPastAudioBuffer_.size() != audioElements ||
         nextFusionHiddenBuffer_.size() != hiddenElements ||
@@ -880,6 +898,7 @@ bool OnnxRuntime::runInference(
         nextPreviousHiddenBuffer_.size() != previousHiddenElements ||
         nextAdapterValidBuffer_.size() != 1U ||
         nextRawParentHistoryBuffer_.size() != rawParentHistoryElements ||
+        nextEmittedDbHistoryBuffer_.size() != emittedDbHistoryElements ||
         std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
                     [](const OrtValue* value) { return value == nullptr; }) ||
         std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
@@ -889,7 +908,7 @@ bool OnnxRuntime::runInference(
     }
 
     // Feed the graph at the exact native input level used by its frozen
-    // quality evaluation. c166 emits the current hop, so Main and the residual
+    // quality evaluation. c193 emits the current hop, so Main and the residual
     // use the same raw input samples directly.
     for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
       if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
@@ -912,27 +931,29 @@ bool OnnxRuntime::runInference(
       }
     }
 
-    const std::array<const char*, 7> inputNames = {
+    const std::array<const char*, 8> inputNames = {
         qualified_model::kInputNames[0].data(),
         qualified_model::kInputNames[1].data(),
         qualified_model::kInputNames[2].data(),
         qualified_model::kInputNames[3].data(),
         qualified_model::kInputNames[4].data(),
         qualified_model::kInputNames[5].data(),
-        qualified_model::kInputNames[6].data()};
-    const std::array<const char*, 7> outputNames = {
+        qualified_model::kInputNames[6].data(),
+        qualified_model::kInputNames[7].data()};
+    const std::array<const char*, 8> outputNames = {
         qualified_model::kOutputNames[0].data(),
         qualified_model::kOutputNames[1].data(),
         qualified_model::kOutputNames[2].data(),
         qualified_model::kOutputNames[3].data(),
         qualified_model::kOutputNames[4].data(),
         qualified_model::kOutputNames[5].data(),
-        qualified_model::kOutputNames[6].data()};
-    const OrtValue* constInputValues[7] = {
+        qualified_model::kOutputNames[6].data(),
+        qualified_model::kOutputNames[7].data()};
+    const OrtValue* constInputValues[8] = {
         inputTensorValues_[0], inputTensorValues_[1], inputTensorValues_[2],
         inputTensorValues_[3], inputTensorValues_[4], inputTensorValues_[5],
-        inputTensorValues_[6]};
-    std::array<OrtValue*, 7> runOutputValues = outputTensorValues_;
+        inputTensorValues_[6], inputTensorValues_[7]};
+    std::array<OrtValue*, 8> runOutputValues = outputTensorValues_;
 
     OrtStatus* runStatus =
         api->Run(ortSession_.get(), nullptr, inputNames.data(),
@@ -980,7 +1001,9 @@ bool OnnxRuntime::runInference(
         !allFinite(nextPreviousHiddenBuffer_.data(), previousHiddenElements) ||
         !allFinite(nextAdapterValidBuffer_.data(), 1U) ||
         !allFinite(nextRawParentHistoryBuffer_.data(),
-                   rawParentHistoryElements)) {
+                   rawParentHistoryElements) ||
+        !allFinite(nextEmittedDbHistoryBuffer_.data(),
+                   emittedDbHistoryElements)) {
       DBG("[ORT] Non-finite streaming output; resetting recurrent state");
       resetStreamingStateUnlocked();
       return false;
@@ -1056,6 +1079,9 @@ bool OnnxRuntime::runInference(
                 sizeof(float));
     std::memcpy(rawParentHistory_.data(), nextRawParentHistoryBuffer_.data(),
                 rawParentHistoryElements * sizeof(float));
+    std::memcpy(emittedDbHistory_.data(),
+                nextEmittedDbHistoryBuffer_.data(),
+                emittedDbHistoryElements * sizeof(float));
 
     return true;
 }

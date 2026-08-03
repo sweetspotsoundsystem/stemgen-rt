@@ -225,7 +225,6 @@ void InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
 
 void InferenceQueue::stopThread() {
   shouldStop_.store(true, std::memory_order_release);
-  cv_.notify_all();
 
   if (thread_ && thread_->joinable()) {
     thread_->join();
@@ -301,9 +300,6 @@ void InferenceQueue::submitWriteSlot(uint32_t epoch) {
     // Advance write index
     writeIdx_.store((idx + 1) % kNumInferenceBuffers,
                     std::memory_order_release);
-
-    // Notify inference thread
-    cv_.notify_one();
   }
 }
 
@@ -342,13 +338,11 @@ void InferenceQueue::submitForWarmup() {
     const uint32_t epoch = getEpoch();
     uint64_t expected = InferenceRequest::makeControl(
         epoch, InferenceRequest::SlotState::Writing);
-    if (slot->control_.compare_exchange_strong(
-            expected,
-            InferenceRequest::makeControl(epoch,
-                                          InferenceRequest::SlotState::Ready),
-            std::memory_order_release, std::memory_order_relaxed)) {
-      cv_.notify_one();
-    }
+    static_cast<void>(slot->control_.compare_exchange_strong(
+        expected,
+        InferenceRequest::makeControl(epoch,
+                                      InferenceRequest::SlotState::Ready),
+        std::memory_order_release, std::memory_order_relaxed));
   }
 }
 
@@ -496,7 +490,6 @@ uint32_t InferenceQueue::reset() {
     }
   }
 
-  cv_.notify_one();
   return newEpoch;
 }
 
@@ -525,10 +518,6 @@ void InferenceQueue::fullReset() {
 
 uint32_t InferenceQueue::getEpoch() const {
   return epochFromControl(epochControl_.load(std::memory_order_acquire));
-}
-
-void InferenceQueue::notifyThread() {
-  cv_.notify_one();
 }
 
 bool InferenceQueue::reclaimStaleSlots(uint64_t observedEpochControl) {
@@ -627,27 +616,25 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   while (!shouldStop_.load(std::memory_order_acquire)) {
     synchronizeEpoch();
 
-    // Wait for work
-    {
-      std::unique_lock<std::mutex> lock(mutex_);
-      cv_.wait_for(
-          lock, std::chrono::milliseconds(5), [this, &lastSeenEpochControl] {
-            const size_t idx = readIdx_.load(std::memory_order_acquire);
-            const bool requestReady =
-                queue_[idx] &&
-                queue_[idx]->getState() == InferenceRequest::SlotState::Ready;
-            return shouldStop_.load(std::memory_order_acquire) ||
-                   epochControl_.load(std::memory_order_acquire) !=
-                       lastSeenEpochControl ||
-                   requestReady;
-          });
+    // Audio-thread publication is atomic-only. When idle, the worker owns the
+    // scheduling tradeoff and sleeps for a short bounded interval instead of
+    // requiring the callback to enter an OS condition-variable wake path.
+    const size_t pendingIndex = readIdx_.load(std::memory_order_acquire);
+    const bool requestReady =
+        queue_[pendingIndex] &&
+        queue_[pendingIndex]->getState() == InferenceRequest::SlotState::Ready;
+    const bool epochChanged =
+        epochControl_.load(std::memory_order_acquire) != lastSeenEpochControl;
+    if (!requestReady && !epochChanged &&
+        !shouldStop_.load(std::memory_order_acquire)) {
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 
     if (shouldStop_.load(std::memory_order_acquire)) {
       break;
     }
 
-    // A reset may have woken the thread instead of a request. Synchronize
+    // A reset may have been published instead of a request. Synchronize
     // before looking at a slot, and repeat this check before every run.
     synchronizeEpoch();
 
@@ -711,8 +698,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = false;
       }
 
-      // Run inference. c166 emits the current input hop, including a valid
-      // sequence-zero c126 bypass immediately after reset.
+      // Run inference. c193 emits the current input hop, including a valid
+      // sequence-zero c193 output immediately after reset.
       bool inferenceOk = false;
       request->outputValid = false;
       request->hostOutputValid = false;
@@ -747,7 +734,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
 
       // Publish an invalid marker so the consumer can advance past a
       // failed slot instead of deadlocking behind it. Reset runtime state
-      // first so the next successful run starts from all-zero c166 state.
+      // first so the next successful run starts from all-zero c193 state.
       if (!inferenceOk) {
         uint64_t nextModelSample = 0U;
         const bool haveNextModelSample =
