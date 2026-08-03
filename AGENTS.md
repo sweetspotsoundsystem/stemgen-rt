@@ -4,7 +4,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ## Project Overview
 
-StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This tree carries the sealed native-DFT c212 export of the c193 current-chunk graph in a checked one-queue-hop, 512-PDC path and exposes four stereo stems: drums, bass, other, and vocals. The export passed c194 and c197 quality qualification but remains pending target-Mac native-plugin qualification.
+StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This branch is an audition-only derivative of the native-DFT c212 graph: it restores the full c191 step-128 Drums/Bass output projection (`128/128`) instead of c193's conservative `7/128` and `16/128` scales. The one-queue-hop 512-PDC path and four stereo stems are unchanged. Do not describe this model as c194/c197-qualified or production-ready; the qualified model remains on `ax/qualified-stateful-pipeline`.
 
 ## Build Commands
 

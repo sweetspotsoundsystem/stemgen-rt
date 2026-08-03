@@ -1,23 +1,23 @@
 include_guard(GLOBAL)
 
-# Authoritative configure-time contract for the only model accepted by
-# StemgenRT. c212 is the sealed c193 export that passed the c194 full14 gates,
-# the c197 electronic holdout, and raw/optimized ONNX Runtime 1.26 checks. It
-# remains pending the target-macOS native-plugin timing qualification.
+# Authoritative configure-time contract for this audition branch. The graph is
+# the c212 native-DFT export with only c191 step 128's full-strength output
+# projection restored. It is ABI-checked but deliberately unqualified: the
+# qualified d7/b16 model remains on ax/qualified-stateful-pipeline.
 set(STEMGENRT_QUALIFIED_CONTRACT_ID
-    "c212-c193-ort126-checked-export-pending-native-plugin")
+    "c191-step128-full-correction-audition-v1")
 
 set(STEMGENRT_QUALIFIED_MODEL_SHA256
-    "07557c7756815c0a84960c02faed4becd31413b53e1e4bb5b28177f2d6a97159")
-set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 114645969)
+    "6e817d7a09832072f0d7df4a3cbec0a798804efa4a88fbaabea14a1f70fdcf50")
+set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 114646323)
 set(STEMGENRT_QUALIFIED_C193_CANDIDATE_ID
-    "c193-selected-drums7-bass16-over128-c191-step128")
+    "c191-step128-full-correction-audition")
 set(STEMGENRT_QUALIFIED_C193_SELECTED_HEAD_SHA256
-    "e353bc8cdd2534c4ebbeaf658dfb5a167f574e4f2998adc4e02f609aa04b4ca3")
+    "a80f65f1f475815181306ef6366d077ce6fa21eebd423994744b2d6e7d2f9f5b")
 set(STEMGENRT_QUALIFIED_C193_SELECTED_HEAD_STATE_SHA256
-    "8d5c79c41354eca8d953319cc5bb1f18b908fe602f1595a044d7db9b04029fd8")
+    "238991eced221734b5e931bbc4256412dd6ed361656f2cbe4864abccedd22bcf")
 set(STEMGENRT_QUALIFIED_C193_FULL_RUNTIME_STATE_SHA256
-    "eac7ad9293a5e6f437df48d0acebd5cc797f16fc3b2309c268bca61e4301e1c4")
+    "6315b6670f0313ad554e8e3088ced42be6c0cbc285bccb8f5f553c4d8fa367f2")
 set(STEMGENRT_QUALIFIED_C193_PARENT_STATE_SHA256
     "7bfd9291ee036ee9cc517483bb8c1237f2ef6ed4ede0e5447c20607716075039")
 set(STEMGENRT_QUALIFIED_C194_EVALUATION_SHA256
@@ -122,5 +122,6 @@ set(STEMGENRT_QUALIFIED_METADATA_STATE_COUNT "7")
 set(STEMGENRT_QUALIFIED_METADATA_STATE_NAMES
     "[\"past_audio\",\"fusion_hidden\",\"c130_history\",\"previous_hidden\",\"adapter_valid\",\"raw_parent_history\",\"emitted_db_history\"]")
 set(STEMGENRT_QUALIFIED_METADATA_DEPLOYMENT_STATUS
-    "checked_export_pending_native_plugin_qualification")
-set(STEMGENRT_QUALIFIED_METADATA_QUALITY_GUARDS "c194_full14_40_of_40_and_c197_all_pass")
+    "audition_only_unqualified_full_c191_correction")
+set(STEMGENRT_QUALIFIED_METADATA_QUALITY_GUARDS
+    "none_full_c191_correction_audition_only")
