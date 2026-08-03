@@ -4,7 +4,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ## Project Overview
 
-StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This branch is an audition-only derivative of the native-DFT c212 graph: it restores the full c191 step-128 Drums/Bass output projection (`128/128`) instead of c193's conservative `7/128` and `16/128` scales. The one-queue-hop 512-PDC path and four stereo stems are unchanged. Do not describe this model as c194/c197-qualified or production-ready; the qualified model remains on `ax/qualified-stateful-pipeline`.
+StemgenRT is a real-time music source separation plugin built with JUCE and ONNX Runtime. This branch carries the lightweight-qualification candidate derived from the native-DFT c212 graph: it restores the full c191 step-128 Drums/Bass output projection (`128/128`) instead of c193's conservative `7/128` and `16/128` scales. The one-queue-hop 512-PDC path and four stereo stems are unchanged. The frozen c213 electronic holdout passed all six agreed gates; do not describe the candidate as production-ready until its exact SHA passes the target-Mac 10,000-callback paced test.
 
 ## Build Commands
 
@@ -13,21 +13,21 @@ StemgenRT is a real-time music source separation plugin built with JUCE and ONNX
 ./scripts/download-onnxruntime.sh  # macOS
 ./scripts/download-onnxruntime.ps1  # Windows
 
-# Configure and build the c212/c193 current-chunk candidate (debug)
+# Configure and build the full-correction current-chunk candidate (debug)
 cmake --preset default
 cmake --build --preset default
 
-# Future qualification/release lane (requires the official ORT 1.26.0 SDK;
-# a successful build does not complete native-plugin qualification)
+# Qualification/release lane (requires the official ORT 1.26.0 SDK;
+# a successful build alone does not complete target-Mac qualification)
 cmake --preset release
 cmake --build --preset release
 
 # Install plugins to the current user's plugin directories (macOS)
 # IMPORTANT: Always use this script instead of manual cp.
 # cp -R does NOT overwrite existing .component/.vst3 bundles reliably.
-./scripts/install-plugins.sh --debug    # current c212/c193 checked-export build
-./scripts/install-plugins.sh            # future Release lane (default)
-./scripts/install-plugins.sh --release  # future Release lane (explicit)
+./scripts/install-plugins.sh --debug    # current candidate debug build
+./scripts/install-plugins.sh            # Release lane (default)
+./scripts/install-plugins.sh --release  # Release lane (explicit)
 ```
 
 ## Architecture
@@ -79,7 +79,7 @@ Keep Main and the dry fallback at the native host rate. Never round-trip them th
 
 Pass every finite sample to `audio_chunk` unchanged and retain a raw copy for current-hop Main/residual alignment. Preserve every returned graph state in that same amplitude domain. Non-finite input must fail closed and reset all streaming state.
 
-Do not restore the former per-hop RMS/peak boost. It was inherited from an older deployment wrapper rather than the training or frozen evaluation contract. On the frozen validation excerpt used for the listening diagnosis, it reduced c126 drum SDR from 4.31 to 3.37 dB and bass SDR from 5.44 to 3.81 dB. Its 1,024-sample detector also varied by 1.90 dB on a steady 30 Hz sine, while `fusion_hidden` could not be amplitude-migrated coherently. Raw input is therefore the bounded audition policy until a level-robust model is trained and requalified.
+Do not restore the former per-hop RMS/peak boost. It was inherited from an older deployment wrapper rather than the training or frozen evaluation contract. On the frozen validation excerpt used for the listening diagnosis, it reduced c126 drum SDR from 4.31 to 3.37 dB and bass SDR from 5.44 to 3.81 dB. Its 1,024-sample detector also varied by 1.90 dB on a steady 30 Hz sine, while `fusion_hidden` could not be amplitude-migrated coherently. Raw input is therefore the bounded deployment policy until a level-robust model is trained and requalified.
 
 ### Latency and Fallback
 
@@ -123,19 +123,19 @@ Drums (model index 0), Bass (model index 1), Other (model index 3), Vocals (mode
 
 ### Model
 
-`model/model.onnx` is the only model payload bundled into plugin Resources. It is the self-contained native-DFT c212 export of candidate `c193-selected-drums7-bass16-over128-c191-step128`, SHA-256 `07557c7756815c0a84960c02faed4becd31413b53e1e4bb5b28177f2d6a97159`, size 114,645,969 bytes. Its qualification receipt SHA-256 is `d5141507cc75c3bb0157982a4b17a750ed46a706c0bf42a6c796e2ff35d37d03`, and its terminal `SEAL.json` SHA-256 is `e7cad784bcef80e3a2b426170c78687d41042958eeaca5d848f18c154fe5232f`. The receipt binds the c193 selected head/runtime state, c194 full14 qualification, c197 electronic holdout, exact residual policy, and raw/optimized native ONNX Runtime 1.26 checks. The eight-input/eight-output ABI exposes seven state tensors, inverse real DFT uses a full Hermitian spectrum with native inverse `DFT` for ONNX Runtime 1.26.0 compatibility, and the fusion state is opaque and threaded at the export's `2^-18` public scale. Do not require or ship the obsolete `model.onnx.data` file.
+`model/model.onnx` is the only model payload bundled into plugin Resources. It is candidate `c191-step128-full-correction-128-over-128`, SHA-256 `370d0a8971b405bd9c7f49928ccdea66e5b28fb028f6f5425c9c1ba5dc162f91`, size 114,646,796 bytes. The metadata-final candidate is computationally byte-identical to the listened-to audition graph: the GraphProto, metadata-cleared ModelProto, and all 97 initializers match. Only `runtime.head.output_projection.weight` differs computationally from c212. The inherited c212 receipt SHA-256 `d5141507cc75c3bb0157982a4b17a750ed46a706c0bf42a6c796e2ff35d37d03` and terminal seal SHA-256 `e7cad784bcef80e3a2b426170c78687d41042958eeaca5d848f18c154fe5232f` prove base-export structure and native ONNX Runtime 1.26 behavior; they are not full-correction quality evidence. Do not require or ship the obsolete `model.onnx.data` file.
 
-The contract ID is `c212-c193-ort126-checked-export-pending-native-plugin`, and the deployment status is `checked_export_pending_native_plugin_qualification`. c194 measured a 4.7142 dB validation score and passed all 40 declared latency-adjusted production guardrails. Against c91 on the 12-track c197 electronic holdout, aggregate SI-SDR improved by 0.1813 dB and aggregate low-band SI-SDR improved by 0.2026 dB; aggregate projection SIR changed by -0.1928 dB, above its -0.25 dB floor, so all three holdout gates passed. Complete target-Mac AU/VST numerical, reset, real-time, and listening qualification is still required.
+The contract ID is `c191-step128-full-correction-lightweight-v1`, deployment track is `full_correction_lightweight_qualification_track_v1`, and quality policy is `c213_electronic_holdout_and_target_macos_10k_paced_v1`. The frozen c213 holdout passed all six gates: versus c91, aggregate SI-SDR/low-band changed by +0.1813/+0.2028 dB, Drums by +0.2585/+0.0593 dB, and Bass by -0.1722/-0.2420 dB. Aggregate projection SIR changed by -0.1989 dB and is diagnostic. `model/FULL_CORRECTION_CANDIDATE.json` is the hash-sealed complete tradeoff record. The exact candidate target-Mac 10,000-callback paced test remains before promotion.
 
 `cmake/QualifiedModelContract.cmake` is the only editable source of qualified model identity and interface values. CMake generates `StemgenRT/QualifiedModelContract.h` from it for runtime and test code, while source-artifact checks and bundle sealing include the same CMake contract directly. A future model replacement starts there and requires requalification; do not duplicate contract literals in runtime, tests, or packaging scripts.
 
-Configuration and runtime loading must fail closed unless the artifact SHA/size, all eight input and all eight output names, float32 types, static shapes, streaming metadata, c193/c194/c197/c212 provenance identities, and residual-to-source-index-3 policy match the qualified contract.
+Configuration and runtime loading must fail closed unless the artifact SHA/size, all eight input and all eight output names, float32 types, static shapes, streaming metadata, inherited c193/c194/c197/c212 base-export provenance, full-c191 runtime/head identity, deployment policy, and residual-to-source-index-3 policy match the qualified contract.
 
 ### CPU Operations
 
-CPU is the reference and intended deployment path. The c212/c193 graph does not yet have transferable target-Mac native-plugin timing evidence. Promotion requires complete worker-run/publication/drain/write timing under DAW load on each target Mac, with paired control, p99.9 margin, and miss-delta evidence for the one-hop deadline.
+CPU is the reference and intended deployment path. For this bounded lightweight qualification, promotion requires one exact-model target-Mac paced test of 10,000 measured callbacks with zero deadline misses, underruns, queue/ring drops, unsafe callbacks, non-finite outputs, or reconstruction failures. The user's compute-identical listening signoff already established much better kick reproduction, no clicks, and stable operation.
 
-The existing automatic ORT intra-op implementation caps macOS sessions at three threads based on a previous repeated Apple Silicon 1–4 thread sweep and retains the previous four-thread cap on Windows. Treat those as current defaults, not c193 qualification evidence; rerun the complete-path sweeps before promotion. Explicit thread counts are qualification overrides only and must not silently replace either production default.
+The existing automatic ORT intra-op implementation caps macOS sessions at two threads, selected by the c212 target-Mac order-balanced sweep, and retains the previous four-thread cap on Windows. Those defaults are unchanged. Do not run or require a new thread sweep for this lightweight qualification; explicit thread counts remain diagnostic overrides and must not silently replace production defaults.
 
 Prefer preallocated input/output/state storage and avoid allocations in both the audio callback and steady-state inference loop. The shipping runtime is CPU-only; do not add an execution provider without a separate numerical, packaging, and real-time qualification pass.
 

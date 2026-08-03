@@ -2,10 +2,10 @@
 
 A real-time music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
 
-This audition build processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
+This lightweight-qualification candidate processes stereo audio in 512-sample hops and reports exactly 512 samples of latency (11.61 ms at 44.1 kHz) when the host is prepared at 44.1 kHz with a 512-sample callback. It is made for spatializing DJ sets in real time: split the mix into stems, place them in the room, and create an immersive experience.
 
 > [!WARNING]
-> This branch is a controlled listening test, not a production candidate. It starts from the sealed c212 graph but replaces c193's conservative Drums `7/128` and Bass `16/128` output-correction scales with the full c191 step-128 values, `128/128` for both stems. The graph ABI, seven recurrent states, 512-sample PDC, and exact residual routing are unchanged. The full correction previously missed strict experimental boundary/safety guards, so do not release or promote this build based on its source c194/c197 evidence; use it only to determine whether the stronger correction audibly improves the kick and bass.
+> The full c191 correction passed all six frozen c213 electronic-holdout gates and is compute-identical to the click-free, stable model accepted in the listening test. It remains a production candidate—not a release—until the exact candidate SHA completes the target-Mac 10,000-callback paced test with zero misses, underruns, drops, unsafe callbacks, non-finite output, or reconstruction failure. The agreed lightweight qualification deliberately skips retraining, full14, the thread sweep, and the exhaustive boundary campaign.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
 
@@ -65,13 +65,13 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-The one-hop current-chunk scheduler is not yet qualified for a public release on the target Mac. For local listening on macOS, use the default build and install it explicitly as a debug build:
+For local listening on macOS, use the default build and install it explicitly as a debug build:
 
 ```bash
 ./scripts/install-plugins.sh --debug
 ```
 
-The release preset remains available for later qualification work and writes to `build-release`. It enables `STEMGENRT_REQUIRE_QUALIFIED_ORT`, which fails configuration unless the complete official 1.26.0 SDK is present. Do not treat a successful release build as model promotion.
+The release preset writes to `build-release` and enables `STEMGENRT_REQUIRE_QUALIFIED_ORT`, which fails configuration unless the complete official 1.26.0 SDK is present. It is the required lane for the one remaining target-Mac paced gate; a successful build alone is not model promotion.
 
 On macOS, install the sealed AU and VST3 bundles into your user plugin directories with:
 
@@ -79,7 +79,7 @@ On macOS, install the sealed AU and VST3 bundles into your user plugin directori
 ./scripts/install-plugins.sh
 ```
 
-The installer uses Release artifacts by default, so this checked-export candidate must be selected with `./scripts/install-plugins.sh --debug`. Run `./scripts/install-plugins.sh --help` for signing and configuration options.
+The installer uses Release artifacts by default. Run `./scripts/install-plugins.sh --help` for signing and configuration options.
 
 ## How it works
 
@@ -140,59 +140,41 @@ Real-time request publication and epoch reset use lock-free atomics only; they d
 
 ### Model identity
 
-The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is an audition-only derivative of the c212 native-DFT graph with c191 step 128's full Drums/Bass output projection, SHA-256 `6e817d7a09832072f0d7df4a3cbec0a798804efa4a88fbaabea14a1f70fdcf50`, size 114,646,323 bytes. Only `runtime.head.output_projection.weight` differs from c212; all other head tensors are bit-identical. The materialization check measured eager-PyTorch/ONNX maximum absolute error `9.23872e-7`, bit-exact reset replay, all seven states live, and mixture reconstruction error `3.72529e-9`. See `model/FULL_CORRECTION_AUDITION.md` for the exact lineage and warning.
+The plugin bundles one self-contained file: `model/model.onnx`. There is no companion `.onnx.data` file. It is the full c191 step-128 Drums/Bass correction candidate, SHA-256 `370d0a8971b405bd9c7f49928ccdea66e5b28fb028f6f5425c9c1ba5dc162f91`, size 114,646,796 bytes. Only `runtime.head.output_projection.weight` differs computationally from c212; all other head tensors are bit-identical. The materialization check measured eager-PyTorch/ONNX maximum absolute error `9.23872e-7`, bit-exact reset replay, all seven states live, and mixture reconstruction error `3.72529e-9`. The metadata-final candidate is computationally byte-identical to the accepted audition model across its GraphProto and all 97 initializers.
 
-The graph has the eight-input/eight-output ABI above and seven explicit state tensors. For ONNX Runtime 1.26.0 compatibility, inverse real DFT reconstructs the full Hermitian spectrum before invoking native inverse `DFT`; no dense Fourier matrices are restored. The public fusion state remains opaque and is threaded at the export's `2^-18` scale. The authoritative artifact identity, tensor interface, streaming metadata, lineage, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`. The contract ID is `c191-step128-full-correction-audition-v1`.
+The graph has the eight-input/eight-output ABI above and seven explicit state tensors. For ONNX Runtime 1.26.0 compatibility, inverse real DFT reconstructs the full Hermitian spectrum before invoking native inverse `DFT`; no dense Fourier matrices are restored. The public fusion state remains opaque and is threaded at the export's `2^-18` scale. The authoritative artifact identity, tensor interface, streaming metadata, lineage, residual index, and current-hop alignment live in `cmake/QualifiedModelContract.cmake`. The contract ID is `c191-step128-full-correction-lightweight-v1`.
+
+The frozen c213 electronic holdout passed all six agreed gates. Versus c91, aggregate SI-SDR improved by 0.1813 dB and aggregate low-band SI-SDR improved by 0.2028 dB. Drums changed by +0.2585/+0.0593 dB and Bass by -0.1722/-0.2420 dB for full/low-band SI-SDR, inside the declared -1.0 dB per-stem floors. Aggregate projection SIR changed by -0.1989 dB and was diagnostic only. See `model/FULL_CORRECTION_QUALIFICATION.md` and the hash-sealed `model/FULL_CORRECTION_CANDIDATE.json` for every per-stem tradeoff against c91 and scaled c193.
 
 The runtime validates the artifact, graph input/output contract, and embedded deployment metadata before enabling separation.
 
 ## CPU operation
 
-CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The native-DFT c212/c193 artifact has not yet completed target-Mac native-plugin timing qualification; measure the complete path under DAW load before promotion.
+CPU inference is the intended deployment path. Every worker wake, graph run, publication, and output write must fit inside the one-hop scheduling reserve. The exact full-correction candidate still requires the single target-Mac paced gate below before promotion.
 
 Use a modern CPU, close competing real-time workloads, and watch the plugin's underrun diagnostics when qualifying a system. The shipping runtime is deliberately CPU-only so host hardware cannot silently select a different numerical or scheduling path.
 
 ### Target-Mac candidate check
 
-Run this gate on an Apple Silicon Mac before the first listening test. It uses the pinned official ONNX Runtime 1.26.0 build, checks the normal test suite and both plugin bundles, compares the 1–4-thread CPU choices, then paces 10,000 measured 512-sample callbacks after 100 warmups:
+Run this one remaining gate on an Apple Silicon Mac. It uses the pinned official ONNX Runtime 1.26.0 build and paces exactly 10,000 measured 512-sample callbacks after 100 warmups. Record the commit, model hash, and complete test output; do not run the thread sweep for this lightweight qualification:
 
 ```bash
 ./scripts/download-onnxruntime.sh
+git rev-parse HEAD
+shasum -a 256 model/model.onnx
 cmake --preset release \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
 cmake --build --preset release --target AudioPluginTest_BundleModel
-ctest --preset release
-cmake --build --preset release --target StemgenRT_VerifyMacBundles
 
-build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
-  --gtest_filter=OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuIntraOpThreadSweep
-
-build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
+STEMGENRT_QUALIFICATION_CALLBACKS=10000 \
+  build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
   --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenRealtimePaced
 ```
 
 The paced check takes about two minutes and fails closed if the accepted model/runtime is unavailable. Do not continue unless it ends with `STEMGENRT_QUALIFICATION_SUMMARY status=pass`, `worker_priority=applied`, zero deadline misses, zero underruns, zero queue/ring drops, zero unsafe callbacks, finite and distinct retained stems, and reconstruction error at or below `1e-6`. `STEMGENRT_QUALIFICATION_CALLBACKS` may raise the measured callback count, but values below 10,000 are rejected.
 
-After that automated gate passes, install both sealed Release bundles, force the Audio Unit rescan, validate the AU, and perform the same music listening test in the AU and VST3 hosts:
-
-```bash
-./scripts/install-plugins.sh --release
-killall AudioComponentRegistrar || true
-auval -v aufx Stem Swee
-```
-
-The synthetic soak is candidate-only evidence. Final promotion still requires the AU/VST listening result and complete-path behavior under representative DAW load; it does not manufacture paired-control miss-delta evidence.
-
-To compare ONNX Runtime's CPU thread-pool size on a macOS Release build, run the disabled stateful sweep explicitly:
-
-```bash
-cmake --build --preset release --target AudioPluginTest_BundleModel
-build-release/test/AudioPluginTest --gtest_also_run_disabled_tests \
-  --gtest_filter=OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuIntraOpThreadSweep
-```
-
-The sweep creates a fresh session for each 1–4 thread candidate and runs three order-balanced passes of 25 warmup plus 500 measured hops. It reports wall-clock percentiles, aggregate process CPU time, deadline misses, and the retained-stem numerical delta from the single-thread reference. A previous Apple Silicon qualification selected three intra-op threads, so macOS sessions currently retain that cap; it is not c193 timing evidence. Windows retains the previous four-thread cap until the same target-platform qualification is completed there. Explicit benchmark overrides do not change either production policy.
+The accepted compute graph already completed the user's target-Mac listening test: kick reproduction was much better though not perfect, with no clicks and stable operation. The candidate metadata does not change computation, so the exact-hash paced test is the only remaining gate. The c212 target-Mac sweep selected the existing two-thread macOS automatic cap; Windows retains four. No new thread sweep is required for this qualification.
 
 The preserved multi-rate timing benchmark remains available for future qualification:
 

@@ -896,8 +896,8 @@ TEST(ConstantsTest, AutomaticOrtThreadCountUsesQualifiedPlatformCap) {
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(0), 2);
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(4), 2);
 #if defined(__APPLE__)
-  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 3);
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 3);
+  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 2);
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 2);
 #else
   EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 4);
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 4);

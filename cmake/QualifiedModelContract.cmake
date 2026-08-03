@@ -1,17 +1,17 @@
 include_guard(GLOBAL)
 
-# Authoritative configure-time contract for this audition branch. The graph is
-# the c212 native-DFT export with only c191 step 128's full-strength output
-# projection restored. It is ABI-checked but deliberately unqualified: the
-# qualified d7/b16 model remains on ax/qualified-stateful-pipeline.
+# Authoritative configure-time contract for the full-c191 lightweight
+# qualification candidate. The graph is the c212 native-DFT export with only
+# c191 step 128's full-strength output projection restored. The frozen c213
+# electronic holdout passed; the exact target-Mac 10k paced gate remains.
 set(STEMGENRT_QUALIFIED_CONTRACT_ID
-    "c191-step128-full-correction-audition-v1")
+    "c191-step128-full-correction-lightweight-v1")
 
 set(STEMGENRT_QUALIFIED_MODEL_SHA256
-    "6e817d7a09832072f0d7df4a3cbec0a798804efa4a88fbaabea14a1f70fdcf50")
-set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 114646323)
+    "370d0a8971b405bd9c7f49928ccdea66e5b28fb028f6f5425c9c1ba5dc162f91")
+set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE 114646796)
 set(STEMGENRT_QUALIFIED_C193_CANDIDATE_ID
-    "c191-step128-full-correction-audition")
+    "c191-step128-full-correction-128-over-128")
 set(STEMGENRT_QUALIFIED_C193_SELECTED_HEAD_SHA256
     "a80f65f1f475815181306ef6366d077ce6fa21eebd423994744b2d6e7d2f9f5b")
 set(STEMGENRT_QUALIFIED_C193_SELECTED_HEAD_STATE_SHA256
@@ -122,6 +122,6 @@ set(STEMGENRT_QUALIFIED_METADATA_STATE_COUNT "7")
 set(STEMGENRT_QUALIFIED_METADATA_STATE_NAMES
     "[\"past_audio\",\"fusion_hidden\",\"c130_history\",\"previous_hidden\",\"adapter_valid\",\"raw_parent_history\",\"emitted_db_history\"]")
 set(STEMGENRT_QUALIFIED_METADATA_DEPLOYMENT_STATUS
-    "audition_only_unqualified_full_c191_correction")
+    "full_correction_lightweight_qualification_track_v1")
 set(STEMGENRT_QUALIFIED_METADATA_QUALITY_GUARDS
-    "none_full_c191_correction_audition_only")
+    "c213_electronic_holdout_and_target_macos_10k_paced_v1")

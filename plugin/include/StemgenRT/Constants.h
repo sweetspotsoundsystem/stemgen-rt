@@ -159,12 +159,12 @@ static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 512);
 static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1582);
 static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1024);
 
-// A repeated, order-balanced Apple Silicon qualification found three ORT
-// intra-op threads had lower mean/tail latency and lower aggregate CPU cost
-// than four for this small recurrent hop. Keep the unmeasured Windows policy
-// unchanged until the same sweep is run there.
+// The c212 target-Mac order-balanced qualification selected two ORT intra-op
+// threads: it had the lowest zero-miss median pass p99, lower aggregate wall
+// latency, and lower aggregate CPU cost than three for this recurrent hop. Keep
+// the unmeasured Windows policy unchanged until the same sweep is run there.
 #if defined(__APPLE__)
-constexpr int kOrtAutomaticIntraOpThreadCap = 3;
+constexpr int kOrtAutomaticIntraOpThreadCap = 2;
 #else
 constexpr int kOrtAutomaticIntraOpThreadCap = 4;
 #endif
