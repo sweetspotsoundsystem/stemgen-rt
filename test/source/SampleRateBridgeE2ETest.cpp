@@ -12,7 +12,7 @@
 namespace audio_plugin_test {
 namespace {
 
-constexpr int kBlockSize = 512;
+constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
 constexpr double kPi = 3.1415926535897932384626433832795;
 
 float makeInputSample(std::size_t timelineSample,
@@ -336,16 +336,16 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported c193 current-chunk configuration"));
+      "Unsupported c214 current-chunk configuration"));
   processor.releaseResources();
 }
 
 TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedPreparedBlockSizeFailClosed) {
   audio_plugin::AudioPluginAudioProcessor processor;
-  processor.prepareToPlay(44100.0, 256);
+  processor.prepareToPlay(44100.0, 512);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "44100 Hz / 512 samples"));
+      "44100 Hz / 256 samples"));
   processor.releaseResources();
 }
 
@@ -353,10 +353,10 @@ TEST(SampleRateBridgeE2ETest,
      OfflineActualCallbacksMayVaryAfterQualifiedFixedPrepare) {
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.setNonRealtime(true);
-  processor.prepareToPlay(44100.0, 512);
+  processor.prepareToPlay(44100.0, kBlockSize);
   if (processor.getLatencySamples() == 0) {
     processor.releaseResources();
-    GTEST_SKIP() << "Accepted c193 model/runtime unavailable";
+    GTEST_SKIP() << "Accepted c214 model/runtime unavailable";
   }
 
   juce::MidiBuffer midi;

@@ -27,8 +27,8 @@ public:
   // and initialization state, suitable for the editor to display.
   juce::String getOrtStatusString() const;
 
-  // Returns the current plugin latency in samples. c193 emits the current hop;
-  // one asynchronous collection/queue hop provides the 512-sample PDC.
+  // Returns the current plugin latency in samples. c214 emits the current hop;
+  // one asynchronous collection/queue hop provides the 256-sample PDC.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.

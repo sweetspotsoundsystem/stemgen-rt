@@ -78,7 +78,7 @@ public:
   void resetStreamingState();
 
   // Run one stateful graph hop. The returned samples and alignedInput belong
-  // to the current input hop. Every successful c193 run is valid; there is no
+  // to the current input hop. Every successful c214 run is valid; there is no
   // pre-roll output and no zero-hop flush.
   bool runInference(
       const std::array<std::vector<float>, kNumChannels>& inputChunk,
@@ -123,23 +123,15 @@ private:
   // native floating-point level. Only the inference worker mutates these
   // during normal operation; the mutex protects non-RT control-path resets.
   std::vector<float> audioChunkBuffer_;
-  std::vector<float> pastAudio_;
+  std::vector<float> analysisHistory_;
   std::vector<float> fusionHidden_;
-  std::vector<float> c130History_;
-  std::vector<float> previousHidden_;
-  std::vector<float> adapterValid_;
-  std::vector<float> rawParentHistory_;
   std::vector<float> emittedDbHistory_;
   std::vector<float> separatedOutputBuffer_;
-  std::vector<float> nextPastAudioBuffer_;
+  std::vector<float> nextAnalysisHistoryBuffer_;
   std::vector<float> nextFusionHiddenBuffer_;
-  std::vector<float> nextC130HistoryBuffer_;
-  std::vector<float> nextPreviousHiddenBuffer_;
-  std::vector<float> nextAdapterValidBuffer_;
-  std::vector<float> nextRawParentHistoryBuffer_;
   std::vector<float> nextEmittedDbHistoryBuffer_;
-  std::array<OrtValue*, 8> inputTensorValues_{};
-  std::array<OrtValue*, 8> outputTensorValues_{};
+  std::array<OrtValue*, 4> inputTensorValues_{};
+  std::array<OrtValue*, 4> outputTensorValues_{};
   std::mutex streamingStateMutex_;
 
   // State

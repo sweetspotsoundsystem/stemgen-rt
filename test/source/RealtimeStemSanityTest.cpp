@@ -108,7 +108,7 @@ TEST(RealtimeStemSanityTest,
       << "Qualified model/runtime failed to load: "
       << processor.getOrtStatusString().toStdString();
   ASSERT_EQ(processor.getLatencySamples(), kBlockSize)
-      << "The candidate must expose exactly one 512-sample PDC hop";
+      << "The candidate must expose exactly one 256-sample PDC hop";
 
   juce::MidiBuffer midiBuffer;
   juce::AudioBuffer<float> buffer(kTotalChannels, kBlockSize);
@@ -203,9 +203,9 @@ TEST(RealtimeStemSanityTest,
 
     sampleIndex += buffer.getNumSamples();
 
-    // Pace at the real 512-sample callback interval. sleep_until returns
+    // Pace at the real 256-sample callback interval. sleep_until returns
     // immediately after a complete processBlock overrun; the explicit timing
-    // above covers drain/write time beyond the inference-only 10 ms gate.
+    // above covers the complete callback in addition to worker inference.
     nextDeadline +=
         std::chrono::duration_cast<std::chrono::steady_clock::duration>(
             blockDuration);

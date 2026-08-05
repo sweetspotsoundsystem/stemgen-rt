@@ -313,12 +313,13 @@ TEST(OutputWriterTest, RoutesTinyAlignedMainEntirelyToOther) {
 }
 
 TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
-  constexpr size_t kBlockSize = 512;
+  constexpr size_t kBlockSize =
+      static_cast<size_t>(audio_plugin::kOutputChunkSize);
   constexpr float kTinyLeft = 8.0e-6f;
   constexpr float kTinyRight = -4.0e-6f;
 
   OutputWriterHarness harness;
-  // The asynchronous publication delay is one 512-sample hop. Feed one more
+  // The asynchronous publication delay is one model hop. Feed one more
   // block so the first reaches the writer without model output available.
   harness.writeDryFallback(
       makeConstantStereo(kBlockSize, kTinyLeft, kTinyRight));
@@ -340,7 +341,8 @@ TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
 }
 
 TEST(OutputWriterTest, ReportsMissingModelOnlyAtOrAfterLatency) {
-  constexpr size_t kBlockSize = 512;
+  constexpr size_t kBlockSize =
+      static_cast<size_t>(audio_plugin::kOutputChunkSize);
   OutputWriterHarness harness;
 
   harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));

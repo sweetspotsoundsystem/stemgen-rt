@@ -71,7 +71,7 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // c193 has no graph tail, but hosts still need the declared 512-sample PDC
+  // c214 has no graph tail, but hosts still need the declared 256-sample PDC
   // horizon to drain already scheduled current-chunk output.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
@@ -132,7 +132,7 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
           sampleRateError.isNotEmpty()
               ? sampleRateError
               : juce::String(
-                    "This c193 candidate requires 44.1 kHz / 512 samples"));
+                    "This c214 candidate requires 44.1 kHz / 256 samples"));
     }
     juce::String modelLoadError;
     {
@@ -484,10 +484,10 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c193 current-chunk configuration ") +
+        juce::String("Unsupported c214 current-chunk configuration ") +
         juce::String(sampleRate, 1) + " Hz / " +
         juce::String(samplesPerBlock) +
-        " samples; this build requires 44100 Hz / 512 samples";
+        " samples; this build requires 44100 Hz / 256 samples";
     {
       const std::lock_guard<std::mutex> lock(statusMutex_);
       modelLoadError_ = error;
@@ -792,7 +792,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // Reset immediately on starts, seeks, scrubs, and loop wraps. On a
       // play-to-stop transition, first render the result already scheduled by
       // the one-hop asynchronous PDC, then reset after this callback. This is
-      // queue-tail drainage; c193 itself has no graph flush call.
+      // queue-tail drainage; c214 itself has no graph flush call.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
         resetAfterCurrentCallback = false;

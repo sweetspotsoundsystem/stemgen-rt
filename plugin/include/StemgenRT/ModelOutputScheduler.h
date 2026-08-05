@@ -17,7 +17,7 @@ enum class ModelOutputScheduleAction {
 };
 
 // Pure timeline mapping for one stateful graph result. The returned source
-// offset always refers to the original 512-sample result; elapsed samples are
+// offset always refers to the original model-hop result; elapsed samples are
 // never shifted onto a newer output timeline.
 struct ModelOutputSchedulePlan {
   ModelOutputScheduleAction action{
@@ -29,7 +29,7 @@ struct ModelOutputSchedulePlan {
 };
 
 // Plan publication for an already timestamped host-domain range. Sample-rate
-// conversion can produce a different number of host samples for each 512-
+// conversion can produce a different number of host samples for each model-
 // sample model hop, so the generic range form is the source of truth. The
 // chunk-sequence overload below preserves the exact 44.1 kHz mapping.
 constexpr ModelOutputSchedulePlan planModelOutputRange(

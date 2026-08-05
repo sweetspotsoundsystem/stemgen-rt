@@ -290,10 +290,8 @@ TEST(QualifiedModelContractTest,
             contract::kAnalysisWindowSamples);
   EXPECT_EQ(audio_plugin::kFusionHiddenLayers, contract::kFusionHiddenLayers);
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, contract::kFusionHiddenSize);
-  EXPECT_EQ(audio_plugin::kRawParentChannels,
-            contract::kRawParentChannels);
-  EXPECT_EQ(audio_plugin::kRawParentHistorySamples,
-            contract::kRawParentHistorySamples);
+  EXPECT_EQ(audio_plugin::kAnalysisHistorySamples,
+            contract::kAnalysisHistorySamples);
   EXPECT_EQ(audio_plugin::kEmittedDbChannels,
             contract::kEmittedDbChannels);
   EXPECT_EQ(audio_plugin::kEmittedDbHistorySamples,
@@ -306,9 +304,17 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 8U);
-  ASSERT_EQ(contract::kOutputNames.size(), 8U);
-  ASSERT_EQ(contract::kMetadata.size(), 54U);
+  ASSERT_EQ(contract::kInputNames.size(), 4U);
+  ASSERT_EQ(contract::kOutputNames.size(), 4U);
+  ASSERT_EQ(contract::kMetadata.size(), 44U);
+  EXPECT_EQ(contract::kInputNames[0], "audio_chunk");
+  EXPECT_EQ(contract::kInputNames[1], "analysis_history");
+  EXPECT_EQ(contract::kInputNames[2], "fusion_hidden");
+  EXPECT_EQ(contract::kInputNames[3], "emitted_db_history");
+  EXPECT_EQ(contract::kOutputNames[0], "separated_chunk");
+  EXPECT_EQ(contract::kOutputNames[1], "next_analysis_history");
+  EXPECT_EQ(contract::kOutputNames[2], "next_fusion_hidden");
+  EXPECT_EQ(contract::kOutputNames[3], "next_emitted_db_history");
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -573,7 +579,7 @@ TEST(OrtStreamingRuntimeTest,
   constexpr double kTwoPi = 6.28318530717958647692;
 
   constexpr std::array<size_t, 2> kMeasuredStemIndices = {0, 1};
-  // Provisional listening ceilings inherited from c157. The c193 refiner is
+  // Provisional listening ceilings inherited from c157. The c214 model is
   // tested against the same explicit low-frequency seam bounds; promotion
   // still requires the target-Mac listening and numerical pass.
   constexpr std::array<double, 2> kSeamRatioCeilings = {21.0, 3.0};
@@ -633,7 +639,7 @@ TEST(OrtStreamingRuntimeTest,
   }
 
   // Measure the current-chunk low-tone seam directly. These remain provisional
-  // listening ceilings until c193 is requalified on the target Mac.
+  // listening ceilings until c214 is qualified on the target Mac.
   for (size_t measuredStem = 0;
        measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);
@@ -687,7 +693,7 @@ TEST(OrtStreamingRuntimeTest,
 
   AudioChunk secondTransient = makeZeroAudioChunk();
   secondTransient[0][73] = -0.6f;
-  secondTransient[1][401] = 0.75f;
+  secondTransient[1][201] = 0.75f;
   referenceInputs.push_back(secondTransient);
 
   referenceInputs.push_back(scaledToStereoRms(

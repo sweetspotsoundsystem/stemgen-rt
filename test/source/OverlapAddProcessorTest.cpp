@@ -141,8 +141,12 @@ TEST(OverlapAddProcessorTest,
   EXPECT_TRUE(processor.readyForInference());
   EXPECT_EQ(processor.getInputAccumCount(),
             static_cast<size_t>(audio_plugin::kOutputChunkSize));
-  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[0][511], 511.0f);
-  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[1][511], -511.0f);
+  constexpr size_t kLastModelSample =
+      static_cast<size_t>(audio_plugin::kOutputChunkSize - 1);
+  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[0][kLastModelSample],
+                  static_cast<float>(kLastModelSample));
+  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[1][kLastModelSample],
+                  -static_cast<float>(kLastModelSample));
 }
 
 TEST(OverlapAddProcessorTest,
@@ -229,9 +233,11 @@ TEST(OverlapAddProcessorTest, RejectsModelOutputForElapsedTimeline) {
 TEST(OverlapAddProcessorTest, ResetInvalidatesAllScheduledModelOutput) {
   audio_plugin::OverlapAddProcessor processor;
   processor.allocate();
-  ASSERT_TRUE(processor.canScheduleModelOutput(0, 512));
-  processor.markModelOutputScheduled(0, 512);
-  ASSERT_EQ(processor.getOutputSamplesAvailable(), 512U);
+  constexpr size_t kModelHop =
+      static_cast<size_t>(audio_plugin::kOutputChunkSize);
+  ASSERT_TRUE(processor.canScheduleModelOutput(0, kModelHop));
+  processor.markModelOutputScheduled(0, kModelHop);
+  ASSERT_EQ(processor.getOutputSamplesAvailable(), kModelHop);
 
   processor.resetIndices();
 

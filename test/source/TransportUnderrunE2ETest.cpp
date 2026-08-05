@@ -130,7 +130,7 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
 
-  // c193 itself has no graph flush, but the plugin still owes the final
+  // c214 itself has no graph flush, but the plugin still owes the final
   // current-chunk result already in its one-hop asynchronous PDC. Make the
   // first stopped callback non-real-time so this is a deterministic queue-tail
   // and state-reset test rather than another CPU deadline measurement.
@@ -167,7 +167,7 @@ TEST(TransportUnderrunE2ETest,
     }
   }
   EXPECT_GT(maximumTailRetainedStem, 1.0e-3f)
-      << "The play-to-stop callback did not drain c193's queued final hop";
+      << "The play-to-stop callback did not drain c214's queued final hop";
 
   // The callback above resets the stream only after rendering. A subsequent
   // stopped callback must be clean, with no repeated queue tail.
@@ -192,7 +192,7 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     SmallPreparedHostBlocksFailClosedForC193HostContract) {
+     SmallPreparedHostBlocksFailClosedForC214HostContract) {
   constexpr int kSmallBlockSize = 64;
 
   audio_plugin::AudioPluginAudioProcessor processor;
@@ -201,14 +201,14 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getLatencySamples(), 0);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   EXPECT_TRUE(processor.getOrtStatusString().contains(
-      "requires 44100 Hz / 512 samples"));
+      "requires 44100 Hz / 256 samples"));
 #endif
   processor.releaseResources();
 }
 
 TEST(TransportUnderrunE2ETest,
      PreparedBlockPdcMismatchFallsBackLosslesslyAndReportsUnsafeTiming) {
-  constexpr int kPreparedBlockSize = 512;
+  constexpr int kPreparedBlockSize = audio_plugin::kOutputChunkSize;
   constexpr int kActualBlockSize = 64;
   constexpr int kTotalBlocks = 48;
   constexpr int kRequiredLatency =
@@ -262,7 +262,7 @@ TEST(TransportUnderrunE2ETest,
 
     const size_t unavailableSamples = processor.getUnderrunSamplesInLastBlock();
     if (unavailableSamples > 0) {
-      // Model output is hop-aligned and 64 divides 512, so a callback cannot
+      // Model output is hop-aligned and 64 divides 256, so a callback cannot
       // contain a partial model-availability transition in this scenario.
       ASSERT_EQ(unavailableSamples, static_cast<size_t>(kActualBlockSize));
     }

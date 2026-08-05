@@ -75,7 +75,8 @@ TEST(ModelOutputSchedulerTest,
   EXPECT_EQ(afterExpiry.sampleCount, 0U);
 }
 
-TEST(ModelOutputSchedulerTest, SequenceZeroMapsTo512AndSequenceOneToNextHop) {
+TEST(ModelOutputSchedulerTest,
+     SequenceZeroMapsToFirstHopAndSequenceOneToNextHop) {
   const auto first =
       planModelOutputSchedule(0U, kLatency, kLatency, 4U * kChunkSize);
   ASSERT_EQ(first.action, ModelOutputScheduleAction::kSchedule);

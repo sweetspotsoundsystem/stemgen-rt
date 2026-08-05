@@ -365,25 +365,25 @@ TEST(InferenceQueueTest,
   EXPECT_TRUE(first->outputValid);
   EXPECT_TRUE(first->hostOutputValid);
   EXPECT_EQ(first->hostOutputStartSample, 0U);
-  EXPECT_EQ(first->hostOutputSampleCount, 558U);
+  EXPECT_EQ(first->hostOutputSampleCount, 279U);
   queue.releaseOutputSlot();
 
   InferenceRequest* second = waitForOutput(queue, epoch);
   ASSERT_NE(second, nullptr);
   EXPECT_TRUE(second->outputValid);
   EXPECT_TRUE(second->hostOutputValid);
-  EXPECT_EQ(second->hostOutputStartSample, 558U);
+  EXPECT_EQ(second->hostOutputStartSample, 279U);
   queue.releaseOutputSlot();
 
   InferenceRequest* third = waitForOutput(queue, epoch);
   ASSERT_NE(third, nullptr);
   EXPECT_TRUE(third->hostOutputValid);
-  EXPECT_EQ(third->hostOutputStartSample, 1115U);
+  EXPECT_EQ(third->hostOutputStartSample, 558U);
   queue.releaseOutputSlot();
 
   // A sequence gap resets state and converter phase before processing the new
   // sequence. Sequence five itself is valid and starts at absolute model
-  // sample 5 * 512 instead of reusing the prior local converter phase.
+  // sample 5 * kOutputChunkSize instead of reusing the prior converter phase.
   submit(queue, epoch, 5U);
   submit(queue, epoch, 6U);
   InferenceRequest* afterGap = waitForOutput(queue, epoch);
@@ -391,7 +391,7 @@ TEST(InferenceQueueTest,
   EXPECT_EQ(afterGap->chunkSequence, 5U);
   EXPECT_TRUE(afterGap->outputValid);
   EXPECT_TRUE(afterGap->hostOutputValid);
-  EXPECT_EQ(afterGap->hostOutputStartSample, 2787U);
+  EXPECT_EQ(afterGap->hostOutputStartSample, 1394U);
   queue.releaseOutputSlot();
 
   InferenceRequest* next = waitForOutput(queue, epoch);
@@ -399,7 +399,7 @@ TEST(InferenceQueueTest,
   EXPECT_EQ(next->chunkSequence, 6U);
   EXPECT_TRUE(next->outputValid);
   EXPECT_TRUE(next->hostOutputValid);
-  EXPECT_EQ(next->hostOutputStartSample, 3344U);
+  EXPECT_EQ(next->hostOutputStartSample, 1672U);
   queue.releaseOutputSlot();
   queue.stopThread();
 }
