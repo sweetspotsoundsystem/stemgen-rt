@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The c193 current-chunk deployment emits [drums, bass, vocals, other].
+// The c236 current-chunk deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -16,29 +16,23 @@ constexpr int kStemBass = qualified_model::kBassSourceIndex;
 constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
-// Fixed model contract. The graph consumes and emits the same 512-sample hop.
-// Its recurrent state is explicit: previous audio, fusion GRU, c130 feature
-// history, c155 hidden history, the adapter-valid gate, the raw Drums/Bass
-// parent history, and the emitted four-stem history used by the causal output
-// refiner.
+// Fixed model contract. The graph consumes and emits the same 256-sample hop.
+// Its 1,024-sample causal analysis frame is assembled from 768 samples of
+// explicit analysis history and the current hop. Fusion-GRU and emitted
+// Drums/Bass history complete the three-state ABI.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
+constexpr int kAnalysisHistorySamples =
+    qualified_model::kAnalysisHistorySamples;
 constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
 constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
-constexpr int kC130FeatureChannels = qualified_model::kC130FeatureChannels;
-constexpr int kC130HistorySamples = qualified_model::kC130HistorySamples;
-constexpr int kC155HiddenChannels = qualified_model::kC155HiddenChannels;
-constexpr int kC155HistorySamples = qualified_model::kC155HistorySamples;
-constexpr int kRawParentChannels = qualified_model::kRawParentChannels;
-constexpr int kRawParentHistorySamples =
-    qualified_model::kRawParentHistorySamples;
 constexpr int kEmittedDbChannels = qualified_model::kEmittedDbChannels;
 constexpr int kEmittedDbHistorySamples =
     qualified_model::kEmittedDbHistorySamples;
 
-// The worker gets one complete hop for inference. c193 emits its current input
-// hop, so the asynchronous collection/queue hop is the entire 512-sample PDC.
+// The worker gets one complete hop for inference. c236 emits its current input
+// hop, so the asynchronous collection/queue hop is the entire 256-sample PDC.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
 constexpr int kAsyncQueueDelayChunks = 1;
@@ -46,8 +40,8 @@ constexpr int kPluginLatencyChunks =
     kModelOutputDelayChunks + kAsyncQueueDelayChunks;
 constexpr int kPluginLatencySamples = kPluginLatencyChunks * kOutputChunkSize;
 
-// This checked-export, native-plugin-pending candidate starts with the exact
-// host configuration that exposes the intended 512-sample PDC.
+// This checked-export, unpromoted audition candidate starts with the exact
+// host configuration that exposes the intended 256-sample PDC.
 constexpr int kCurrentChunkQualifiedHostSampleRate = kModelSampleRate;
 constexpr int kCurrentChunkQualifiedHostBlockSize = kOutputChunkSize;
 
@@ -80,7 +74,7 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
 }
 
 // A result for hop N is aligned to input hop N. The worker gets one complete
-// 512-sample interval after the callback that supplies that request.
+// 256-sample interval after the callback that supplies that request.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
   const int callbacksPerModelHop = 1 + (kOutputChunkSize - 1) / safeBlockSize;
@@ -136,33 +130,34 @@ constexpr int calculatePluginLatencySamples(int hostSampleRate,
   return schedulingLatency + safeConversionDelay;
 }
 
-static_assert(kAnalysisWindowSize == 2 * kOutputChunkSize);
-static_assert(kPluginLatencySamples == 512);
-static_assert(calculatePluginLatencySamples(32) == 992);
-static_assert(calculatePluginLatencySamples(64) == 960);
-static_assert(calculatePluginLatencySamples(128) == 896);
-static_assert(calculatePluginLatencySamples(256) == 768);
+static_assert(kAnalysisWindowSize ==
+              kAnalysisHistorySamples + kOutputChunkSize);
+static_assert(kPluginLatencySamples == 256);
+static_assert(calculatePluginLatencySamples(32) == 480);
+static_assert(calculatePluginLatencySamples(64) == 448);
+static_assert(calculatePluginLatencySamples(128) == 384);
+static_assert(calculatePluginLatencySamples(256) == 256);
 static_assert(calculatePluginLatencySamples(512) == 512);
-static_assert(calculatePluginLatencySamples(768) == 1024);
+static_assert(calculatePluginLatencySamples(768) == 768);
 static_assert(calculatePluginLatencySamples(1024) == 1024);
 static_assert(kModelOutputDelayChunks == 0);
 static_assert(kAsyncQueueDelayChunks == 1);
-static_assert(isQualifiedCurrentChunkHostConfiguration(44100, 512));
-static_assert(!isQualifiedCurrentChunkHostConfiguration(48000, 512));
-static_assert(!isQualifiedCurrentChunkHostConfiguration(44100, 256));
+static_assert(isQualifiedCurrentChunkHostConfiguration(44100, 256));
+static_assert(!isQualifiedCurrentChunkHostConfiguration(48000, 256));
+static_assert(!isQualifiedCurrentChunkHostConfiguration(44100, 512));
 static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));
 static_assert(!isQualifiedHostSampleRate(48001));
-static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 960);
-static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 512);
-static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1582);
+static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 448);
+static_assert(calculateModelSchedulingLatencySamples(44100, 256) == 256);
+static_assert(calculateModelSchedulingLatencySamples(48000, 256) == 791);
 static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1024);
 
-// The c212 target-Mac order-balanced qualification selected two ORT intra-op
-// threads: it had the lowest zero-miss median pass p99, lower aggregate wall
-// latency, and lower aggregate CPU cost than three for this recurrent hop. Keep
-// the unmeasured Windows policy unchanged until the same sweep is run there.
+// Preserve the established production thread policy while the c236 graph is
+// still awaiting its own target-Mac sweep: two ORT intra-op threads on macOS
+// and the existing four-thread cap elsewhere. A new sweep may requalify this
+// independently of the graph ABI.
 #if defined(__APPLE__)
 constexpr int kOrtAutomaticIntraOpThreadCap = 2;
 #else

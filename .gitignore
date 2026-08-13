@@ -119,6 +119,13 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+# Crash-recovery state for the contract-last c236 audition substitution tool.
+.c236-substitution-txn/
+.c236-substitution-txn.retired/
+.c236-substitution-cleanup-journal.json
+.c236-substitution-test-paused
+.c236-substitution-test-resume
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 

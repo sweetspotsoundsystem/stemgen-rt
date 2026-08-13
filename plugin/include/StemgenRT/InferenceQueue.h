@@ -41,7 +41,7 @@ struct InferenceRequest {
       hostOutputChunk;
   std::array<std::vector<float>, kNumChannels> alignedInput;
   // True when the current-chunk graph result is safe to publish. Every
-  // successful c193 run, including sequence zero after reset, is valid.
+  // successful c236 run, including sequence zero after reset, is valid.
   bool outputValid{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};

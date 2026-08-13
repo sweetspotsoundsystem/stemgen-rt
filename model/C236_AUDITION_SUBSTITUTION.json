@@ -1,0 +1,144 @@
+{
+  "activation": {
+    "complete_if_live_contract_sha256": "2ebae98946584d12e4337172df9aeffcadcc43b91e900eae3470982582188f59",
+    "crash_recovery_hash_inferred": true,
+    "directory_fsync": true,
+    "linux_renameat2_exchange": true,
+    "linux_renameat2_noreplace": true,
+    "model_copied_not_linked": true,
+    "ordinary_error_byte_exact_rollback": true,
+    "pending_contract_sha256": "abcc6f2e210d244461be307cb87c664a95ca48ca8570a3d9ca25ba48039684d3",
+    "protocol": "durable_dependencies_then_contract_last_atomic_exchange_v1",
+    "symlink_and_hardlink_rejection": true
+  },
+  "checked_export": {
+    "completion": {
+      "bytes": 61407,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/export-complete/receipt.json",
+      "sha256": "902854baf0c64ccff5a474177508336f99ae29ce82388bdf5b255cf4fd2377f0",
+      "sidecar": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/export-complete/receipt.json.sha256",
+      "sidecar_sha256": "c42257939999b1dff7c664204e9dca20289ba525c38761e0e926ebc0ab067615"
+    },
+    "deployment_status": "qualified_unpromoted_listening_candidate",
+    "kind": "hs_tasnet_c236_recovery_checked_onnx_export_v3",
+    "model": {
+      "bytes": 111374870,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/attempts/attempt-001/model.onnx",
+      "sha256": "6dd58f05ee6bdf4beadb5df24849320e4f3dec4dbd0c7767fedd0dde2b557a02",
+      "sidecar": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/attempts/attempt-001/model.onnx.sha256",
+      "sidecar_sha256": "15852e8693ebf2b25fe1860295732e5ed6f376639c3c5c6af0d394ec9f5aa560"
+    },
+    "receipt": {
+      "bytes": 82359,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/attempts/attempt-001/model.onnx.export.json",
+      "sha256": "a00f2a6c764be9cfb902b871607f40b93b18ed81e39fb1cd10848fe3ded36917",
+      "sidecar": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-checked-onnx-export-v3/attempts/attempt-001/model.onnx.export.json.sha256",
+      "sidecar_sha256": "5106353b3ae86b4d493ed966c8ed3a37b23461687d7951d3716a66c8e3823a14"
+    },
+    "schema_version": 3,
+    "status": "pass"
+  },
+  "contract_binding": {
+    "canonical_map_sha256": "a1f59ae32aa717565485010568fe9e22470cc509596e486b8bb9a7423790ce5d",
+    "export_receipt_sha_is_onnx_metadata": false,
+    "final_contract_sha256": "2ebae98946584d12e4337172df9aeffcadcc43b91e900eae3470982582188f59",
+    "values": {
+      "composite_runtime_state_sha256": "f9ee9f7dc8dffd813950f4ab2cb080c04b2c9746ee9479e6a5ae9eba3702502c",
+      "contract_identity_sha256": "f2f902661b9fa727f4db5861f33121fa67472e0e307f0068c40e19abbba994ef",
+      "evaluation_result_bound": "true",
+      "export_receipt_sha256": "a00f2a6c764be9cfb902b871607f40b93b18ed81e39fb1cd10848fe3ded36917",
+      "final_chain_receipt_sha256": "04bc07022394d47f403491551bd49428b154b5f1c7006449d10dca700af1b16e",
+      "materialization_receipt_sha256": "376c8ce75e973cf720cd61ef2df40d39bbc31fcf1c6881ba98f7a7ab6f41008f",
+      "materialized_artifact_sha256": "ef187a6282cd153ed4b5a878cf674fd6969440a08c182d71df7b5ae731a3708b",
+      "model_byte_size": 111374870,
+      "model_sha256": "6dd58f05ee6bdf4beadb5df24849320e4f3dec4dbd0c7767fedd0dde2b557a02",
+      "model_state_sha256": "6a52f078231163b3790178a551ee7f30ef225f1f1bb1671ef5b822f6c96416a0",
+      "qualification_v2_candidate_status": "qualified_by_declared_quality_budget",
+      "qualification_v2_sha256": "25456eafb49b3ef428ae860eff927fe548e160107fdbd9fafd688fd6ead96449",
+      "recovery_receipt_sha256": "234e59e0bca37915f29c06fa9e95432cad94a89150448564bb1dc79f80638af1",
+      "run_uuid": "024ef8bb-c0f2-4663-ae60-03c4fc4a2b9e",
+      "selected_update": 100000,
+      "source_checkpoint_sha256": "983b92df0e56870c04076fa27ea5084b85f07441a67557f886a6017632bf3d62",
+      "static_identity_sha256": "3f1145ad0b3545fb6ec826757a709b6a76fa096583e68695cb72af3570ecb4ee"
+    }
+  },
+  "created_at_utc": "2026-08-13T06:05:53.284825+00:00",
+  "fixed_authorities": {
+    "c191_head_state_sha256": "238991eced221734b5e931bbc4256412dd6ed361656f2cbe4864abccedd22bcf",
+    "c191_payload_sha256": "a80f65f1f475815181306ef6366d077ce6fa21eebd423994744b2d6e7d2f9f5b",
+    "materializer_sha256": "5da7c0d97faeabdfb87fbdf3d37e5a2af2847f8a1595fc0467b01a14ea59ca2d",
+    "recovery_contract_sha256": "a1125772696b9f05d699c9de2f92caaa92cfaa1a58d74b80713ea6d021db4501",
+    "recovery_receipt_authority_sha256": "fcb8edac6e94512d9be3b98d225541cf08458a3f3e015a139f36ac774bb76aa8",
+    "shared_publication_authority_sha256": "6fc64af8968199e926f529ac9626f20c5f9fd6c28bcea02ae426353ae19246d2",
+    "terminal_chain_authority_sha256": "e8d23b5e78f36482e5f60b2e0d4b5b40d5cb91a242882f26a4f85f362a376cc9"
+  },
+  "kind": "stemgenrt_c236_audition_substitution_authority_v1",
+  "qualification": {
+    "candidate_status": "qualified_by_declared_quality_budget",
+    "final_chain_receipt": {
+      "bytes": 17786,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-selected-chain-v1/chain-complete/receipt.json",
+      "sha256": "04bc07022394d47f403491551bd49428b154b5f1c7006449d10dca700af1b16e",
+      "sidecar": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-selected-chain-v1/chain-complete/receipt.json.sha256",
+      "sidecar_sha256": "201f91d335dce0e79fb7767d83ea10526b1b72611abd54d3768665fafaee126d"
+    },
+    "qualification_v2": {
+      "bytes": 1142791,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-selected-chain-v1/attempt-001/qualification-v2-001.json",
+      "sha256": "25456eafb49b3ef428ae860eff927fe548e160107fdbd9fafd688fd6ead96449",
+      "sidecar": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/artifacts/c236-terminal-recovery-selected-chain-v1/attempt-001/qualification-v2-001.json.sha256",
+      "sidecar_sha256": "fca8bfa9a7315d8149dc58a9313e4dca3db2ef619ab9d8abb39ae8eaf6cbc3c2"
+    },
+    "required_scopes": [
+      "full14",
+      "electronic"
+    ]
+  },
+  "retired_legacy_512_evidence": [
+    {
+      "bytes": 7275,
+      "disposition": "removed_at_activation",
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/workspaces/c236-plugin-audition-preparation-v1/stemgen-rt/model/FULL_CORRECTION_CANDIDATE.json",
+      "sha256": "c9246d27cf9cd1fff69d50b4fbb6d651a009fd1af563ad07025be024ad56b030"
+    },
+    {
+      "bytes": 97,
+      "disposition": "removed_at_activation",
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/workspaces/c236-plugin-audition-preparation-v1/stemgen-rt/model/FULL_CORRECTION_CANDIDATE.json.sha256",
+      "sha256": "bae56315f3dcf943a4d728123bdb7a42cf0ad89135bf303c9baefd59988a6b36"
+    },
+    {
+      "bytes": 4055,
+      "disposition": "removed_at_activation",
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/workspaces/c236-plugin-audition-preparation-v1/stemgen-rt/model/FULL_CORRECTION_QUALIFICATION.md",
+      "sha256": "c10ae4b27ab25d411de26dafd35bab1f19b67b10cc735f2a325379a8f827410c"
+    }
+  ],
+  "schema_version": 1,
+  "scope": {
+    "audio_accessed": false,
+    "build_performed": false,
+    "commit_performed": false,
+    "gpu_used": false,
+    "listening_approval_required": true,
+    "model_executed": false,
+    "production_checkout_touched": false,
+    "push_performed": false,
+    "target_mac_qualification_required": true
+  },
+  "status": "authorized_for_contract_last_activation",
+  "trust_anchors": {
+    "expected_export_receipt_sha256": "a00f2a6c764be9cfb902b871607f40b93b18ed81e39fb1cd10848fe3ded36917",
+    "expected_final_chain_receipt_sha256": "04bc07022394d47f403491551bd49428b154b5f1c7006449d10dca700af1b16e",
+    "independently_supplied": true
+  },
+  "workspace": {
+    "base_commit": "8b0f2a041aaf546637f89559324f4c6d362611c1",
+    "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/workspaces/c236-plugin-audition-preparation-v1/stemgen-rt",
+    "pending_contract": {
+      "bytes": 7965,
+      "path": "/home/axel/autoresearch/codex/HS-TasNet-latency11-v1-state/workspaces/c236-plugin-audition-preparation-v1/stemgen-rt/cmake/QualifiedModelContract.cmake",
+      "sha256": "abcc6f2e210d244461be307cb87c664a95ca48ca8570a3d9ca25ba48039684d3"
+    }
+  }
+}

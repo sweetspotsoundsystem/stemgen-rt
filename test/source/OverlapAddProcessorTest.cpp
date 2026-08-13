@@ -141,8 +141,18 @@ TEST(OverlapAddProcessorTest,
   EXPECT_TRUE(processor.readyForInference());
   EXPECT_EQ(processor.getInputAccumCount(),
             static_cast<size_t>(audio_plugin::kOutputChunkSize));
-  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[0][511], 511.0f);
-  EXPECT_FLOAT_EQ(processor.getInputAccumBuffer()[1][511], -511.0f);
+  constexpr size_t kLastHopSample =
+      static_cast<size_t>(audio_plugin::kOutputChunkSize) - 1U;
+  static_assert(audio_plugin::kOutputChunkSize > 0);
+  const auto& inputAccum = processor.getInputAccumBuffer();
+  ASSERT_EQ(inputAccum[0].size(),
+            static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  ASSERT_EQ(inputAccum[1].size(),
+            static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  EXPECT_FLOAT_EQ(inputAccum[0][kLastHopSample],
+                  static_cast<float>(kLastHopSample));
+  EXPECT_FLOAT_EQ(inputAccum[1][kLastHopSample],
+                  -static_cast<float>(kLastHopSample));
 }
 
 TEST(OverlapAddProcessorTest,

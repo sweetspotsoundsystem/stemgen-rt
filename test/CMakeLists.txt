@@ -8,6 +8,7 @@ enable_testing()
 # Creates the test console application.
 set(SOURCE_FILES
   source/AudioProcessorTest.cpp
+  source/C236ContractCompileOnly.cpp
   source/InferenceQueueTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
   source/ModelOutputSchedulerTest.cpp
@@ -19,6 +20,12 @@ set(SOURCE_FILES
   source/TransportUnderrunE2ETest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+
+# This detached audition tree has already completed the receipt-bound c236
+# substitution.  Compile the contract-only assertions against the activated
+# identities; leaving the source's fail-closed default at zero would instead
+# ask the normal test target to validate the pre-substitution sentinel.
+target_compile_definitions(${PROJECT_NAME} PRIVATE C236_CONTRACT_PHASE_FINAL=1)
 
 # Sets the necessary include directories of googletest.
 target_include_directories(${PROJECT_NAME} PRIVATE ${GOOGLETEST_SOURCE_DIR}/googletest/include)

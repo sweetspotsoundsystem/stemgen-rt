@@ -290,10 +290,8 @@ TEST(QualifiedModelContractTest,
             contract::kAnalysisWindowSamples);
   EXPECT_EQ(audio_plugin::kFusionHiddenLayers, contract::kFusionHiddenLayers);
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, contract::kFusionHiddenSize);
-  EXPECT_EQ(audio_plugin::kRawParentChannels,
-            contract::kRawParentChannels);
-  EXPECT_EQ(audio_plugin::kRawParentHistorySamples,
-            contract::kRawParentHistorySamples);
+  EXPECT_EQ(audio_plugin::kAnalysisHistorySamples,
+            contract::kAnalysisHistorySamples);
   EXPECT_EQ(audio_plugin::kEmittedDbChannels,
             contract::kEmittedDbChannels);
   EXPECT_EQ(audio_plugin::kEmittedDbHistorySamples,
@@ -306,9 +304,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 8U);
-  ASSERT_EQ(contract::kOutputNames.size(), 8U);
-  ASSERT_EQ(contract::kMetadata.size(), 54U);
+  ASSERT_EQ(contract::kInputNames.size(), 4U);
+  ASSERT_EQ(contract::kOutputNames.size(), 4U);
+  ASSERT_EQ(contract::kMetadata.size(), 68U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -573,7 +571,7 @@ TEST(OrtStreamingRuntimeTest,
   constexpr double kTwoPi = 6.28318530717958647692;
 
   constexpr std::array<size_t, 2> kMeasuredStemIndices = {0, 1};
-  // Provisional listening ceilings inherited from c157. The c193 refiner is
+  // Provisional listening ceilings inherited from c157. The c236 separator is
   // tested against the same explicit low-frequency seam bounds; promotion
   // still requires the target-Mac listening and numerical pass.
   constexpr std::array<double, 2> kSeamRatioCeilings = {21.0, 3.0};
@@ -633,7 +631,7 @@ TEST(OrtStreamingRuntimeTest,
   }
 
   // Measure the current-chunk low-tone seam directly. These remain provisional
-  // listening ceilings until c193 is requalified on the target Mac.
+  // listening ceilings until c236 is requalified on the target Mac.
   for (size_t measuredStem = 0;
        measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);
@@ -685,9 +683,15 @@ TEST(OrtStreamingRuntimeTest,
   referenceInputs.push_back(scaledToStereoRms(
       makeAudioChunk(4 * audio_plugin::kOutputChunkSize), 0.08f));
 
+  constexpr size_t kLateHopTransientIndex =
+      3U * static_cast<size_t>(audio_plugin::kOutputChunkSize) / 4U;
+  static_assert(kLateHopTransientIndex <
+                static_cast<size_t>(audio_plugin::kOutputChunkSize));
   AudioChunk secondTransient = makeZeroAudioChunk();
   secondTransient[0][73] = -0.6f;
-  secondTransient[1][401] = 0.75f;
+  ASSERT_EQ(secondTransient[1].size(),
+            static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  secondTransient[1][kLateHopTransientIndex] = 0.75f;
   referenceInputs.push_back(secondTransient);
 
   referenceInputs.push_back(scaledToStereoRms(

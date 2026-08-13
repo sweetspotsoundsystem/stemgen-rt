@@ -319,7 +319,7 @@ TEST_F(AudioProcessorTest, OrtStatusString) {
       status.containsIgnoreCase("ONNX") || status.containsIgnoreCase("ORT") ||
       status.containsIgnoreCase("not") || status.containsIgnoreCase("model") ||
       status.containsIgnoreCase("HS-TasNet") ||
-      status.containsIgnoreCase("requires 44.1 kHz / 512 samples"));
+      status.containsIgnoreCase("requires 44100 Hz / 256 samples"));
 }
 
 // ============================================================================
@@ -328,7 +328,7 @@ TEST_F(AudioProcessorTest, OrtStatusString) {
 
 TEST_F(AudioProcessorTest, PrepareToPlayDoesNotCrash) {
   // Standard call with typical values
-  processor->prepareToPlay(44100.0, 512);
+  processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   processor->releaseResources();
 }
 
@@ -337,7 +337,7 @@ TEST_F(AudioProcessorTest, PrepareToPlayWithVariousSampleRates) {
                                 88200.0, 96000.0, 192000.0};
 
   for (double sr : sampleRates) {
-    processor->prepareToPlay(sr, 512);
+    processor->prepareToPlay(sr, audio_plugin::kOutputChunkSize);
     processor->releaseResources();
   }
 }
@@ -354,19 +354,19 @@ TEST_F(AudioProcessorTest, PrepareToPlayWithVariousBufferSizes) {
 TEST_F(AudioProcessorTest, MultiplePrepareReleaseCycles) {
   // Simulate what a host does when changing settings
   for (int i = 0; i < 5; ++i) {
-    processor->prepareToPlay(44100.0, 512);
+    processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
     processor->releaseResources();
   }
 }
 
 TEST_F(AudioProcessorTest, ResetStreamingBuffersDoesNotCrash) {
-  processor->prepareToPlay(44100.0, 512);
+  processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   processor->resetStreamingBuffers();
   processor->releaseResources();
 }
 
 TEST_F(AudioProcessorTest, HostResetClearsPendingOneHopDryHistory) {
-  constexpr int kBlockSize = 512;
+  constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
   processor->prepareToPlay(44100.0, kBlockSize);
   if (processor->getLatencySamples() == 0) {
     GTEST_SKIP() << "Qualified model is unavailable";
@@ -403,7 +403,7 @@ TEST_F(AudioProcessorTest, HostResetClearsPendingOneHopDryHistory) {
 }
 
 TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
-  constexpr int kPreparedBlockSize = 512;
+  constexpr int kPreparedBlockSize = audio_plugin::kOutputChunkSize;
   constexpr int kLargeCallbackSize = 4096;
   processor->prepareToPlay(44100.0, kPreparedBlockSize);
   if (processor->getLatencySamples() == 0) {
@@ -412,7 +412,7 @@ TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
 
   // Output consumption precedes request publication in a callback, so this
   // oversized first callback deterministically has no model result. Only the
-  // portion at/after the 512-sample PDC boundary is an underrun.
+  // portion at/after the 256-sample PDC boundary is an underrun.
   juce::AudioBuffer<float> largeBuffer(12, kLargeCallbackSize);
   largeBuffer.clear();
   auto inputBus = processor->getBusBuffer(largeBuffer, true, 0);
@@ -495,7 +495,7 @@ protected:
   void SetUp() override {
     AudioProcessorTest::SetUp();
     // Prepare the processor for playback
-    processor->prepareToPlay(44100.0, 512);
+    processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   }
 
   void TearDown() override {
@@ -556,7 +556,7 @@ protected:
 };
 
 TEST_F(ProcessBlockTest, ProcessBlockDoesNotCrash) {
-  auto buffer = createBuffer(512);
+  auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
   juce::MidiBuffer midiBuffer;
 
   fillWithTestSignal(buffer);
@@ -616,13 +616,13 @@ TEST_F(ProcessBlockTest, ProducesNonSilentOutputWithLoadedModel) {
   float maximumReconstructionError = 0.0f;
 
   for (int block = 0; block < warmupBlocks + measureBlocks; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     buffer.clear();
     auto inputBus = processor->getBusBuffer(buffer, true, 0);
 
     // Put a distinctive signal in input channels (0-1)
-    for (int i = 0; i < 512; ++i) {
-      const int timelineSample = block * 512 + i;
+    for (int i = 0; i < audio_plugin::kOutputChunkSize; ++i) {
+      const int timelineSample = block * audio_plugin::kOutputChunkSize + i;
       const float val = std::sin(2.0f * 3.14159f * 440.0f *
                                  static_cast<float>(timelineSample) / 44100.0f);
       inputBus.setSample(0, i, val);
@@ -669,7 +669,7 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
 
   // Simulate real-time streaming with many blocks
   for (int block = 0; block < 100; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer, 0.5f);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -732,14 +732,14 @@ TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
 }
 
 TEST_F(AudioProcessorTest,
-       LargePreparedBlockFailsClosedForC193HostContract) {
+       LargePreparedBlockFailsClosedForC236HostContract) {
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
   EXPECT_EQ(processor->getLatencySamples(), 0);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   EXPECT_TRUE(processor->getOrtStatusString().contains(
-      "requires 44100 Hz / 512 samples"));
+      "requires 44100 Hz / 256 samples"));
 #endif
   processor->releaseResources();
 }
@@ -755,7 +755,7 @@ TEST_F(ProcessBlockTest, StoppedScrubClearsStreamingTimeline) {
   juce::MidiBuffer midiBuffer;
 
   for (int block = 0; block < 3; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     buffer.clear();
     auto inputBus = processor->getBusBuffer(buffer, true, 0);
     for (int i = 0; i < buffer.getNumSamples(); ++i) {
@@ -771,7 +771,7 @@ TEST_F(ProcessBlockTest, StoppedScrubClearsStreamingTimeline) {
   }
 
   playHead.setPosition(false, 8192);
-  auto afterScrub = createBuffer(512);
+  auto afterScrub = createBuffer(audio_plugin::kOutputChunkSize);
   afterScrub.clear();
   processor->processBlock(afterScrub, midiBuffer);
   const auto mainAfterScrub = processor->getBusBuffer(afterScrub, false, 0);
@@ -788,7 +788,7 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 
   // Process some blocks
   for (int i = 0; i < 10; ++i) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -798,7 +798,7 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 
   // Process more blocks - should not crash
   for (int i = 0; i < 10; ++i) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -820,10 +820,12 @@ TEST(ConstantsTest, ChannelCountIsStereo) {
   EXPECT_EQ(audio_plugin::kNumChannels, 2);
 }
 
-TEST(ConstantsTest, StatefulStreamingWindowIsTwoHops) {
-  EXPECT_EQ(audio_plugin::kOutputChunkSize, 512);
+TEST(ConstantsTest, StatefulStreamingWindowUsesPastPlusCurrentAnalysis) {
+  EXPECT_EQ(audio_plugin::kOutputChunkSize, 256);
   EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
-            2 * audio_plugin::kOutputChunkSize);
+            audio_plugin::kAnalysisHistorySamples +
+                audio_plugin::kOutputChunkSize);
+  EXPECT_EQ(audio_plugin::kAnalysisHistorySamples, 768);
 }
 
 TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
@@ -831,29 +833,27 @@ TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
 }
 
-TEST(ConstantsTest, C193HistoryShapesMatchSevenStateContract) {
-  EXPECT_EQ(audio_plugin::kRawParentChannels, 4);
-  EXPECT_EQ(audio_plugin::kRawParentHistorySamples, 2048);
+TEST(ConstantsTest, C236HistoryShapesMatchThreeStateContract) {
   EXPECT_EQ(audio_plugin::kEmittedDbChannels, 4);
   EXPECT_EQ(audio_plugin::kEmittedDbHistorySamples, 2048);
-  EXPECT_EQ(audio_plugin::qualified_model::kInputNames.size(), 8U);
-  EXPECT_EQ(audio_plugin::qualified_model::kOutputNames.size(), 8U);
+  EXPECT_EQ(audio_plugin::qualified_model::kInputNames.size(), 4U);
+  EXPECT_EQ(audio_plugin::qualified_model::kOutputNames.size(), 4U);
 }
 
 TEST(ConstantsTest, PluginLatencyIsOneQueueHopWithNoModelDelay) {
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 0);
   EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 1);
-  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 512);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 256);
 }
 
 TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 992);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 960);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 896);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 768);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 480);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 448);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 384);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 256);
   EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 512);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1024);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 768);
   EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1024);
   EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2048);
 }
@@ -867,21 +867,21 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromCurrentChunkQualification) 
   EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
 
   EXPECT_TRUE(
-      audio_plugin::isQualifiedCurrentChunkHostConfiguration(44100, 512));
-  EXPECT_FALSE(
-      audio_plugin::isQualifiedCurrentChunkHostConfiguration(48000, 512));
-  EXPECT_FALSE(
       audio_plugin::isQualifiedCurrentChunkHostConfiguration(44100, 256));
+  EXPECT_FALSE(
+      audio_plugin::isQualifiedCurrentChunkHostConfiguration(48000, 256));
+  EXPECT_FALSE(
+      audio_plugin::isQualifiedCurrentChunkHostConfiguration(44100, 512));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
-            1582);
+            791);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(88200, 1024),
             1024);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(96000, 512),
-            2651);
+            1582);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(192000, 512),
-            4790);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 1719);
+            2651);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 928);
 }
 
 TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
@@ -931,7 +931,7 @@ TEST_F(AudioProcessorTest, MultipleEditorCreation) {
 class AudioQualityTest : public AudioProcessorTest {
 protected:
   static constexpr double kSampleRate = 44100.0;
-  static constexpr int kBlockSize = 512;
+  static constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
   static constexpr float kPi = 3.14159265358979323846f;
 
   // Random number generator for reproducible noise generation
@@ -1470,8 +1470,8 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
   float inputCorrelation = 0.0f;
   float outputCorrelation = 0.0f;
 
-  // The c193 graph emits the current hop, while the asynchronous publication
-  // path delays Main by one 512-sample block. Feed three continuous blocks and
+  // The c236 graph emits the current hop, while the asynchronous publication
+  // path delays Main by one 256-sample block. Feed three continuous blocks and
   // inspect a stable latency-aligned Main copy.
   for (int block = 0; block < 3; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
@@ -1907,7 +1907,7 @@ protected:
 
       processor->processBlock(buffer, midiBuffer);
 
-      // Give inference thread time to process (each 512-sample block = ~11.6ms
+      // Give inference thread time to process (each 256-sample block = ~5.8ms
       // at 44.1kHz)
       std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
@@ -2210,7 +2210,7 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
 
     processor->processBlock(buffer, midiBuffer);
 
-    // Give inference thread time to process (each 512-sample block = ~11.6ms
+    // Give inference thread time to process (each 256-sample block = ~5.8ms
     // at 44.1kHz)
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
