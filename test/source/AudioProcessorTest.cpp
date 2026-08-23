@@ -3,10 +3,26 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <random>
 #include <thread>
 
 namespace audio_plugin_test {
+
+class TestPlayHead final : public juce::AudioPlayHead {
+public:
+  void setPosition(bool isPlaying, int64_t timeInSamples) {
+    position_.setIsPlaying(isPlaying);
+    position_.setTimeInSamples(timeInSamples);
+  }
+
+  juce::Optional<PositionInfo> getPosition() const override {
+    return position_;
+  }
+
+private:
+  PositionInfo position_;
+};
 
 // ============================================================================
 // Test Fixture
@@ -18,9 +34,7 @@ protected:
     processor = std::make_unique<audio_plugin::AudioPluginAudioProcessor>();
   }
 
-  void TearDown() override {
-    processor.reset();
-  }
+  void TearDown() override { processor.reset(); }
 
   std::unique_ptr<audio_plugin::AudioPluginAudioProcessor> processor;
 };
@@ -52,8 +66,10 @@ TEST_F(AudioProcessorTest, IsMidiEffect) {
 }
 
 TEST_F(AudioProcessorTest, GetTailLengthSeconds) {
-  // No tail (reverb, delay, etc.)
-  EXPECT_EQ(processor->getTailLengthSeconds(), 0.0);
+  const double expected =
+      static_cast<double>(audio_plugin::kPluginLatencySamples) /
+      static_cast<double>(audio_plugin::kModelSampleRate);
+  EXPECT_DOUBLE_EQ(processor->getTailLengthSeconds(), expected);
 }
 
 TEST_F(AudioProcessorTest, HasEditor) {
@@ -94,77 +110,81 @@ TEST_F(AudioProcessorTest, ChangeProgramName) {
 TEST_F(AudioProcessorTest, SupportsStereoInputStereoOutputs) {
   // The standard layout: stereo input, 5 stereo outputs (main + 4 stems)
   juce::AudioProcessor::BusesLayout layout;
-  
+
   // Input: 1 stereo bus
   layout.inputBuses.add(juce::AudioChannelSet::stereo());
-  
+
   // Output: 5 stereo buses (Main, Drums, Bass, Other, Vocals)
   for (int i = 0; i < 5; ++i) {
     layout.outputBuses.add(juce::AudioChannelSet::stereo());
   }
-  
+
   EXPECT_TRUE(processor->isBusesLayoutSupported(layout));
 }
 
 TEST_F(AudioProcessorTest, SupportsStereoWithSomeDisabledOutputs) {
   // Layout with some stem outputs disabled
   juce::AudioProcessor::BusesLayout layout;
-  
+
   // Input: 1 stereo bus
   layout.inputBuses.add(juce::AudioChannelSet::stereo());
-  
+
   // Output: Main stereo + some disabled stem buses
-  layout.outputBuses.add(juce::AudioChannelSet::stereo());    // Main - must be stereo
-  layout.outputBuses.add(juce::AudioChannelSet::disabled());  // Drums - disabled
-  layout.outputBuses.add(juce::AudioChannelSet::stereo());    // Bass - stereo
-  layout.outputBuses.add(juce::AudioChannelSet::disabled());  // Other - disabled
-  layout.outputBuses.add(juce::AudioChannelSet::stereo());    // Vocals - stereo
-  
+  layout.outputBuses.add(
+      juce::AudioChannelSet::stereo());  // Main - must be stereo
+  layout.outputBuses.add(
+      juce::AudioChannelSet::disabled());                   // Drums - disabled
+  layout.outputBuses.add(juce::AudioChannelSet::stereo());  // Bass - stereo
+  layout.outputBuses.add(
+      juce::AudioChannelSet::disabled());                   // Other - disabled
+  layout.outputBuses.add(juce::AudioChannelSet::stereo());  // Vocals - stereo
+
   EXPECT_TRUE(processor->isBusesLayoutSupported(layout));
 }
 
 TEST_F(AudioProcessorTest, RejectsMonoInput) {
   juce::AudioProcessor::BusesLayout layout;
-  
+
   // Input: mono (should be rejected)
   layout.inputBuses.add(juce::AudioChannelSet::mono());
-  
+
   // Output: 5 stereo buses
   for (int i = 0; i < 5; ++i) {
     layout.outputBuses.add(juce::AudioChannelSet::stereo());
   }
-  
+
   EXPECT_FALSE(processor->isBusesLayoutSupported(layout));
 }
 
 TEST_F(AudioProcessorTest, RejectsMonoMainOutput) {
   juce::AudioProcessor::BusesLayout layout;
-  
+
   // Input: stereo
   layout.inputBuses.add(juce::AudioChannelSet::stereo());
-  
+
   // Output: Main is mono (should be rejected)
   layout.outputBuses.add(juce::AudioChannelSet::mono());
   for (int i = 0; i < 4; ++i) {
     layout.outputBuses.add(juce::AudioChannelSet::stereo());
   }
-  
+
   EXPECT_FALSE(processor->isBusesLayoutSupported(layout));
 }
 
 TEST_F(AudioProcessorTest, RejectsQuadMainOutput) {
   // Test that the main output bus (bus 0) must be stereo, not quad/surround
   juce::AudioProcessor::BusesLayout layout;
-  
+
   // Input: stereo
   layout.inputBuses.add(juce::AudioChannelSet::stereo());
-  
+
   // Output: 5 buses, but main is quad (should be rejected)
-  layout.outputBuses.add(juce::AudioChannelSet::quadraphonic());  // Main - wrong!
+  layout.outputBuses.add(
+      juce::AudioChannelSet::quadraphonic());  // Main - wrong!
   for (int i = 0; i < 4; ++i) {
     layout.outputBuses.add(juce::AudioChannelSet::stereo());
   }
-  
+
   EXPECT_FALSE(processor->isBusesLayoutSupported(layout));
 }
 
@@ -189,56 +209,97 @@ TEST_F(AudioProcessorTest, LatencyMsCalculation) {
 
 TEST_F(AudioProcessorTest, PassthroughWhenNoModel) {
   // When prepareToPlay hasn't been called, the model isn't loaded,
-  // and the plugin should pass input audio through to outputs.
-  
+  // and the plugin must preserve the input and exact stem sum safely.
+
   // Note: We intentionally do NOT call prepareToPlay() here.
   // The AudioProcessorTest fixture only creates the processor.
-  
+
   // Get the expected buffer channel count from the processor's bus layout.
   // This ensures we create a buffer that matches JUCE's expectations.
   const int totalInChannels = processor->getTotalNumInputChannels();
   const int totalOutChannels = processor->getTotalNumOutputChannels();
   const int totalChannels = totalInChannels + totalOutChannels;
   const int numSamples = 512;
-  
+
   juce::AudioBuffer<float> buffer(totalChannels, numSamples);
   buffer.clear();
-  
+
   // Store the input signal for comparison
   std::vector<float> inputL(static_cast<size_t>(numSamples));
   std::vector<float> inputR(static_cast<size_t>(numSamples));
-  
+
   // Put a distinctive signal in input channels (channels 0 and 1)
   for (int i = 0; i < numSamples; ++i) {
-    float valL = std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+    float valL =
+        std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
     float valR = valL * 0.5f;  // Different amplitude for R channel
     inputL[static_cast<size_t>(i)] = valL;
     inputR[static_cast<size_t>(i)] = valR;
     buffer.setSample(0, i, valL);
     buffer.setSample(1, i, valR);
   }
-  
+
   juce::MidiBuffer midiBuffer;
   processor->processBlock(buffer, midiBuffer);
-  
-  // Without model loaded, input should be copied to all output buses.
-  // Use getBusBuffer to get the correct channel mapping (same as processor does).
+
+  // Without a qualified model, Main and Other carry the mixture while Drums,
+  // Bass, and Vocals are zero. This preserves the reconstruction invariant
+  // without pretending that a separation occurred.
   const int numOutputBuses = processor->getBusCount(false /* isInput */);
-  ASSERT_GT(numOutputBuses, 0) << "Expected at least one output bus";
-  
+  ASSERT_EQ(numOutputBuses, 5);
+
   for (int busIdx = 0; busIdx < numOutputBuses; ++busIdx) {
-    auto outputBus = processor->getBusBuffer(buffer, false /* isInput */, busIdx);
+    auto outputBus =
+        processor->getBusBuffer(buffer, false /* isInput */, busIdx);
     const int busChannels = outputBus.getNumChannels();
-    
-    // Each output bus should have the input copied to it
+    const bool carriesMixture = (busIdx == 0 || busIdx == 3);
+
     for (int ch = 0; ch < std::min(2, busChannels); ++ch) {
-      const float* expected = (ch == 0) ? inputL.data() : inputR.data();
+      const float* input = (ch == 0) ? inputL.data() : inputR.data();
       const float* actual = outputBus.getReadPointer(ch);
-      
+
       for (int i = 0; i < numSamples; ++i) {
-        EXPECT_NEAR(actual[i], expected[i], 1e-6f)
-            << "Output bus " << busIdx << " channel " << ch 
+        const float expected = carriesMixture ? input[i] : 0.0f;
+        EXPECT_FLOAT_EQ(actual[i], expected)
+            << "Output bus " << busIdx << " channel " << ch
             << " mismatch at sample " << i;
+      }
+    }
+  }
+
+  for (int ch = 0; ch < 2; ++ch) {
+    const auto main = processor->getBusBuffer(buffer, false, 0);
+    const auto drums = processor->getBusBuffer(buffer, false, 1);
+    const auto bass = processor->getBusBuffer(buffer, false, 2);
+    const auto other = processor->getBusBuffer(buffer, false, 3);
+    const auto vocals = processor->getBusBuffer(buffer, false, 4);
+    for (int i = 0; i < numSamples; ++i) {
+      EXPECT_FLOAT_EQ(main.getSample(ch, i),
+                      drums.getSample(ch, i) + bass.getSample(ch, i) +
+                          other.getSample(ch, i) + vocals.getSample(ch, i));
+    }
+  }
+}
+
+TEST_F(AudioProcessorTest, NonFiniteInputIsSanitizedInSafePath) {
+  constexpr int kNumSamples = 16;
+  const int totalChannels = processor->getTotalNumInputChannels() +
+                            processor->getTotalNumOutputChannels();
+  juce::AudioBuffer<float> buffer(totalChannels, kNumSamples);
+  buffer.clear();
+  buffer.setSample(0, 3, std::numeric_limits<float>::quiet_NaN());
+  buffer.setSample(1, 7, std::numeric_limits<float>::infinity());
+
+  juce::MidiBuffer midiBuffer;
+  processor->processBlock(buffer, midiBuffer);
+
+  for (int busIndex = 0; busIndex < processor->getBusCount(false); ++busIndex) {
+    const auto outputBus =
+        processor->getBusBuffer(buffer, false /* isInput */, busIndex);
+    for (int ch = 0; ch < outputBus.getNumChannels(); ++ch) {
+      for (int i = 0; i < kNumSamples; ++i) {
+        EXPECT_TRUE(std::isfinite(outputBus.getSample(ch, i)))
+            << "bus=" << busIndex << " channel=" << ch << " sample=" << i;
       }
     }
   }
@@ -252,13 +313,12 @@ TEST_F(AudioProcessorTest, OrtStatusString) {
   // Status string should indicate ORT state
   juce::String status = processor->getOrtStatusString();
   EXPECT_FALSE(status.isEmpty());
-  
+
   // Should mention ONNX Runtime in some form
-  EXPECT_TRUE(status.containsIgnoreCase("ONNX") || 
-              status.containsIgnoreCase("ORT") ||
-              status.containsIgnoreCase("not") ||
-              status.containsIgnoreCase("model") ||
-              status.containsIgnoreCase("HS-TasNet"));
+  EXPECT_TRUE(
+      status.containsIgnoreCase("ONNX") || status.containsIgnoreCase("ORT") ||
+      status.containsIgnoreCase("not") || status.containsIgnoreCase("model") ||
+      status.containsIgnoreCase("HS-TasNet"));
 }
 
 // ============================================================================
@@ -272,8 +332,9 @@ TEST_F(AudioProcessorTest, PrepareToPlayDoesNotCrash) {
 }
 
 TEST_F(AudioProcessorTest, PrepareToPlayWithVariousSampleRates) {
-  const double sampleRates[] = {22050.0, 44100.0, 48000.0, 88200.0, 96000.0, 192000.0};
-  
+  const double sampleRates[] = {22050.0, 44100.0, 48000.0,
+                                88200.0, 96000.0, 192000.0};
+
   for (double sr : sampleRates) {
     processor->prepareToPlay(sr, 512);
     processor->releaseResources();
@@ -282,7 +343,7 @@ TEST_F(AudioProcessorTest, PrepareToPlayWithVariousSampleRates) {
 
 TEST_F(AudioProcessorTest, PrepareToPlayWithVariousBufferSizes) {
   const int bufferSizes[] = {32, 64, 128, 256, 512, 1024, 2048, 4096};
-  
+
   for (int bs : bufferSizes) {
     processor->prepareToPlay(44100.0, bs);
     processor->releaseResources();
@@ -303,6 +364,60 @@ TEST_F(AudioProcessorTest, ResetStreamingBuffersDoesNotCrash) {
   processor->releaseResources();
 }
 
+TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
+  constexpr int kPreparedBlockSize = 512;
+  constexpr int kLargeCallbackSize = 4096;
+  processor->prepareToPlay(44100.0, kPreparedBlockSize);
+  if (processor->getLatencySamples() == 0) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+
+  // Output consumption precedes request publication in a callback, so this
+  // oversized first callback deterministically has no model result. Only the
+  // portion at/after the 1,024-sample PDC boundary is an underrun.
+  juce::AudioBuffer<float> largeBuffer(12, kLargeCallbackSize);
+  largeBuffer.clear();
+  auto inputBus = processor->getBusBuffer(largeBuffer, true, 0);
+  for (int i = 0; i < kLargeCallbackSize; ++i) {
+    inputBus.setSample(0, i, 0.2f);
+    inputBus.setSample(1, i, -0.1f);
+  }
+  juce::MidiBuffer midiBuffer;
+  processor->processBlock(largeBuffer, midiBuffer);
+
+  constexpr size_t kExpectedUnderrunSamples =
+      kLargeCallbackSize - audio_plugin::kPluginLatencySamples;
+  ASSERT_TRUE(processor->isUnderrunActive());
+  ASSERT_EQ(processor->getUnderrunSamplesInLastBlock(),
+            kExpectedUnderrunSamples);
+  ASSERT_EQ(processor->getUnderrunSampleCount(), kExpectedUnderrunSamples);
+  ASSERT_EQ(processor->getUnderrunBlockCount(), 1U);
+
+  // A transport start uses the audio-thread reset path. Snapshot state must
+  // immediately describe the new generation while lifetime totals remain.
+  TestPlayHead playHead;
+  playHead.setPosition(true, 0);
+  processor->setPlayHead(&playHead);
+  juce::AudioBuffer<float> afterTransportReset(12, 64);
+  afterTransportReset.clear();
+  processor->processBlock(afterTransportReset, midiBuffer);
+  EXPECT_FALSE(processor->isUnderrunActive());
+  EXPECT_EQ(processor->getUnderrunSamplesInLastBlock(), 0U);
+  EXPECT_EQ(processor->getRingFillLevel(), 0U);
+  EXPECT_EQ(processor->getUnderrunSampleCount(), kExpectedUnderrunSamples);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 1U);
+
+  // The non-real-time reset used by release/reprepare has the same snapshot
+  // semantics and also preserves lifetime totals.
+  processor->resetStreamingBuffers();
+  EXPECT_FALSE(processor->isUnderrunActive());
+  EXPECT_EQ(processor->getUnderrunSamplesInLastBlock(), 0U);
+  EXPECT_EQ(processor->getRingFillLevel(), 0U);
+  EXPECT_EQ(processor->getUnderrunSampleCount(), kExpectedUnderrunSamples);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 1U);
+  processor->releaseResources();
+}
+
 // ============================================================================
 // State Information
 // ============================================================================
@@ -316,7 +431,7 @@ TEST_F(AudioProcessorTest, GetStateInformationDoesNotCrash) {
 TEST_F(AudioProcessorTest, SetStateInformationDoesNotCrash) {
   // Empty data shouldn't crash
   processor->setStateInformation(nullptr, 0);
-  
+
   // Some data shouldn't crash
   const char testData[] = "test";
   processor->setStateInformation(testData, sizeof(testData));
@@ -326,9 +441,10 @@ TEST_F(AudioProcessorTest, GetSetStateRoundTrip) {
   // Get state, then set it back - shouldn't crash
   juce::MemoryBlock destData;
   processor->getStateInformation(destData);
-  
+
   if (destData.getSize() > 0) {
-    processor->setStateInformation(destData.getData(), static_cast<int>(destData.getSize()));
+    processor->setStateInformation(destData.getData(),
+                                   static_cast<int>(destData.getSize()));
   }
 }
 
@@ -357,20 +473,29 @@ protected:
   }
 
   // Fill buffer with test signal
-  void fillWithTestSignal(juce::AudioBuffer<float>& buffer, float amplitude = 0.5f) {
+  void fillWithTestSignal(juce::AudioBuffer<float>& buffer,
+                          float amplitude = 0.5f) {
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         // Simple sine wave test signal
-        buffer.setSample(ch, i, amplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f));
+        buffer.setSample(
+            ch, i,
+            amplitude * std::sin(2.0f * 3.14159f * 440.0f *
+                                 static_cast<float>(i) / 44100.0f));
       }
     }
   }
 
   // Check if buffer is silent (all zeros)
-  bool isSilent(const juce::AudioBuffer<float>& buffer, int startChannel = 0, int numChannels = -1) {
-    if (numChannels < 0) numChannels = buffer.getNumChannels();
-    
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+  bool isSilent(const juce::AudioBuffer<float>& buffer,
+                int startChannel = 0,
+                int numChannels = -1) {
+    if (numChannels < 0)
+      numChannels = buffer.getNumChannels();
+
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         if (std::abs(buffer.getSample(ch, i)) > 1e-6f) {
           return false;
@@ -383,7 +508,8 @@ protected:
   // Check if two channel ranges have the same content
   bool channelsMatch(const juce::AudioBuffer<float>& buffer, int ch1, int ch2) {
     for (int i = 0; i < buffer.getNumSamples(); ++i) {
-      if (std::abs(buffer.getSample(ch1, i) - buffer.getSample(ch2, i)) > 1e-6f) {
+      if (std::abs(buffer.getSample(ch1, i) - buffer.getSample(ch2, i)) >
+          1e-6f) {
         return false;
       }
     }
@@ -394,16 +520,16 @@ protected:
 TEST_F(ProcessBlockTest, ProcessBlockDoesNotCrash) {
   auto buffer = createBuffer(512);
   juce::MidiBuffer midiBuffer;
-  
+
   fillWithTestSignal(buffer);
-  
+
   // Should not crash
   processor->processBlock(buffer, midiBuffer);
 }
 
 TEST_F(ProcessBlockTest, ProcessBlockHandlesSmallBuffers) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Test with very small buffer sizes
   const int sizes[] = {1, 2, 4, 8, 16, 32, 64};
   for (int size : sizes) {
@@ -415,7 +541,7 @@ TEST_F(ProcessBlockTest, ProcessBlockHandlesSmallBuffers) {
 
 TEST_F(ProcessBlockTest, ProcessBlockHandlesLargeBuffers) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Test with large buffer sizes
   const int sizes[] = {1024, 2048, 4096, 8192};
   for (int size : sizes) {
@@ -428,7 +554,7 @@ TEST_F(ProcessBlockTest, ProcessBlockHandlesLargeBuffers) {
 TEST_F(ProcessBlockTest, ProcessBlockHandlesEmptyBuffer) {
   auto buffer = createBuffer(0);
   juce::MidiBuffer midiBuffer;
-  
+
   // Should not crash with zero samples
   processor->processBlock(buffer, midiBuffer);
 }
@@ -436,50 +562,73 @@ TEST_F(ProcessBlockTest, ProcessBlockHandlesEmptyBuffer) {
 TEST_F(ProcessBlockTest, ProducesNonSilentOutputWithLoadedModel) {
   // With the model loaded (via prepareToPlay in fixture), the plugin should
   // process audio and produce non-silent output after accounting for latency.
-  
+
+  if (processor->getLatencySamples() == 0) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+  processor->setNonRealtime(true);
   juce::MidiBuffer midiBuffer;
-  
+
   // Process enough blocks to fill the latency buffer and get stable output
   // The model has significant latency, so we need multiple blocks
-  int warmupBlocks = 50;
-  int measureBlocks = 10;
-  
-  float maxOutputAmplitude = 0.0f;
-  
+  constexpr int warmupBlocks = 8;
+  constexpr int measureBlocks = 12;
+
+  float maxRetainedStemAmplitude = 0.0f;
+  float maximumReconstructionError = 0.0f;
+
   for (int block = 0; block < warmupBlocks + measureBlocks; ++block) {
     auto buffer = createBuffer(512);
-    
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true, 0);
+
     // Put a distinctive signal in input channels (0-1)
     for (int i = 0; i < 512; ++i) {
-      float val = std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
-      buffer.setSample(0, i, val);
-      buffer.setSample(1, i, val * 0.5f);  // Different amplitude for R channel
+      const int timelineSample = block * 512 + i;
+      const float val = std::sin(2.0f * 3.14159f * 440.0f *
+                                 static_cast<float>(timelineSample) / 44100.0f);
+      inputBus.setSample(0, i, val);
+      inputBus.setSample(1, i,
+                         val * 0.5f);  // Different amplitude for R channel
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     // Measure output amplitude after warmup
     if (block >= warmupBlocks) {
-      // Check main output bus (channels 2-3)
-      for (int ch = 2; ch <= 3; ++ch) {
+      const auto main = processor->getBusBuffer(buffer, false, 0);
+      const auto drums = processor->getBusBuffer(buffer, false, 1);
+      const auto bass = processor->getBusBuffer(buffer, false, 2);
+      const auto other = processor->getBusBuffer(buffer, false, 3);
+      const auto vocals = processor->getBusBuffer(buffer, false, 4);
+      for (int ch = 0; ch < audio_plugin::kNumChannels; ++ch) {
         for (int i = 0; i < buffer.getNumSamples(); ++i) {
-          float amp = std::abs(buffer.getSample(ch, i));
-          if (amp > maxOutputAmplitude) {
-            maxOutputAmplitude = amp;
-          }
+          maxRetainedStemAmplitude = std::max(
+              {maxRetainedStemAmplitude, std::abs(drums.getSample(ch, i)),
+               std::abs(bass.getSample(ch, i)),
+               std::abs(vocals.getSample(ch, i))});
+          const float stemSum = drums.getSample(ch, i) + bass.getSample(ch, i) +
+                                other.getSample(ch, i) +
+                                vocals.getSample(ch, i);
+          maximumReconstructionError =
+              std::max(maximumReconstructionError,
+                       std::abs(main.getSample(ch, i) - stemSum));
         }
       }
     }
   }
-  
-  // After warmup, we should have non-silent output from the model
-  EXPECT_GT(maxOutputAmplitude, 0.01f) 
-      << "Model produced silent output; max amplitude: " << maxOutputAmplitude;
+
+  EXPECT_GT(maxRetainedStemAmplitude, 0.01f)
+      << "Render never consumed a non-silent separated model result";
+  EXPECT_LE(maximumReconstructionError, 1.0e-6f);
+  EXPECT_EQ(processor->getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor->getRingOverflowEventCount(), 0U);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 0U);
 }
 
 TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Simulate real-time streaming with many blocks
   for (int block = 0; block < 100; ++block) {
     auto buffer = createBuffer(512);
@@ -488,52 +637,127 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
   }
 }
 
-TEST_F(ProcessBlockTest, MainBusIsDryPassthroughWithLoadedModel) {
-  auto buffer = createBuffer(512);
-  buffer.clear();
+TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
   juce::MidiBuffer midiBuffer;
 
-  auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
-  auto mainBus = processor->getBusBuffer(buffer, false /* isInput */, 0);
+  std::vector<float> firstInputL(
+      static_cast<size_t>(audio_plugin::kOutputChunkSize));
+  std::vector<float> firstInputR(
+      static_cast<size_t>(audio_plugin::kOutputChunkSize));
 
-  std::vector<float> inputL(static_cast<size_t>(buffer.getNumSamples()));
-  std::vector<float> inputR(static_cast<size_t>(buffer.getNumSamples()));
-  for (int i = 0; i < buffer.getNumSamples(); ++i) {
-    float sampleL = 0.8f * std::sin(2.0f * 3.14159f * 440.0f *
-                                    static_cast<float>(i) / 44100.0f);
-    float sampleR = 0.5f * std::sin(2.0f * 3.14159f * 220.0f *
-                                    static_cast<float>(i) / 44100.0f);
-    inputBus.setSample(0, i, sampleL);
-    inputBus.setSample(1, i, sampleR);
-    inputL[static_cast<size_t>(i)] = sampleL;
-    inputR[static_cast<size_t>(i)] = sampleR;
+  for (int block = 0; block < audio_plugin::kPluginLatencyChunks + 1; ++block) {
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true /* isInput */, 0);
+
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      const float sampleL =
+          0.8f * std::sin(2.0f * 3.14159f * 440.0f *
+                          static_cast<float>(i + block * 17) / 44100.0f);
+      const float sampleR =
+          0.5f * std::sin(2.0f * 3.14159f * 220.0f *
+                          static_cast<float>(i + block * 29) / 44100.0f);
+      inputBus.setSample(0, i, sampleL);
+      inputBus.setSample(1, i, sampleR);
+      if (block == 0) {
+        firstInputL[static_cast<size_t>(i)] = sampleL;
+        firstInputR[static_cast<size_t>(i)] = sampleR;
+      }
+    }
+
+    processor->processBlock(buffer, midiBuffer);
+    const auto mainBus =
+        processor->getBusBuffer(buffer, false /* isInput */, 0);
+    const auto drumsBus = processor->getBusBuffer(buffer, false, 1);
+    const auto bassBus = processor->getBusBuffer(buffer, false, 2);
+    const auto otherBus = processor->getBusBuffer(buffer, false, 3);
+    const auto vocalsBus = processor->getBusBuffer(buffer, false, 4);
+
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      for (int ch = 0; ch < 2; ++ch) {
+        const float reconstructed =
+            drumsBus.getSample(ch, i) + bassBus.getSample(ch, i) +
+            otherBus.getSample(ch, i) + vocalsBus.getSample(ch, i);
+        EXPECT_NEAR(mainBus.getSample(ch, i), reconstructed, 1e-6f);
+      }
+      if (block < audio_plugin::kPluginLatencyChunks) {
+        EXPECT_FLOAT_EQ(mainBus.getSample(0, i), 0.0f);
+        EXPECT_FLOAT_EQ(mainBus.getSample(1, i), 0.0f);
+      } else {
+        EXPECT_NEAR(mainBus.getSample(0, i),
+                    firstInputL[static_cast<size_t>(i)], 1e-6f);
+        EXPECT_NEAR(mainBus.getSample(1, i),
+                    firstInputR[static_cast<size_t>(i)], 1e-6f);
+      }
+    }
+  }
+}
+
+TEST_F(AudioProcessorTest,
+       LargePreparedBlockFailsClosedForAsyncListeningContract) {
+  constexpr int kBlockSize = 1024;
+  processor->prepareToPlay(44100.0, kBlockSize);
+  EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
+  EXPECT_EQ(processor->getLatencySamples(), 0);
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  EXPECT_TRUE(processor->getOrtStatusString().contains(
+      "requires 44100 Hz / 512 samples"));
+#endif
+  processor->releaseResources();
+}
+
+TEST_F(ProcessBlockTest, StoppedScrubClearsStreamingTimeline) {
+  if (processor->getLatencySamples() == 0) {
+    GTEST_SKIP() << "Qualified model is unavailable";
   }
 
-  processor->processBlock(buffer, midiBuffer);
+  TestPlayHead playHead;
+  playHead.setPosition(false, 0);
+  processor->setPlayHead(&playHead);
+  juce::MidiBuffer midiBuffer;
 
-  const int channelsToCheck = std::min(2, mainBus.getNumChannels());
-  ASSERT_EQ(channelsToCheck, 2);
-  for (int i = 0; i < buffer.getNumSamples(); ++i) {
-    EXPECT_NEAR(mainBus.getSample(0, i), inputL[static_cast<size_t>(i)], 1e-6f)
-        << "Main L diverged from dry input at sample " << i;
-    EXPECT_NEAR(mainBus.getSample(1, i), inputR[static_cast<size_t>(i)], 1e-6f)
-        << "Main R diverged from dry input at sample " << i;
+  for (int block = 0; block < 3; ++block) {
+    auto buffer = createBuffer(512);
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true, 0);
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      inputBus.setSample(0, i, 0.5f);
+      inputBus.setSample(1, i, -0.25f);
+    }
+    processor->processBlock(buffer, midiBuffer);
+    if (block == 2) {
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      EXPECT_FLOAT_EQ(mainBus.getSample(0, 0), 0.5f);
+      EXPECT_FLOAT_EQ(mainBus.getSample(1, 0), -0.25f);
+    }
   }
+
+  playHead.setPosition(false, 8192);
+  auto afterScrub = createBuffer(512);
+  afterScrub.clear();
+  processor->processBlock(afterScrub, midiBuffer);
+  const auto mainAfterScrub = processor->getBusBuffer(afterScrub, false, 0);
+  for (int ch = 0; ch < mainAfterScrub.getNumChannels(); ++ch) {
+    for (int i = 0; i < mainAfterScrub.getNumSamples(); ++i) {
+      EXPECT_FLOAT_EQ(mainAfterScrub.getSample(ch, i), 0.0f);
+    }
+  }
+  processor->setPlayHead(nullptr);
 }
 
 TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Process some blocks
   for (int i = 0; i < 10; ++i) {
     auto buffer = createBuffer(512);
     fillWithTestSignal(buffer);
     processor->processBlock(buffer, midiBuffer);
   }
-  
+
   // Reset
   processor->resetStreamingBuffers();
-  
+
   // Process more blocks - should not crash
   for (int i = 0; i < 10; ++i) {
     auto buffer = createBuffer(512);
@@ -547,38 +771,92 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 // ============================================================================
 
 TEST(ConstantsTest, StemCountIsCorrect) {
-  EXPECT_EQ(audio_plugin::kNumStems, 4);  // drums, bass, other, vocals
+  EXPECT_EQ(audio_plugin::kNumStems, 4);
+  EXPECT_EQ(audio_plugin::kStemDrums, 0);
+  EXPECT_EQ(audio_plugin::kStemBass, 1);
+  EXPECT_EQ(audio_plugin::kStemVocals, 2);
+  EXPECT_EQ(audio_plugin::kStemOther, 3);
 }
 
 TEST(ConstantsTest, ChannelCountIsStereo) {
   EXPECT_EQ(audio_plugin::kNumChannels, 2);
 }
 
-TEST(ConstantsTest, ChunkSizesAreConsistent) {
-  // Internal chunk should equal: context + output + context
-  EXPECT_EQ(audio_plugin::kInternalChunkSize, 
-            audio_plugin::kContextSize + audio_plugin::kOutputChunkSize + audio_plugin::kContextSize);
+TEST(ConstantsTest, StatefulStreamingWindowIsTwoHops) {
+  EXPECT_EQ(audio_plugin::kOutputChunkSize, 512);
+  EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
+            2 * audio_plugin::kOutputChunkSize);
 }
 
-TEST(ConstantsTest, OutputChunkSizeIsReasonable) {
-  // Should be power of 2 or at least reasonable for audio
-  EXPECT_GT(audio_plugin::kOutputChunkSize, 0);
-  EXPECT_LE(audio_plugin::kOutputChunkSize, 4096);
+TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
+  EXPECT_EQ(audio_plugin::kFusionHiddenLayers, 2);
+  EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
 }
 
-TEST(ConstantsTest, ContextSizeIsReasonable) {
-  EXPECT_GT(audio_plugin::kContextSize, 0);
-  EXPECT_LE(audio_plugin::kContextSize, 8192);
+TEST(ConstantsTest, PluginLatencyIsOneGraphHopPlusOneAsyncQueueHop) {
+  EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
+  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
+  EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 2);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 1024);
+  EXPECT_EQ(audio_plugin::kAudioThreadWaitBudgetMicroseconds, 0);
+  EXPECT_EQ(audio_plugin::kSameCallbackWaitBudgetMicroseconds, 0);
 }
 
-TEST(ConstantsTest, CrossoverFrequencyIsReasonable) {
-  // Crossover should remain in a practical low-frequency range.
-  EXPECT_GT(audio_plugin::kCrossoverFreqHz, 20.0f);
-  EXPECT_LE(audio_plugin::kCrossoverFreqHz, 300.0f);
+TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 1504);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 1472);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 1408);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 1280);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 1024);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1536);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1536);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2560);
+}
+
+TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
+  EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(48000));
+  EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(88200));
+  EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(96000));
+  EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(176400));
+  EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(192000));
+  EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
+
+  EXPECT_TRUE(
+      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
+  EXPECT_FALSE(
+      audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
+  EXPECT_FALSE(
+      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
+
+  EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
+            2139);
+  EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(88200, 1024),
+            2048);
+  EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(96000, 512),
+            3766);
+  EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(192000, 512),
+            7019);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 2276);
+}
+
+TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
+  EXPECT_EQ(audio_plugin::kModelSampleRate, 44100);
 }
 
 TEST(ConstantsTest, InferenceBufferCountIsPositive) {
   EXPECT_GT(audio_plugin::kNumInferenceBuffers, 0);
+}
+
+TEST(ConstantsTest, AutomaticOrtThreadCountUsesQualifiedPlatformCap) {
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(0), 2);
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(4), 2);
+#if defined(__APPLE__)
+  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 3);
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 3);
+#else
+  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 4);
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 4);
+#endif
 }
 
 // ============================================================================
@@ -610,11 +888,11 @@ protected:
   static constexpr double kSampleRate = 44100.0;
   static constexpr int kBlockSize = 512;
   static constexpr float kPi = 3.14159265358979323846f;
-  
+
   // Random number generator for reproducible noise generation
   std::mt19937 m_randomGenerator{42};  // Seed for reproducibility
   std::uniform_real_distribution<float> m_distribution{-1.0f, 1.0f};
-  
+
   void SetUp() override {
     AudioProcessorTest::SetUp();
     processor->prepareToPlay(kSampleRate, kBlockSize);
@@ -626,20 +904,31 @@ protected:
   }
 
   // Generate a sine wave test signal
-  void generateSineWave(juce::AudioBuffer<float>& buffer, float frequency, 
-                        float amplitude, int startChannel = 0, int numChannels = 2) {
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+  void generateSineWave(juce::AudioBuffer<float>& buffer,
+                        float frequency,
+                        float amplitude,
+                        int startChannel = 0,
+                        int numChannels = 2) {
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
-        float sample = amplitude * std::sin(2.0f * kPi * frequency * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float sample = amplitude *
+                       std::sin(2.0f * kPi * frequency * static_cast<float>(i) /
+                                static_cast<float>(kSampleRate));
         buffer.setSample(ch, i, sample);
       }
     }
   }
 
   // Generate white noise test signal
-  void generateNoise(juce::AudioBuffer<float>& buffer, float amplitude,
-                     int startChannel = 0, int numChannels = 2) {
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+  void generateNoise(juce::AudioBuffer<float>& buffer,
+                     float amplitude,
+                     int startChannel = 0,
+                     int numChannels = 2) {
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         float noise = m_distribution(m_randomGenerator);
         buffer.setSample(ch, i, amplitude * noise);
@@ -648,10 +937,15 @@ protected:
   }
 
   // Generate impulse (click) for latency testing
-  void generateImpulse(juce::AudioBuffer<float>& buffer, int samplePosition,
-                       float amplitude, int startChannel = 0, int numChannels = 2) {
+  void generateImpulse(juce::AudioBuffer<float>& buffer,
+                       int samplePosition,
+                       float amplitude,
+                       int startChannel = 0,
+                       int numChannels = 2) {
     buffer.clear();
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       if (samplePosition >= 0 && samplePosition < buffer.getNumSamples()) {
         buffer.setSample(ch, samplePosition, amplitude);
       }
@@ -659,11 +953,15 @@ protected:
   }
 
   // Check for NaN or Inf values in buffer
-  bool hasNaNOrInf(const juce::AudioBuffer<float>& buffer, 
-                   int startChannel = 0, int numChannels = -1) {
-    if (numChannels < 0) numChannels = buffer.getNumChannels() - startChannel;
-    
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+  bool hasNaNOrInf(const juce::AudioBuffer<float>& buffer,
+                   int startChannel = 0,
+                   int numChannels = -1) {
+    if (numChannels < 0)
+      numChannels = buffer.getNumChannels() - startChannel;
+
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         float sample = buffer.getSample(ch, i);
         if (std::isnan(sample) || std::isinf(sample)) {
@@ -676,14 +974,19 @@ protected:
 
   // Get maximum absolute amplitude in buffer
   float getMaxAmplitude(const juce::AudioBuffer<float>& buffer,
-                        int startChannel = 0, int numChannels = -1) {
-    if (numChannels < 0) numChannels = buffer.getNumChannels() - startChannel;
-    
+                        int startChannel = 0,
+                        int numChannels = -1) {
+    if (numChannels < 0)
+      numChannels = buffer.getNumChannels() - startChannel;
+
     float maxAmp = 0.0f;
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         float amp = std::abs(buffer.getSample(ch, i));
-        if (amp > maxAmp) maxAmp = amp;
+        if (amp > maxAmp)
+          maxAmp = amp;
       }
     }
     return maxAmp;
@@ -691,37 +994,48 @@ protected:
 
   // Calculate RMS energy of buffer
   float calculateRMS(const juce::AudioBuffer<float>& buffer,
-                     int startChannel = 0, int numChannels = -1) {
-    if (numChannels < 0) numChannels = buffer.getNumChannels() - startChannel;
-    
+                     int startChannel = 0,
+                     int numChannels = -1) {
+    if (numChannels < 0)
+      numChannels = buffer.getNumChannels() - startChannel;
+
     float sumSquares = 0.0f;
     int totalSamples = 0;
-    
-    for (int ch = startChannel; ch < startChannel + numChannels && ch < buffer.getNumChannels(); ++ch) {
+
+    for (int ch = startChannel;
+         ch < startChannel + numChannels && ch < buffer.getNumChannels();
+         ++ch) {
       for (int i = 0; i < buffer.getNumSamples(); ++i) {
         float sample = buffer.getSample(ch, i);
         sumSquares += sample * sample;
         totalSamples++;
       }
     }
-    
-    return totalSamples > 0 ? std::sqrt(sumSquares / static_cast<float>(totalSamples)) : 0.0f;
+
+    return totalSamples > 0
+               ? std::sqrt(sumSquares / static_cast<float>(totalSamples))
+               : 0.0f;
   }
 
   // Check if buffer is silent (below threshold)
-  bool isSilent(const juce::AudioBuffer<float>& buffer, float threshold = 1e-6f,
-                int startChannel = 0, int numChannels = -1) {
+  bool isSilent(const juce::AudioBuffer<float>& buffer,
+                float threshold = 1e-6f,
+                int startChannel = 0,
+                int numChannels = -1) {
     return getMaxAmplitude(buffer, startChannel, numChannels) < threshold;
   }
 
   // Calculate correlation between two channels
-  float calculateCorrelation(const juce::AudioBuffer<float>& buffer, int ch1, int ch2) {
-    if (ch1 >= buffer.getNumChannels() || ch2 >= buffer.getNumChannels()) return 0.0f;
-    
+  float calculateCorrelation(const juce::AudioBuffer<float>& buffer,
+                             int ch1,
+                             int ch2) {
+    if (ch1 >= buffer.getNumChannels() || ch2 >= buffer.getNumChannels())
+      return 0.0f;
+
     float sum1 = 0.0f, sum2 = 0.0f, sumProduct = 0.0f;
     float sumSq1 = 0.0f, sumSq2 = 0.0f;
     int n = buffer.getNumSamples();
-    
+
     for (int i = 0; i < n; ++i) {
       float s1 = buffer.getSample(ch1, i);
       float s2 = buffer.getSample(ch2, i);
@@ -731,25 +1045,25 @@ protected:
       sumSq1 += s1 * s1;
       sumSq2 += s2 * s2;
     }
-    
+
     float nf = static_cast<float>(n);
     float numerator = nf * sumProduct - sum1 * sum2;
-    float denominator = std::sqrt((nf * sumSq1 - sum1 * sum1) * (nf * sumSq2 - sum2 * sum2));
-    
+    float denominator =
+        std::sqrt((nf * sumSq1 - sum1 * sum1) * (nf * sumSq2 - sum2 * sum2));
+
     return denominator > 1e-10f ? numerator / denominator : 0.0f;
   }
 
   // Check if model is loaded (latency > 0 indicates model is active)
-  bool isModelLoaded() {
-    return processor->getLatencySamples() > 0;
-  }
+  bool isModelLoaded() { return processor->getLatencySamples() > 0; }
 
   // Iterate stem output samples using JUCE bus mapping (buses 1..4).
   template <typename Fn>
   void forEachStemOutputSample(juce::AudioBuffer<float>& buffer, Fn&& fn) {
     const int numOutputBuses = processor->getBusCount(false /* isInput */);
     for (int busIdx = 1; busIdx < numOutputBuses; ++busIdx) {
-      auto stemBus = processor->getBusBuffer(buffer, false /* isInput */, busIdx);
+      auto stemBus =
+          processor->getBusBuffer(buffer, false /* isInput */, busIdx);
       for (int ch = 0; ch < stemBus.getNumChannels(); ++ch) {
         const float* readPtr = stemBus.getReadPointer(ch);
         for (int i = 0; i < stemBus.getNumSamples(); ++i) {
@@ -776,6 +1090,40 @@ protected:
     });
     return maxAmp;
   }
+
+  float getRetainedStemOutputsMaxAmplitude(juce::AudioBuffer<float>& buffer) {
+    float maxAmp = 0.0f;
+    // Native buses 1, 2, and 4 are Drums, Bass, and Vocals. Other is excluded
+    // because complete fallback intentionally routes the whole mixture there.
+    for (const int busIndex : {1, 2, 4}) {
+      const auto stemBus = processor->getBusBuffer(buffer, false, busIndex);
+      for (int ch = 0; ch < stemBus.getNumChannels(); ++ch) {
+        for (int sample = 0; sample < stemBus.getNumSamples(); ++sample) {
+          maxAmp = std::max(maxAmp, std::abs(stemBus.getSample(ch, sample)));
+        }
+      }
+    }
+    return maxAmp;
+  }
+
+  float getMaximumReconstructionError(juce::AudioBuffer<float>& buffer) {
+    const auto main = processor->getBusBuffer(buffer, false, 0);
+    const auto drums = processor->getBusBuffer(buffer, false, 1);
+    const auto bass = processor->getBusBuffer(buffer, false, 2);
+    const auto other = processor->getBusBuffer(buffer, false, 3);
+    const auto vocals = processor->getBusBuffer(buffer, false, 4);
+    float maximumError = 0.0f;
+    for (int ch = 0; ch < main.getNumChannels(); ++ch) {
+      for (int sample = 0; sample < main.getNumSamples(); ++sample) {
+        const float stemSum =
+            drums.getSample(ch, sample) + bass.getSample(ch, sample) +
+            other.getSample(ch, sample) + vocals.getSample(ch, sample);
+        maximumError = std::max(maximumError,
+                                std::abs(main.getSample(ch, sample) - stemSum));
+      }
+    }
+    return maximumError;
+  }
 };
 
 // --------------------------------------------------------------------------
@@ -785,10 +1133,10 @@ protected:
 TEST_F(AudioQualityTest, OutputHasNoNaNWithSineInput) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   generateSineWave(buffer, 440.0f, 0.5f, 0, 2);  // Input channels
   processor->processBlock(buffer, midiBuffer);
-  
+
   EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
       << "Stem output contains NaN or Inf values";
 }
@@ -796,10 +1144,10 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithSineInput) {
 TEST_F(AudioQualityTest, OutputHasNoNaNWithNoiseInput) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   generateNoise(buffer, 0.5f, 0, 2);  // Input channels
   processor->processBlock(buffer, midiBuffer);
-  
+
   EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
       << "Stem output contains NaN or Inf values with noise input";
 }
@@ -808,9 +1156,9 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithSilentInput) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   buffer.clear();
   juce::MidiBuffer midiBuffer;
-  
+
   processor->processBlock(buffer, midiBuffer);
-  
+
   EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
       << "Stem output contains NaN or Inf with silent input";
 }
@@ -818,27 +1166,104 @@ TEST_F(AudioQualityTest, OutputHasNoNaNWithSilentInput) {
 TEST_F(AudioQualityTest, OutputHasNoNaNWithImpulse) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   generateImpulse(buffer, 100, 1.0f, 0, 2);  // Full-scale impulse
   processor->processBlock(buffer, midiBuffer);
-  
+
   EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
       << "Stem output contains NaN or Inf with impulse input";
 }
 
-TEST_F(AudioQualityTest, OutputHasNoNaNAfterManyBlocks) {
+TEST_F(AudioQualityTest, NonFiniteInputResetsAndProducesFiniteLosslessOutput) {
+  if (processor->getLatencySamples() == 0) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+
+  // Fill the complete dry-delay history with a distinctive non-zero signal
+  // and submit enough requests to prime the streaming path. Without the
+  // non-finite reset, the first priming block would emerge on the callback
+  // below at the latency-aligned Main output.
+  ASSERT_EQ(processor->getLatencySamples(),
+            audio_plugin::kPluginLatencySamples);
+  constexpr int kPrimingBlockCount =
+      audio_plugin::kPluginLatencySamples / kBlockSize;
+  static_assert(audio_plugin::kPluginLatencySamples % kBlockSize == 0);
   juce::MidiBuffer midiBuffer;
-  
-  // Process many blocks to check for numerical instability over time
-  for (int block = 0; block < 1000; ++block) {
+  for (int block = 0; block < kPrimingBlockCount; ++block) {
+    juce::AudioBuffer<float> primingBuffer(12, kBlockSize);
+    primingBuffer.clear();
+    auto primingInput = processor->getBusBuffer(primingBuffer, true, 0);
+    for (int i = 0; i < kBlockSize; ++i) {
+      primingInput.setSample(0, i, 0.625f);
+      primingInput.setSample(1, i, -0.375f);
+    }
+    processor->processBlock(primingBuffer, midiBuffer);
+  }
+
+  juce::AudioBuffer<float> buffer(12, kBlockSize);
+  buffer.clear();
+  auto inputBus = processor->getBusBuffer(buffer, true, 0);
+  inputBus.setSample(0, 17, std::numeric_limits<float>::quiet_NaN());
+  inputBus.setSample(1, 29, -std::numeric_limits<float>::infinity());
+
+  processor->processBlock(buffer, midiBuffer);
+
+  const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+  const auto drumsBus = processor->getBusBuffer(buffer, false, 1);
+  const auto bassBus = processor->getBusBuffer(buffer, false, 2);
+  const auto otherBus = processor->getBusBuffer(buffer, false, 3);
+  const auto vocalsBus = processor->getBusBuffer(buffer, false, 4);
+  for (int ch = 0; ch < 2; ++ch) {
+    for (int i = 0; i < kBlockSize; ++i) {
+      const float main = mainBus.getSample(ch, i);
+      const float stemSum =
+          drumsBus.getSample(ch, i) + bassBus.getSample(ch, i) +
+          otherBus.getSample(ch, i) + vocalsBus.getSample(ch, i);
+      EXPECT_TRUE(std::isfinite(main));
+      EXPECT_TRUE(std::isfinite(stemSum));
+      EXPECT_NEAR(stemSum, main, 1.0e-7f);
+      EXPECT_FLOAT_EQ(main, 0.0f)
+          << "Stale pre-reset dry history at channel=" << ch << " sample=" << i;
+      EXPECT_FLOAT_EQ(drumsBus.getSample(ch, i), 0.0f);
+      EXPECT_FLOAT_EQ(bassBus.getSample(ch, i), 0.0f);
+      EXPECT_FLOAT_EQ(otherBus.getSample(ch, i), 0.0f);
+      EXPECT_FLOAT_EQ(vocalsBus.getSample(ch, i), 0.0f);
+    }
+  }
+}
+
+TEST_F(AudioQualityTest, OutputHasNoNaNAfterManyBlocks) {
+  if (!isModelLoaded()) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+  processor->setNonRealtime(true);
+  juce::MidiBuffer midiBuffer;
+  float maximumRetainedStem = 0.0f;
+  float maximumReconstructionError = 0.0f;
+
+  // Process enough stateful hops to catch recurrent numerical instability.
+  // Non-real-time mode deliberately runs faster than wall clock while waiting
+  // for every real model result instead of silently filling the async queue.
+  for (int block = 0; block < 256; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     generateSineWave(buffer, 440.0f, 0.8f, 0, 2);
     processor->processBlock(buffer, midiBuffer);
-    
+
     if (stemOutputsHaveNaNOrInf(buffer)) {
       FAIL() << "Output contains NaN or Inf at block " << block;
     }
+    maximumRetainedStem = std::max(maximumRetainedStem,
+                                   getRetainedStemOutputsMaxAmplitude(buffer));
+    maximumReconstructionError = std::max(
+        maximumReconstructionError, getMaximumReconstructionError(buffer));
   }
+
+  EXPECT_GT(maximumRetainedStem, 1.0e-3f)
+      << "Long render never consumed a separated model result";
+  EXPECT_LE(maximumReconstructionError, 1.0e-6f);
+  EXPECT_EQ(processor->getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor->getRingOverflowEventCount(), 0U);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 0U);
 }
 
 // --------------------------------------------------------------------------
@@ -848,37 +1273,40 @@ TEST_F(AudioQualityTest, OutputHasNoNaNAfterManyBlocks) {
 TEST_F(AudioQualityTest, OutputAmplitudeIsReasonable) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   // Input at -6dB (0.5 amplitude)
   generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
   processor->processBlock(buffer, midiBuffer);
-  
-  // Output should not exceed reasonable bounds (allow some headroom for processing)
+
+  // Output should not exceed reasonable bounds (allow some headroom for
+  // processing)
   float maxOut = getStemOutputsMaxAmplitude(buffer);
-  EXPECT_LE(maxOut, 2.0f) << "Output amplitude " << maxOut << " exceeds reasonable bounds";
+  EXPECT_LE(maxOut, 2.0f) << "Output amplitude " << maxOut
+                          << " exceeds reasonable bounds";
 }
 
 TEST_F(AudioQualityTest, FullScaleInputProducesReasonableOutput) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   // Full-scale input (0 dBFS)
   generateSineWave(buffer, 440.0f, 1.0f, 0, 2);
   processor->processBlock(buffer, midiBuffer);
-  
+
   // Output shouldn't explode even with full-scale input
   float maxOut = getStemOutputsMaxAmplitude(buffer);
-  EXPECT_LE(maxOut, 4.0f) << "Full-scale input caused output explosion: " << maxOut;
+  EXPECT_LE(maxOut, 4.0f) << "Full-scale input caused output explosion: "
+                          << maxOut;
 }
 
 TEST_F(AudioQualityTest, HotInputDoesNotCauseClipping) {
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
+
   // Hot input (+6dB over full scale - simulating DAW clipping scenarios)
   generateSineWave(buffer, 440.0f, 2.0f, 0, 2);
   processor->processBlock(buffer, midiBuffer);
-  
+
   // Should not produce inf/nan even with hot input
   EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
       << "Hot input caused numerical issues";
@@ -890,45 +1318,47 @@ TEST_F(AudioQualityTest, HotInputDoesNotCauseClipping) {
 
 TEST_F(AudioQualityTest, SilentInputProducesSilentOutput) {
   juce::MidiBuffer midiBuffer;
-  
-  // Process several blocks of silence to flush any initial transients
+
+  // Process several blocks of silence to let any initial transients settle.
   for (int block = 0; block < 20; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     buffer.clear();
     processor->processBlock(buffer, midiBuffer);
   }
-  
+
   // Now check if output is silent
   juce::AudioBuffer<float> buffer(12, kBlockSize);
   buffer.clear();
   processor->processBlock(buffer, midiBuffer);
-  
-  // Output should be silent (or nearly silent - threshold for numerical noise)
+
+  // The low-level confidence guard suppresses the graph's fixed stem floor.
   float maxOut = getStemOutputsMaxAmplitude(buffer);
-  EXPECT_LT(maxOut, 1e-4f) << "Silent input produced non-silent output: " << maxOut;
+  EXPECT_LE(maxOut, 1e-7f) << "Silent input produced non-silent output: "
+                           << maxOut;
 }
 
 TEST_F(AudioQualityTest, TransitionToSilenceDecaysCleanly) {
   juce::MidiBuffer midiBuffer;
-  
+
   // First, feed some audio
   for (int block = 0; block < 10; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
     processor->processBlock(buffer, midiBuffer);
   }
-  
+
   // Then transition to silence and track decay
   for (int block = 0; block < 50; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     buffer.clear();
     processor->processBlock(buffer, midiBuffer);
-    
+
     float currentMax = getStemOutputsMaxAmplitude(buffer);
-    
+
     // After some blocks, should be essentially silent
     if (block > 20) {
-      EXPECT_LT(currentMax, 0.01f) << "Output didn't decay to silence by block " << block;
+      EXPECT_LT(currentMax, 0.01f)
+          << "Output didn't decay to silence by block " << block;
     }
   }
 }
@@ -939,45 +1369,51 @@ TEST_F(AudioQualityTest, TransitionToSilenceDecaysCleanly) {
 
 TEST_F(AudioQualityTest, MonoInputProducesCoherentStereoOutput) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Need to process multiple blocks for the system to stabilize
   // (model has latency, output ring buffer needs to fill)
   int warmupBlocks = 30;  // Allow time for latency + buffer fill
   int measureBlocks = 10;
-  
+
   float totalCorrelation = 0.0f;
   int measurementCount = 0;
-  
+
   for (int block = 0; block < warmupBlocks + measureBlocks; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
-    
+
     // Generate identical signal on both input channels (mono)
     // Use block offset to create continuous signal
     for (int i = 0; i < kBlockSize; ++i) {
       int sampleIdx = block * kBlockSize + i;
-      float sample = 0.5f * std::sin(2.0f * kPi * 440.0f * static_cast<float>(sampleIdx) / static_cast<float>(kSampleRate));
+      float sample =
+          0.5f * std::sin(2.0f * kPi * 440.0f * static_cast<float>(sampleIdx) /
+                          static_cast<float>(kSampleRate));
       buffer.setSample(0, i, sample);
       buffer.setSample(1, i, sample);
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     // Only measure after warmup
     if (block >= warmupBlocks) {
-      float correlation = calculateCorrelation(buffer, 2, 3);
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      float correlation = calculateCorrelation(mainBus, 0, 1);
       // Only count if there's actual signal (not silent output)
-      float maxAmp = getMaxAmplitude(buffer, 2, 2);
+      float maxAmp = getMaxAmplitude(mainBus, 0, 2);
       if (maxAmp > 0.01f) {
         totalCorrelation += correlation;
         measurementCount++;
       }
     }
   }
-  
+
   // Main output L/R should be highly correlated (coherent stereo)
   if (measurementCount > 0) {
-    float avgCorrelation = totalCorrelation / static_cast<float>(measurementCount);
-    EXPECT_GT(avgCorrelation, 0.9f) << "Mono input produced incoherent stereo output, avg correlation: " << avgCorrelation;
+    float avgCorrelation =
+        totalCorrelation / static_cast<float>(measurementCount);
+    EXPECT_GT(avgCorrelation, 0.9f)
+        << "Mono input produced incoherent stereo output, avg correlation: "
+        << avgCorrelation;
   } else {
     // If no signal was produced, that's also a problem worth noting
     ADD_FAILURE() << "No output signal detected after warmup";
@@ -985,26 +1421,43 @@ TEST_F(AudioQualityTest, MonoInputProducesCoherentStereoOutput) {
 }
 
 TEST_F(AudioQualityTest, StereoImageIsPreserved) {
-  juce::AudioBuffer<float> buffer(12, kBlockSize);
   juce::MidiBuffer midiBuffer;
-  
-  // Generate stereo signal with different content L/R
-  for (int i = 0; i < kBlockSize; ++i) {
-    buffer.setSample(0, i, 0.5f * std::sin(2.0f * kPi * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate)));   // L: 440 Hz
-    buffer.setSample(1, i, 0.5f * std::sin(2.0f * kPi * 880.0f * static_cast<float>(i) / static_cast<float>(kSampleRate)));   // R: 880 Hz
+  float inputCorrelation = 0.0f;
+  float outputCorrelation = 0.0f;
+
+  // The asynchronous c91 path delays Main by two 512-sample blocks. Feed three
+  // continuous blocks and inspect the first stable latency-aligned Main copy.
+  for (int block = 0; block < 3; ++block) {
+    juce::AudioBuffer<float> buffer(12, kBlockSize);
+    buffer.clear();
+    auto inputBus = processor->getBusBuffer(buffer, true, 0);
+    for (int i = 0; i < kBlockSize; ++i) {
+      const int timelineSample = block * kBlockSize + i;
+      inputBus.setSample(0, i,
+                         0.5f * std::sin(2.0f * kPi * 440.0f *
+                                         static_cast<float>(timelineSample) /
+                                         static_cast<float>(kSampleRate)));
+      inputBus.setSample(1, i,
+                         0.5f * std::sin(2.0f * kPi * 880.0f *
+                                         static_cast<float>(timelineSample) /
+                                         static_cast<float>(kSampleRate)));
+    }
+    if (block == 0) {
+      inputCorrelation = calculateCorrelation(inputBus, 0, 1);
+    }
+    processor->processBlock(buffer, midiBuffer);
+    if (block == 2) {
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      outputCorrelation = calculateCorrelation(mainBus, 0, 1);
+    }
   }
-  
-  float inputCorrelation = calculateCorrelation(buffer, 0, 1);
-  
-  processor->processBlock(buffer, midiBuffer);
-  
-  float outputCorrelation = calculateCorrelation(buffer, 2, 3);
-  
+
   // Output correlation should be similar to input correlation
   // (stereo image preserved, not collapsed or inverted)
   float correlationDiff = std::abs(outputCorrelation - inputCorrelation);
-  EXPECT_LT(correlationDiff, 0.5f) << "Stereo image changed significantly. Input corr: " 
-                                    << inputCorrelation << ", Output corr: " << outputCorrelation;
+  EXPECT_LT(correlationDiff, 0.5f)
+      << "Stereo image changed significantly. Input corr: " << inputCorrelation
+      << ", Output corr: " << outputCorrelation;
 }
 
 // --------------------------------------------------------------------------
@@ -1013,39 +1466,44 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
 
 TEST_F(AudioQualityTest, EnergyIsRoughlyPreserved) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Need to process enough blocks for the system to stabilize
   float inputEnergySum = 0.0f;
   float outputEnergySum = 0.0f;
   int measurementBlocks = 50;
   int warmupBlocks = 20;
-  
+
   for (int block = 0; block < warmupBlocks + measurementBlocks; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
-    
+
     // Measure input energy (only during measurement phase)
     if (block >= warmupBlocks) {
       inputEnergySum += calculateRMS(buffer, 0, 2);
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     // Measure main output energy (only during measurement phase)
     if (block >= warmupBlocks) {
-      outputEnergySum += calculateRMS(buffer, 2, 2);
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      outputEnergySum += calculateRMS(mainBus, 0, 2);
     }
   }
-  
+
   float avgInputEnergy = inputEnergySum / static_cast<float>(measurementBlocks);
-  float avgOutputEnergy = outputEnergySum / static_cast<float>(measurementBlocks);
-  
+  float avgOutputEnergy =
+      outputEnergySum / static_cast<float>(measurementBlocks);
+
   // Energy ratio should be close to 1.0 (within reasonable tolerance)
   // Allow wide tolerance since separation can redistribute energy
   if (avgInputEnergy > 0.01f) {
     float energyRatio = avgOutputEnergy / avgInputEnergy;
-    EXPECT_GT(energyRatio, 0.1f) << "Output energy too low: " << avgOutputEnergy << " vs input: " << avgInputEnergy;
-    EXPECT_LT(energyRatio, 10.0f) << "Output energy too high: " << avgOutputEnergy << " vs input: " << avgInputEnergy;
+    EXPECT_GT(energyRatio, 0.1f) << "Output energy too low: " << avgOutputEnergy
+                                 << " vs input: " << avgInputEnergy;
+    EXPECT_LT(energyRatio, 10.0f)
+        << "Output energy too high: " << avgOutputEnergy
+        << " vs input: " << avgInputEnergy;
   }
 }
 
@@ -1055,26 +1513,28 @@ TEST_F(AudioQualityTest, EnergyIsRoughlyPreserved) {
 
 TEST_F(AudioQualityTest, LowFrequencyPassesThrough) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Process several blocks of low frequency content (below crossover)
   float totalInputEnergy = 0.0f;
   float totalOutputEnergy = 0.0f;
-  
+
   for (int block = 0; block < 100; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
-    generateSineWave(buffer, 50.0f, 0.5f, 0, 2);  // 50 Hz - below 80 Hz crossover
-    
+    generateSineWave(buffer, 50.0f, 0.5f, 0,
+                     2);  // 50 Hz - below 80 Hz crossover
+
     if (block >= 20) {  // Skip warmup
       totalInputEnergy += calculateRMS(buffer, 0, 2);
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     if (block >= 20) {
-      totalOutputEnergy += calculateRMS(buffer, 2, 2);
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      totalOutputEnergy += calculateRMS(mainBus, 0, 2);
     }
   }
-  
+
   // Low frequencies should pass through (routed to bass stem, then to main)
   if (totalInputEnergy > 0.01f) {
     float ratio = totalOutputEnergy / totalInputEnergy;
@@ -1084,26 +1544,28 @@ TEST_F(AudioQualityTest, LowFrequencyPassesThrough) {
 
 TEST_F(AudioQualityTest, HighFrequencyPassesThrough) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Process high frequency content (well above crossover)
   float totalInputEnergy = 0.0f;
   float totalOutputEnergy = 0.0f;
-  
+
   for (int block = 0; block < 100; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
-    generateSineWave(buffer, 4000.0f, 0.5f, 0, 2);  // 4 kHz - well above crossover
-    
+    generateSineWave(buffer, 4000.0f, 0.5f, 0,
+                     2);  // 4 kHz - well above crossover
+
     if (block >= 20) {
       totalInputEnergy += calculateRMS(buffer, 0, 2);
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     if (block >= 20) {
-      totalOutputEnergy += calculateRMS(buffer, 2, 2);
+      const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+      totalOutputEnergy += calculateRMS(mainBus, 0, 2);
     }
   }
-  
+
   // High frequencies should pass through
   if (totalInputEnergy > 0.01f) {
     float ratio = totalOutputEnergy / totalInputEnergy;
@@ -1117,7 +1579,7 @@ TEST_F(AudioQualityTest, HighFrequencyPassesThrough) {
 
 TEST_F(AudioQualityTest, ReportedLatencyIsConsistent) {
   int latency1 = processor->getLatencySamples();
-  
+
   // Process some blocks
   juce::MidiBuffer midiBuffer;
   for (int i = 0; i < 10; ++i) {
@@ -1125,9 +1587,9 @@ TEST_F(AudioQualityTest, ReportedLatencyIsConsistent) {
     generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
     processor->processBlock(buffer, midiBuffer);
   }
-  
+
   int latency2 = processor->getLatencySamples();
-  
+
   // Latency should remain constant during processing
   EXPECT_EQ(latency1, latency2) << "Latency changed during processing";
 }
@@ -1135,10 +1597,11 @@ TEST_F(AudioQualityTest, ReportedLatencyIsConsistent) {
 TEST_F(AudioQualityTest, LatencyMsMatchesLatencySamples) {
   int latencySamples = processor->getLatencySamples();
   double latencyMs = processor->getLatencyMs();
-  
+
   // Calculate expected latency in ms
-  double expectedMs = (static_cast<double>(latencySamples) / kSampleRate) * 1000.0;
-  
+  double expectedMs =
+      (static_cast<double>(latencySamples) / kSampleRate) * 1000.0;
+
   // Should match within floating point tolerance
   EXPECT_NEAR(latencyMs, expectedMs, 0.1) << "Latency Ms doesn't match samples";
 }
@@ -1149,52 +1612,54 @@ TEST_F(AudioQualityTest, LatencyMsMatchesLatencySamples) {
 
 TEST_F(AudioQualityTest, NoDCOffsetWithACInput) {
   juce::MidiBuffer midiBuffer;
-  
+
   // Process many blocks and accumulate DC
   double dcSum = 0.0;
   int totalSamples = 0;
-  
+
   for (int block = 0; block < 100; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
     processor->processBlock(buffer, midiBuffer);
-    
-    // Accumulate samples from main output
-    for (int ch = 2; ch <= 3; ++ch) {
+
+    const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+    for (int ch = 0; ch < mainBus.getNumChannels(); ++ch) {
       for (int i = 0; i < kBlockSize; ++i) {
-        dcSum += static_cast<double>(buffer.getSample(ch, i));
+        dcSum += static_cast<double>(mainBus.getSample(ch, i));
         totalSamples++;
       }
     }
   }
-  
+
   double dcOffset = dcSum / static_cast<double>(totalSamples);
-  
+
   // DC offset should be negligible
   EXPECT_LT(std::abs(dcOffset), 0.01) << "DC offset detected: " << dcOffset;
 }
 
 TEST_F(AudioQualityTest, NoDCOffsetWithSilentInput) {
   juce::MidiBuffer midiBuffer;
-  
+
   double dcSum = 0.0;
   int totalSamples = 0;
-  
+
   for (int block = 0; block < 50; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     buffer.clear();
     processor->processBlock(buffer, midiBuffer);
-    
-    for (int ch = 2; ch <= 3; ++ch) {
+
+    const auto mainBus = processor->getBusBuffer(buffer, false, 0);
+    for (int ch = 0; ch < mainBus.getNumChannels(); ++ch) {
       for (int i = 0; i < kBlockSize; ++i) {
-        dcSum += static_cast<double>(buffer.getSample(ch, i));
+        dcSum += static_cast<double>(mainBus.getSample(ch, i));
         totalSamples++;
       }
     }
   }
-  
+
   double dcOffset = dcSum / static_cast<double>(totalSamples);
-  EXPECT_LT(std::abs(dcOffset), 1e-6) << "DC offset with silent input: " << dcOffset;
+  EXPECT_LT(std::abs(dcOffset), 1e-6)
+      << "DC offset with silent input: " << dcOffset;
 }
 
 // --------------------------------------------------------------------------
@@ -1202,43 +1667,85 @@ TEST_F(AudioQualityTest, NoDCOffsetWithSilentInput) {
 // --------------------------------------------------------------------------
 
 TEST_F(AudioQualityTest, StableUnderRapidInputChanges) {
+  if (!isModelLoaded()) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+  processor->setNonRealtime(true);
   juce::MidiBuffer midiBuffer;
-  
+  float maximumRetainedStem = 0.0f;
+  float maximumReconstructionError = 0.0f;
+
   for (int block = 0; block < 100; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
-    
+
     // Alternate between different signals rapidly
     switch (block % 4) {
-      case 0: generateSineWave(buffer, 440.0f, 0.8f, 0, 2); break;
-      case 1: buffer.clear(); break;
-      case 2: generateNoise(buffer, 0.5f, 0, 2); break;
-      case 3: generateImpulse(buffer, kBlockSize / 2, 1.0f, 0, 2); break;
+      case 0:
+        generateSineWave(buffer, 440.0f, 0.8f, 0, 2);
+        break;
+      case 1:
+        buffer.clear();
+        break;
+      case 2:
+        generateNoise(buffer, 0.5f, 0, 2);
+        break;
+      case 3:
+        generateImpulse(buffer, kBlockSize / 2, 1.0f, 0, 2);
+        break;
     }
-    
+
     processor->processBlock(buffer, midiBuffer);
-    
+
     EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
         << "Numerical issues at block " << block;
+    maximumRetainedStem = std::max(maximumRetainedStem,
+                                   getRetainedStemOutputsMaxAmplitude(buffer));
+    maximumReconstructionError = std::max(
+        maximumReconstructionError, getMaximumReconstructionError(buffer));
   }
+
+  EXPECT_GT(maximumRetainedStem, 1.0e-3f)
+      << "Rapid-change render remained on complete fallback";
+  EXPECT_LE(maximumReconstructionError, 1.0e-6f);
+  EXPECT_EQ(processor->getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor->getRingOverflowEventCount(), 0U);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 0U);
 }
 
 TEST_F(AudioQualityTest, StableWithIntermittentResets) {
+  if (!isModelLoaded()) {
+    GTEST_SKIP() << "Qualified model is unavailable";
+  }
+  processor->setNonRealtime(true);
   juce::MidiBuffer midiBuffer;
-  
+  float maximumRetainedStem = 0.0f;
+  float maximumReconstructionError = 0.0f;
+
   for (int cycle = 0; cycle < 10; ++cycle) {
     // Process some blocks
     for (int block = 0; block < 20; ++block) {
       juce::AudioBuffer<float> buffer(12, kBlockSize);
       generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
       processor->processBlock(buffer, midiBuffer);
-      
+
       EXPECT_FALSE(stemOutputsHaveNaNOrInf(buffer))
           << "NaN/Inf after reset cycle " << cycle << " block " << block;
+      maximumRetainedStem = std::max(
+          maximumRetainedStem, getRetainedStemOutputsMaxAmplitude(buffer));
+      maximumReconstructionError = std::max(
+          maximumReconstructionError, getMaximumReconstructionError(buffer));
     }
-    
+
     // Reset buffers (simulating transport stop/start)
     processor->resetStreamingBuffers();
   }
+
+  EXPECT_GT(maximumRetainedStem, 1.0e-3f)
+      << "Reset stress test never consumed separated model output";
+  EXPECT_LE(maximumReconstructionError, 1.0e-6f);
+  EXPECT_EQ(processor->getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor->getRingOverflowEventCount(), 0U);
+  EXPECT_EQ(processor->getUnderrunBlockCount(), 0U);
 }
 
 // ============================================================================
@@ -1306,16 +1813,24 @@ protected:
     std::vector<float> stemSumL, stemSumR;
 
     size_t reserveSize = static_cast<size_t>(kMeasureBlocks * kBlockSize);
-    inputL.reserve(reserveSize);  inputR.reserve(reserveSize);
-    mainL.reserve(reserveSize);   mainR.reserve(reserveSize);
-    drumsL.reserve(reserveSize);  drumsR.reserve(reserveSize);
-    bassL.reserve(reserveSize);   bassR.reserve(reserveSize);
-    otherL.reserve(reserveSize);  otherR.reserve(reserveSize);
-    vocalsL.reserve(reserveSize); vocalsR.reserve(reserveSize);
-    stemSumL.reserve(reserveSize); stemSumR.reserve(reserveSize);
+    inputL.reserve(reserveSize);
+    inputR.reserve(reserveSize);
+    mainL.reserve(reserveSize);
+    mainR.reserve(reserveSize);
+    drumsL.reserve(reserveSize);
+    drumsR.reserve(reserveSize);
+    bassL.reserve(reserveSize);
+    bassR.reserve(reserveSize);
+    otherL.reserve(reserveSize);
+    otherR.reserve(reserveSize);
+    vocalsL.reserve(reserveSize);
+    vocalsR.reserve(reserveSize);
+    stemSumL.reserve(reserveSize);
+    stemSumR.reserve(reserveSize);
 
     // Use 10-channel buffer (JUCE shares input ch 0-1 with output bus 0)
-    const int totalChannels = processor->getTotalNumInputChannels() + processor->getTotalNumOutputChannels();
+    const int totalChannels = processor->getTotalNumInputChannels() +
+                              processor->getTotalNumOutputChannels();
 
     for (int block = 0; block < kWarmupBlocks + kMeasureBlocks; ++block) {
       juce::AudioBuffer<float> buffer(totalChannels, kBlockSize);
@@ -1326,12 +1841,14 @@ protected:
       for (int i = 0; i < kBlockSize; ++i) {
         int sampleIdx = block * kBlockSize + i;
         float sample = amplitude * std::sin(2.0f * kPi * freq *
-            static_cast<float>(sampleIdx) / static_cast<float>(kSampleRate));
+                                            static_cast<float>(sampleIdx) /
+                                            static_cast<float>(kSampleRate));
         inBus.setSample(0, i, sample);
         inBus.setSample(1, i, sample);
       }
 
-      // Save input before processing (input bus shares channels with main output)
+      // Save input before processing (input bus shares channels with main
+      // output)
       std::vector<float> savedInputL, savedInputR;
       if (block >= kWarmupBlocks) {
         savedInputL.resize(static_cast<size_t>(kBlockSize));
@@ -1344,7 +1861,8 @@ protected:
 
       processor->processBlock(buffer, midiBuffer);
 
-      // Give inference thread time to process (each 512-sample block = ~11.6ms at 44.1kHz)
+      // Give inference thread time to process (each 512-sample block = ~11.6ms
+      // at 44.1kHz)
       std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
       // Collect output during measurement phase using getBusBuffer
@@ -1368,10 +1886,14 @@ protected:
           float oR = otherBus.getSample(1, i);
           float vL = vocalsBus.getSample(0, i);
           float vR = vocalsBus.getSample(1, i);
-          drumsL.push_back(dL);   drumsR.push_back(dR);
-          bassL.push_back(bL);    bassR.push_back(bR);
-          otherL.push_back(oL);   otherR.push_back(oR);
-          vocalsL.push_back(vL);  vocalsR.push_back(vR);
+          drumsL.push_back(dL);
+          drumsR.push_back(dR);
+          bassL.push_back(bL);
+          bassR.push_back(bR);
+          otherL.push_back(oL);
+          otherR.push_back(oR);
+          vocalsL.push_back(vL);
+          vocalsR.push_back(vR);
           stemSumL.push_back(dL + bL + oL + vL);
           stemSumR.push_back(dR + bR + oR + vR);
         }
@@ -1410,38 +1932,50 @@ protected:
 
   void printReport(const std::vector<FrequencyReport>& reports) {
     std::cerr << "\n";
-    std::cerr << "====================================================================\n";
+    std::cerr << "============================================================="
+                 "=======\n";
     std::cerr << "  BASS DIAGNOSTIC REPORT\n";
-    std::cerr << "====================================================================\n";
-    std::cerr << "  Crossover: " << audio_plugin::kCrossoverFreqHz << " Hz\n";
-    std::cerr << "  Norm target: " << audio_plugin::kNormTargetRmsDb << " dB\n";
-    std::cerr << "  Block size: " << kBlockSize << ", Sample rate: " << kSampleRate << "\n";
-    std::cerr << "====================================================================\n\n";
+    std::cerr << "============================================================="
+                 "=======\n";
+    std::cerr << "  Model input: exact raw fullband level\n";
+    std::cerr << "  Block size: " << kBlockSize
+              << ", Sample rate: " << kSampleRate << "\n";
+    std::cerr << "============================================================="
+                 "=======\n\n";
 
     // Header
-    fprintf(stderr, "%-6s | %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s\n",
-            "Freq", "InRMS", "InPeak",
-            "MainRMS", "MainPeak", "E.Ratio",
-            "DruRMS", "DruPeak", "DruCF",
-            "BasRMS", "BasPeak", "BasCF",
-            "OthRMS", "OthPeak", "OthCF",
-            "VocRMS", "VocPeak", "VocCF");
-    fprintf(stderr, "%-6s-+-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s\n",
-            "------", "----------", "----------",
-            "----------", "----------", "----------",
-            "----------", "----------", "----------",
-            "----------", "----------", "----------",
-            "----------", "----------", "----------",
-            "----------", "----------", "----------");
+    fprintf(stderr,
+            "%-6s | %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s | "
+            "%-10s %-10s %-10s | %-10s %-10s %-10s | %-10s %-10s %-10s\n",
+            "Freq", "InRMS", "InPeak", "MainRMS", "MainPeak", "E.Ratio",
+            "DruRMS", "DruPeak", "DruCF", "BasRMS", "BasPeak", "BasCF",
+            "OthRMS", "OthPeak", "OthCF", "VocRMS", "VocPeak", "VocCF");
+    fprintf(stderr,
+            "%-6s-+-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-"
+            "10s-%-10s-%-10s-+-%-10s-%-10s-%-10s-+-%-10s-%-10s-%-10s\n",
+            "------", "----------", "----------", "----------", "----------",
+            "----------", "----------", "----------", "----------",
+            "----------", "----------", "----------", "----------",
+            "----------", "----------", "----------", "----------",
+            "----------");
 
     for (const auto& r : reports) {
-      fprintf(stderr, "%-6.0f | %-10.6f %-10.6f | %-10.6f %-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f\n",
-              static_cast<double>(r.frequency), static_cast<double>(r.inputRms), static_cast<double>(r.inputPeak),
-              static_cast<double>(r.mainRms), static_cast<double>(r.mainPeak), static_cast<double>(r.energyRatio),
-              static_cast<double>(r.drums.rms), static_cast<double>(r.drums.peak), static_cast<double>(r.drums.crestFactor),
-              static_cast<double>(r.bass.rms), static_cast<double>(r.bass.peak), static_cast<double>(r.bass.crestFactor),
-              static_cast<double>(r.other.rms), static_cast<double>(r.other.peak), static_cast<double>(r.other.crestFactor),
-              static_cast<double>(r.vocals.rms), static_cast<double>(r.vocals.peak), static_cast<double>(r.vocals.crestFactor));
+      fprintf(
+          stderr,
+          "%-6.0f | %-10.6f %-10.6f | %-10.6f %-10.6f %-10.4f | %-10.6f "
+          "%-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f | %-10.6f %-10.6f %-10.4f "
+          "| %-10.6f %-10.6f %-10.4f\n",
+          static_cast<double>(r.frequency), static_cast<double>(r.inputRms),
+          static_cast<double>(r.inputPeak), static_cast<double>(r.mainRms),
+          static_cast<double>(r.mainPeak), static_cast<double>(r.energyRatio),
+          static_cast<double>(r.drums.rms), static_cast<double>(r.drums.peak),
+          static_cast<double>(r.drums.crestFactor),
+          static_cast<double>(r.bass.rms), static_cast<double>(r.bass.peak),
+          static_cast<double>(r.bass.crestFactor),
+          static_cast<double>(r.other.rms), static_cast<double>(r.other.peak),
+          static_cast<double>(r.other.crestFactor),
+          static_cast<double>(r.vocals.rms), static_cast<double>(r.vocals.peak),
+          static_cast<double>(r.vocals.crestFactor));
     }
 
     // Consistency check: sum-of-stems vs main
@@ -1449,9 +1983,12 @@ protected:
     for (const auto& r : reports) {
       float diff = std::abs(r.stemSumRms - r.mainRms);
       float relDiff = (r.mainRms > 1e-10f) ? (diff / r.mainRms) * 100.0f : 0.0f;
-      fprintf(stderr, "  %4.0f Hz: stemSum RMS=%.6f  main RMS=%.6f  diff=%.6f (%.2f%%)\n",
-              static_cast<double>(r.frequency), static_cast<double>(r.stemSumRms),
-              static_cast<double>(r.mainRms), static_cast<double>(diff), static_cast<double>(relDiff));
+      fprintf(
+          stderr,
+          "  %4.0f Hz: stemSum RMS=%.6f  main RMS=%.6f  diff=%.6f (%.2f%%)\n",
+          static_cast<double>(r.frequency), static_cast<double>(r.stemSumRms),
+          static_cast<double>(r.mainRms), static_cast<double>(diff),
+          static_cast<double>(relDiff));
     }
 
     // Stem energy distribution
@@ -1459,7 +1996,9 @@ protected:
     for (const auto& r : reports) {
       float total = r.drums.rms + r.bass.rms + r.other.rms + r.vocals.rms;
       if (total > 1e-10f) {
-        fprintf(stderr, "  %4.0f Hz: Drums=%.1f%%  Bass=%.1f%%  Other=%.1f%%  Vocals=%.1f%%\n",
+        fprintf(stderr,
+                "  %4.0f Hz: Drums=%.1f%%  Bass=%.1f%%  Other=%.1f%%  "
+                "Vocals=%.1f%%\n",
                 static_cast<double>(r.frequency),
                 static_cast<double>(r.drums.rms / total * 100.0f),
                 static_cast<double>(r.bass.rms / total * 100.0f),
@@ -1469,16 +2008,23 @@ protected:
     }
 
     // Crest factor analysis
-    std::cerr << "\n--- Crest Factor Analysis (pure sine = " << std::sqrt(2.0f) << ") ---\n";
+    std::cerr << "\n--- Crest Factor Analysis (pure sine = " << std::sqrt(2.0f)
+              << ") ---\n";
     for (const auto& r : reports) {
-      fprintf(stderr, "  %4.0f Hz: Drums=%.3f  Bass=%.3f  Other=%.3f  Vocals=%.3f  Main=%.3f\n",
-              static_cast<double>(r.frequency), static_cast<double>(r.drums.crestFactor),
-              static_cast<double>(r.bass.crestFactor), static_cast<double>(r.other.crestFactor),
+      fprintf(stderr,
+              "  %4.0f Hz: Drums=%.3f  Bass=%.3f  Other=%.3f  Vocals=%.3f  "
+              "Main=%.3f\n",
+              static_cast<double>(r.frequency),
+              static_cast<double>(r.drums.crestFactor),
+              static_cast<double>(r.bass.crestFactor),
+              static_cast<double>(r.other.crestFactor),
               static_cast<double>(r.vocals.crestFactor),
-              static_cast<double>((r.mainRms > 1e-10f) ? r.mainPeak / r.mainRms : 0.0f));
+              static_cast<double>((r.mainRms > 1e-10f) ? r.mainPeak / r.mainRms
+                                                       : 0.0f));
     }
 
-    std::cerr << "\n====================================================================\n\n";
+    std::cerr << "\n==========================================================="
+                 "=========\n\n";
   }
 };
 
@@ -1498,8 +2044,10 @@ TEST_F(BassDiagnosticTest, DiagnoseBassSaturation) {
 
   // Assertions
   for (const auto& r : reports) {
-    EXPECT_TRUE(std::isfinite(r.mainRms)) << r.frequency << " Hz: main RMS is not finite";
-    EXPECT_TRUE(std::isfinite(r.mainPeak)) << r.frequency << " Hz: main peak is not finite";
+    EXPECT_TRUE(std::isfinite(r.mainRms))
+        << r.frequency << " Hz: main RMS is not finite";
+    EXPECT_TRUE(std::isfinite(r.mainPeak))
+        << r.frequency << " Hz: main peak is not finite";
 
     // Energy ratio between 0.5 and 2.0
     EXPECT_GE(r.energyRatio, 0.5f)
@@ -1525,9 +2073,12 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   constexpr float kickDecayMs = 150.0f;
   constexpr float kickIntervalMs = 500.0f;  // 120 BPM
 
-  const float kickDecaySamples = kickDecayMs * static_cast<float>(kSampleRate) / 1000.0f;
-  const float kickIntervalSamples = kickIntervalMs * static_cast<float>(kSampleRate) / 1000.0f;
-  const float clickDurationSamples = static_cast<float>(kSampleRate) * 0.001f;  // 1ms click
+  const float kickDecaySamples =
+      kickDecayMs * static_cast<float>(kSampleRate) / 1000.0f;
+  const float kickIntervalSamples =
+      kickIntervalMs * static_cast<float>(kSampleRate) / 1000.0f;
+  const float clickDurationSamples =
+      static_cast<float>(kSampleRate) * 0.001f;  // 1ms click
 
   // Pre-generate kick pattern for the entire test duration
   constexpr int kWarmupBlocks = 50;  // More warmup for transient material
@@ -1541,7 +2092,8 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
     // Find position within current kick interval
     float posInKick = std::fmod(t, kickIntervalSamples);
 
-    if (posInKick < kickDecaySamples * 3.0f) {  // Only generate during active part
+    if (posInKick <
+        kickDecaySamples * 3.0f) {  // Only generate during active part
       // Amplitude envelope: exponential decay
       float env = kickAmplitude * std::exp(-posInKick / kickDecaySamples);
 
@@ -1550,9 +2102,11 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
       float freq = kickStartFreq * std::pow(kickEndFreq / kickStartFreq, freqT);
 
       // Phase-continuous oscillator
-      if (posInKick < 1.0f) phase = 0.0f;  // Reset phase at kick onset
+      if (posInKick < 1.0f)
+        phase = 0.0f;  // Reset phase at kick onset
       phase += 2.0f * kPi * freq / static_cast<float>(kSampleRate);
-      if (phase > 2.0f * kPi) phase -= 2.0f * kPi;
+      if (phase > 2.0f * kPi)
+        phase -= 2.0f * kPi;
 
       float body = env * std::sin(phase);
 
@@ -1563,7 +2117,9 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
         clickEnv *= clickEnv;  // Squared envelope for sharp attack
         // Simple deterministic "noise" via fast sine harmonics
         click = kickAmplitude * clickEnv * 0.5f *
-            (std::sin(phase * 7.0f) + std::sin(phase * 13.0f) + std::sin(phase * 23.0f)) / 3.0f;
+                (std::sin(phase * 7.0f) + std::sin(phase * 13.0f) +
+                 std::sin(phase * 23.0f)) /
+                3.0f;
       }
 
       kickSignal[static_cast<size_t>(i)] = body + click;
@@ -1574,7 +2130,8 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   processor->releaseResources();
   processor->prepareToPlay(kSampleRate, kBlockSize);
 
-  const int totalChannels = processor->getTotalNumInputChannels() + processor->getTotalNumOutputChannels();
+  const int totalChannels = processor->getTotalNumInputChannels() +
+                            processor->getTotalNumOutputChannels();
   juce::MidiBuffer midiBuffer;
 
   std::vector<float> inputAcc, mainAcc, drumsAcc, bassAcc, otherAcc, vocalsAcc;
@@ -1607,7 +2164,8 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
 
     processor->processBlock(buffer, midiBuffer);
 
-    // Give inference thread time to process (each 512-sample block = ~11.6ms at 44.1kHz)
+    // Give inference thread time to process (each 512-sample block = ~11.6ms
+    // at 44.1kHz)
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
     if (block >= kWarmupBlocks) {
@@ -1631,12 +2189,14 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   // Compute metrics
   auto rmsOf = [](const std::vector<float>& v) {
     float sum = 0.0f;
-    for (float s : v) sum += s * s;
+    for (float s : v)
+      sum += s * s;
     return std::sqrt(sum / static_cast<float>(v.size()));
   };
   auto peakOf = [](const std::vector<float>& v) {
     float p = 0.0f;
-    for (float s : v) p = std::max(p, std::abs(s));
+    for (float s : v)
+      p = std::max(p, std::abs(s));
     return p;
   };
   auto crestOf = [&](const std::vector<float>& v) {
@@ -1666,8 +2226,9 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   size_t reconCount = 0;
   size_t lag = 0;
   {
-    const size_t maxLag = std::min<size_t>(mainAcc.size() / 2,
-                                           static_cast<size_t>(audio_plugin::kOutputChunkSize) * 8);
+    const size_t maxLag = std::min<size_t>(
+        mainAcc.size() / 2,
+        static_cast<size_t>(audio_plugin::kOutputChunkSize) * 8);
     float bestRms = std::numeric_limits<float>::max();
     size_t bestLag = 0;
     for (size_t tryLag = 0; tryLag < maxLag; ++tryLag) {
@@ -1697,41 +2258,63 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
 
   // Print kick drum report
   std::cerr << "\n";
-  std::cerr << "====================================================================\n";
+  std::cerr << "==============================================================="
+               "=====\n";
   std::cerr << "  KICK DRUM DIAGNOSTIC REPORT\n";
-  std::cerr << "====================================================================\n";
-  std::cerr << "  Kick: " << kickStartFreq << "->" << kickEndFreq << " Hz sweep, "
-            << kickDecayMs << "ms decay, " << kickAmplitude << " amplitude\n";
+  std::cerr << "==============================================================="
+               "=====\n";
+  std::cerr << "  Kick: " << kickStartFreq << "->" << kickEndFreq
+            << " Hz sweep, " << kickDecayMs << "ms decay, " << kickAmplitude
+            << " amplitude\n";
   std::cerr << "  Interval: " << kickIntervalMs << "ms (120 BPM)\n";
-  std::cerr << "  Warmup: " << kWarmupBlocks << " blocks, Measure: " << kMeasureBlocks << " blocks\n";
-  std::cerr << "====================================================================\n\n";
+  std::cerr << "  Warmup: " << kWarmupBlocks
+            << " blocks, Measure: " << kMeasureBlocks << " blocks\n";
+  std::cerr << "==============================================================="
+               "=====\n\n";
 
   fprintf(stderr, "%-10s | %-10s %-10s %-10s\n", "Bus", "RMS", "Peak", "Crest");
-  fprintf(stderr, "%-10s-+-%-10s-%-10s-%-10s\n", "----------", "----------", "----------", "----------");
+  fprintf(stderr, "%-10s-+-%-10s-%-10s-%-10s\n", "----------", "----------",
+          "----------", "----------");
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Input",
-          static_cast<double>(rmsOf(inputAcc)), static_cast<double>(peakOf(inputAcc)), static_cast<double>(crestOf(inputAcc)));
+          static_cast<double>(rmsOf(inputAcc)),
+          static_cast<double>(peakOf(inputAcc)),
+          static_cast<double>(crestOf(inputAcc)));
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Main",
-          static_cast<double>(rmsOf(mainAcc)), static_cast<double>(peakOf(mainAcc)), static_cast<double>(crestOf(mainAcc)));
+          static_cast<double>(rmsOf(mainAcc)),
+          static_cast<double>(peakOf(mainAcc)),
+          static_cast<double>(crestOf(mainAcc)));
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Drums",
-          static_cast<double>(rmsOf(drumsAcc)), static_cast<double>(peakOf(drumsAcc)), static_cast<double>(crestOf(drumsAcc)));
+          static_cast<double>(rmsOf(drumsAcc)),
+          static_cast<double>(peakOf(drumsAcc)),
+          static_cast<double>(crestOf(drumsAcc)));
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Bass",
-          static_cast<double>(rmsOf(bassAcc)), static_cast<double>(peakOf(bassAcc)), static_cast<double>(crestOf(bassAcc)));
+          static_cast<double>(rmsOf(bassAcc)),
+          static_cast<double>(peakOf(bassAcc)),
+          static_cast<double>(crestOf(bassAcc)));
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Other",
-          static_cast<double>(rmsOf(otherAcc)), static_cast<double>(peakOf(otherAcc)), static_cast<double>(crestOf(otherAcc)));
+          static_cast<double>(rmsOf(otherAcc)),
+          static_cast<double>(peakOf(otherAcc)),
+          static_cast<double>(crestOf(otherAcc)));
   fprintf(stderr, "%-10s | %-10.6f %-10.6f %-10.4f\n", "Vocals",
-          static_cast<double>(rmsOf(vocalsAcc)), static_cast<double>(peakOf(vocalsAcc)), static_cast<double>(crestOf(vocalsAcc)));
+          static_cast<double>(rmsOf(vocalsAcc)),
+          static_cast<double>(peakOf(vocalsAcc)),
+          static_cast<double>(crestOf(vocalsAcc)));
 
   float inputRms = rmsOf(inputAcc);
   float mainRms = rmsOf(mainAcc);
   float energyRatio = (inputRms > 1e-10f) ? mainRms / inputRms : 0.0f;
 
   fprintf(stderr, "\n--- Summary ---\n");
-  fprintf(stderr, "Energy ratio (main/input): %.4f\n", static_cast<double>(energyRatio));
+  fprintf(stderr, "Energy ratio (main/input): %.4f\n",
+          static_cast<double>(energyRatio));
   fprintf(stderr, "Main-StemSum max error: %.8f (at input=%.6f)\n",
-          static_cast<double>(maxSampleError), static_cast<double>(maxSampleErrorInput));
-  fprintf(stderr, "Reconstruction error (main vs input, %zu-sample lag): RMS=%.6f  Peak=%.6f\n",
-          lag,
-          static_cast<double>(reconErrorRms), static_cast<double>(reconErrorPeak));
+          static_cast<double>(maxSampleError),
+          static_cast<double>(maxSampleErrorInput));
+  fprintf(stderr,
+          "Reconstruction error (main vs input, %zu-sample lag): RMS=%.6f  "
+          "Peak=%.6f\n",
+          lag, static_cast<double>(reconErrorRms),
+          static_cast<double>(reconErrorPeak));
 
   // Stem energy distribution
   float drumsRms = rmsOf(drumsAcc);
@@ -1740,7 +2323,9 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   float vocalsRms = rmsOf(vocalsAcc);
   float totalStemRms = drumsRms + bassRms + otherRms + vocalsRms;
   if (totalStemRms > 1e-10f) {
-    fprintf(stderr, "\nStem distribution: Drums=%.1f%%  Bass=%.1f%%  Other=%.1f%%  Vocals=%.1f%%\n",
+    fprintf(stderr,
+            "\nStem distribution: Drums=%.1f%%  Bass=%.1f%%  Other=%.1f%%  "
+            "Vocals=%.1f%%\n",
             static_cast<double>(drumsRms / totalStemRms * 100.0f),
             static_cast<double>(bassRms / totalStemRms * 100.0f),
             static_cast<double>(otherRms / totalStemRms * 100.0f),
@@ -1754,11 +2339,14 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
   fprintf(stderr, "\nTransient preservation:\n");
   fprintf(stderr, "  Input peak:  %.6f\n", static_cast<double>(inputPeak));
   fprintf(stderr, "  Drums peak:  %.6f (%.1f%% of input)\n",
-          static_cast<double>(drumsPeak), static_cast<double>(drumsPeak / inputPeak * 100.0f));
+          static_cast<double>(drumsPeak),
+          static_cast<double>(drumsPeak / inputPeak * 100.0f));
   fprintf(stderr, "  Bass peak:   %.6f (%.1f%% of input)\n",
-          static_cast<double>(bassPeak), static_cast<double>(bassPeak / inputPeak * 100.0f));
+          static_cast<double>(bassPeak),
+          static_cast<double>(bassPeak / inputPeak * 100.0f));
   fprintf(stderr, "  Main peak:   %.6f (%.1f%% of input)\n",
-          static_cast<double>(peakOf(mainAcc)), static_cast<double>(peakOf(mainAcc) / inputPeak * 100.0f));
+          static_cast<double>(peakOf(mainAcc)),
+          static_cast<double>(peakOf(mainAcc) / inputPeak * 100.0f));
 
   // Crest factor comparison (kick should have high crest factor ~6-10)
   fprintf(stderr, "\nCrest factor comparison (kick drum typical: 6-10):\n");
@@ -1769,7 +2357,8 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
 
   // Chunk boundary discontinuity analysis
   // Every kOutputChunkSize samples, the model transitions to a new chunk.
-  // Discontinuities at boundaries cause ~86Hz artifacts that sound like saturation.
+  // Discontinuities at boundaries cause ~86Hz artifacts that sound like
+  // saturation.
   {
     constexpr int chunkSize = audio_plugin::kOutputChunkSize;
     int latencySamples = processor->getLatencySamples();
@@ -1799,30 +2388,47 @@ TEST_F(BassDiagnosticTest, DiagnoseKickDrum) {
       }
     }
 
-    float rmsBoundary = boundaryCount > 0 ? std::sqrt(sumBoundaryDeltaSq / static_cast<float>(boundaryCount)) : 0.0f;
-    float rmsInternal = internalCount > 0 ? std::sqrt(sumInternalDeltaSq / static_cast<float>(internalCount)) : 0.0f;
-    float boundaryRatio = (rmsInternal > 1e-10f) ? rmsBoundary / rmsInternal : 0.0f;
+    float rmsBoundary =
+        boundaryCount > 0
+            ? std::sqrt(sumBoundaryDeltaSq / static_cast<float>(boundaryCount))
+            : 0.0f;
+    float rmsInternal =
+        internalCount > 0
+            ? std::sqrt(sumInternalDeltaSq / static_cast<float>(internalCount))
+            : 0.0f;
+    float boundaryRatio =
+        (rmsInternal > 1e-10f) ? rmsBoundary / rmsInternal : 0.0f;
 
     fprintf(stderr, "\nChunk boundary analysis (every %d samples = %.1f Hz):\n",
-            chunkSize, static_cast<double>(static_cast<float>(kSampleRate) / static_cast<float>(chunkSize)));
+            chunkSize,
+            static_cast<double>(static_cast<float>(kSampleRate) /
+                                static_cast<float>(chunkSize)));
     fprintf(stderr, "  Drums delta at boundaries: max=%.6f  rms=%.6f\n",
-            static_cast<double>(maxBoundaryDelta), static_cast<double>(rmsBoundary));
+            static_cast<double>(maxBoundaryDelta),
+            static_cast<double>(rmsBoundary));
     fprintf(stderr, "  Drums delta within chunks: max=%.6f  rms=%.6f\n",
-            static_cast<double>(maxInternalDelta), static_cast<double>(rmsInternal));
-    fprintf(stderr, "  Boundary/internal ratio: %.2fx (>2x indicates chunk boundary artifacts)\n",
+            static_cast<double>(maxInternalDelta),
+            static_cast<double>(rmsInternal));
+    fprintf(stderr,
+            "  Boundary/internal ratio: %.2fx (>2x indicates chunk boundary "
+            "artifacts)\n",
             static_cast<double>(boundaryRatio));
   }
 
-  std::cerr << "\n====================================================================\n\n";
+  std::cerr << "\n============================================================="
+               "=======\n\n";
 
   // Assertions
-  EXPECT_GE(energyRatio, 0.5f) << "Kick drum: energy ratio too low: " << energyRatio;
-  EXPECT_LE(energyRatio, 2.0f) << "Kick drum: energy ratio too high: " << energyRatio;
+  EXPECT_GE(energyRatio, 0.5f)
+      << "Kick drum: energy ratio too low: " << energyRatio;
+  EXPECT_LE(energyRatio, 2.0f)
+      << "Kick drum: energy ratio too high: " << energyRatio;
   // Main bus reads from delayedInputBuffer aligned with stems. The pipeline
   // delay varies with inference timing jitter, so the best-lag RMS won't be
   // near-zero. Keep this tight enough to catch obvious regressions while
   // allowing expected jitter-related residual.
-  EXPECT_LT(reconErrorRms, 0.35f) << "Kick drum: reconstruction error RMS too high: " << reconErrorRms;
+  EXPECT_LT(reconErrorRms, 0.35f)
+      << "Kick drum: reconstruction error RMS too high: " << reconErrorRms;
 }
 
 TEST_F(BassDiagnosticTest, SampleLevelVerification) {
@@ -1841,15 +2447,16 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
     auto otherBus = processor->getBusBuffer(probe, false, 3);
     auto vocalsBus = processor->getBusBuffer(probe, false, 4);
 
-    auto printBusPointers = [](const char* label, const juce::AudioBuffer<float>& bus) {
+    auto printBusPointers = [](const char* label,
+                               const juce::AudioBuffer<float>& bus) {
       if (bus.getNumChannels() <= 0) {
         fprintf(stderr, "%s: disabled (0 ch)\n", label);
         return;
       }
-      fprintf(stderr, "%s: ptr %p-%p (%d ch)\n",
-              label,
+      fprintf(stderr, "%s: ptr %p-%p (%d ch)\n", label,
               static_cast<const void*>(bus.getReadPointer(0)),
-              static_cast<const void*>(bus.getReadPointer(bus.getNumChannels() - 1)),
+              static_cast<const void*>(
+                  bus.getReadPointer(bus.getNumChannels() - 1)),
               bus.getNumChannels());
     };
 
@@ -1863,7 +2470,8 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
     std::cerr << "\n";
   }
 
-  // Process 100Hz at 0.5 amplitude using getBusBuffer for correct channel access
+  // Process 100Hz at 0.5 amplitude using getBusBuffer for correct channel
+  // access
   constexpr float freq = 100.0f;
   constexpr float amplitude = 0.5f;
   constexpr int kWarmupBlocks = 30;
@@ -1882,7 +2490,8 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
     for (int i = 0; i < kBlockSize; ++i) {
       int sampleIdx = block * kBlockSize + i;
       float sample = amplitude * std::sin(2.0f * kPi * freq *
-          static_cast<float>(sampleIdx) / static_cast<float>(kSampleRate));
+                                          static_cast<float>(sampleIdx) /
+                                          static_cast<float>(kSampleRate));
       inputBus.setSample(0, i, sample);
       inputBus.setSample(1, i, sample);
     }
@@ -1907,9 +2516,12 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
       auto otherBus = processor->getBusBuffer(buffer, false, 3);
       auto vocalsBus = processor->getBusBuffer(buffer, false, 4);
 
-      std::cerr << "=== Sample-Level Data via getBusBuffer (block " << block << ", 100Hz) ===\n";
-      std::cerr << "i    | SavedInp  | Main      | Drums     | Bass      | Other     | Vocals    | StemSum   | Main-Sum\n";
-      std::cerr << "-----+-----------+-----------+-----------+-----------+-----------+-----------+-----------+---------\n";
+      std::cerr << "=== Sample-Level Data via getBusBuffer (block " << block
+                << ", 100Hz) ===\n";
+      std::cerr << "i    | SavedInp  | Main      | Drums     | Bass      | "
+                   "Other     | Vocals    | StemSum   | Main-Sum\n";
+      std::cerr << "-----+-----------+-----------+-----------+-----------+-----"
+                   "------+-----------+-----------+---------\n";
       for (int i = 0; i < 16; ++i) {
         float inp = savedInput[static_cast<size_t>(i)];
         float main = mainBus.getSample(0, i);
@@ -1919,7 +2531,9 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
         float voc = vocalsBus.getSample(0, i);
         float sum = dru + bas + oth + voc;
         float diff = main - sum;
-        fprintf(stderr, "%-4d | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f\n",
+        fprintf(stderr,
+                "%-4d | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f | %+.6f "
+                "| %+.6f\n",
                 i, static_cast<double>(inp), static_cast<double>(main),
                 static_cast<double>(dru), static_cast<double>(bas),
                 static_cast<double>(oth), static_cast<double>(voc),
@@ -1945,16 +2559,25 @@ TEST_F(BassDiagnosticTest, SampleLevelVerification) {
         float sum = dru + bas + oth + voc;
         stemSumRms += sum * sum;
       }
-      auto rms = [](float s) { return std::sqrt(s / static_cast<float>(kBlockSize)); };
-      fprintf(stderr, "\nBlock RMS: input=%.6f  main=%.6f  drums=%.6f  bass=%.6f  other=%.6f  vocals=%.6f  stemSum=%.6f\n",
-              static_cast<double>(rms(inputRms)), static_cast<double>(rms(mainRms)),
-              static_cast<double>(rms(druRms)), static_cast<double>(rms(basRms)),
-              static_cast<double>(rms(othRms)), static_cast<double>(rms(vocRms)),
-              static_cast<double>(rms(stemSumRms)));
-      fprintf(stderr, "Ratios: main/input=%.4f  stemSum/input=%.4f  main/stemSum=%.4f\n",
-              static_cast<double>(rms(mainRms) / rms(inputRms)),
-              static_cast<double>(rms(stemSumRms) / rms(inputRms)),
-              static_cast<double>(rms(stemSumRms) > 1e-10f ? rms(mainRms) / rms(stemSumRms) : 0.0f));
+      auto rms = [](float s) {
+        return std::sqrt(s / static_cast<float>(kBlockSize));
+      };
+      fprintf(
+          stderr,
+          "\nBlock RMS: input=%.6f  main=%.6f  drums=%.6f  bass=%.6f  "
+          "other=%.6f  vocals=%.6f  stemSum=%.6f\n",
+          static_cast<double>(rms(inputRms)), static_cast<double>(rms(mainRms)),
+          static_cast<double>(rms(druRms)), static_cast<double>(rms(basRms)),
+          static_cast<double>(rms(othRms)), static_cast<double>(rms(vocRms)),
+          static_cast<double>(rms(stemSumRms)));
+      fprintf(
+          stderr,
+          "Ratios: main/input=%.4f  stemSum/input=%.4f  main/stemSum=%.4f\n",
+          static_cast<double>(rms(mainRms) / rms(inputRms)),
+          static_cast<double>(rms(stemSumRms) / rms(inputRms)),
+          static_cast<double>(rms(stemSumRms) > 1e-10f
+                                  ? rms(mainRms) / rms(stemSumRms)
+                                  : 0.0f));
       std::cerr << "\n";
     }
   }

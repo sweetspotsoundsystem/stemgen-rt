@@ -9,43 +9,138 @@ namespace audio_plugin {
 
 #if !STEMGENRT_DEBUG_UI
 // =============================================================================
-// Release build - just display logo
+// Release build - logo plus lightweight streaming health
 // =============================================================================
 
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p) {
-  setSize(300, 300);
+  setSize(380, 420);
 
 #if HAS_LOGO_ASSET
   logoImage = juce::ImageCache::getFromMemory(BinaryData::logo_png,
                                               BinaryData::logo_pngSize);
 #endif
+  startTimerHz(4);
 }
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() = default;
+AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
+  stopTimer();
+}
 
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::black);
 
 #if HAS_LOGO_ASSET
   if (logoImage.isValid()) {
-    auto bounds = getLocalBounds().reduced(20).toFloat();
-    float scale = juce::jmin(bounds.getWidth() / logoImage.getWidth(),
-                             bounds.getHeight() / logoImage.getHeight());
-    g.drawImage(logoImage,
-                bounds.withSizeKeepingCentre(logoImage.getWidth() * scale,
-                                             logoImage.getHeight() * scale));
+    const auto logoBounds =
+        getLocalBounds().reduced(20).removeFromTop(170).toFloat();
+    const auto imageWidth = static_cast<float>(logoImage.getWidth());
+    const auto imageHeight = static_cast<float>(logoImage.getHeight());
+    const float scale = juce::jmin(logoBounds.getWidth() / imageWidth,
+                                   logoBounds.getHeight() / imageHeight);
+    g.drawImage(logoImage, logoBounds.withSizeKeepingCentre(
+                               imageWidth * scale, imageHeight * scale));
   }
 #else
   g.setColour(juce::Colours::white);
   g.setFont(24.0f);
-  g.drawFittedText("StemgenRT", getLocalBounds(), juce::Justification::centred,
-                   1);
+  g.drawFittedText("StemgenRT", getLocalBounds().removeFromTop(170),
+                   juce::Justification::centred, 1);
 #endif
+
+  auto area = getLocalBounds().reduced(16);
+  area.removeFromTop(170);
+
+  const bool unsafeTiming = processorRef.isRealtimeCallbackTimingUnsafe();
+  const bool fallbackActive = processorRef.isUnderrunActive();
+  const bool dueBoundaryMissed =
+      processorRef.getSameCallbackTimeoutCount() > 0U;
+  const bool modelReady = processorRef.getLatencySamples() > 0;
+  const auto priorityStatus = processorRef.getInferenceWorkerPriorityStatus();
+  const bool priorityFailed =
+      priorityStatus == InferenceQueue::WorkerPriorityStatus::Failed;
+  const juce::String health =
+      unsafeTiming         ? "PDC timing warning"
+      : fallbackActive     ? "Dry fallback active"
+      : dueBoundaryMissed  ? "Due-boundary miss recorded"
+      : modelReady         ? "Streaming normally"
+                           : "Model unavailable";
+  g.setColour(
+      unsafeTiming || !modelReady
+          ? juce::Colours::orangered
+          : (fallbackActive || dueBoundaryMissed || priorityFailed
+                 ? juce::Colours::orange
+                 : juce::Colours::limegreen));
+  g.setFont(16.0f);
+  g.drawFittedText("Health: " + health, area.removeFromTop(26),
+                   juce::Justification::centred, 1);
+
+  g.setColour(juce::Colours::white);
+  g.setFont(12.5f);
+  g.drawFittedText(processorRef.getOrtStatusString(), area.removeFromTop(42),
+                   juce::Justification::centred, 2);
+
+  g.drawFittedText(juce::String::formatted("PDC: %.1f ms (%d samples)",
+                                           processorRef.getLatencyMs(),
+                                           processorRef.getLatencySamples()),
+                   area.removeFromTop(24), juce::Justification::centred, 1);
+  g.drawFittedText(
+      juce::String::formatted(
+          "Host block: prepared %d, current %d (needs %d PDC)",
+          processorRef.getPreparedHostBlockSize(),
+          processorRef.getLastHostBlockSize(),
+          processorRef.getRequiredLatencySamplesForLastHostBlock()),
+      area.removeFromTop(24), juce::Justification::centred, 1);
+
+  g.setColour(fallbackActive ? juce::Colours::orange : juce::Colours::white);
+  g.drawFittedText(juce::String("Fallback: ") +
+                       (fallbackActive ? "active" : "inactive") + " | " +
+                       juce::String(static_cast<juce::int64>(
+                           processorRef.getUnderrunSampleCount())) +
+                       " samples",
+                   area.removeFromTop(24), juce::Justification::centred, 1);
+
+  g.setColour(unsafeTiming ? juce::Colours::orangered : juce::Colours::white);
+  g.drawFittedText("Unsafe callback timing: " +
+                       juce::String(static_cast<juce::int64>(
+                           processorRef.getUnsafeRealtimeCallbackCount())) +
+                       " callbacks",
+                   area.removeFromTop(24), juce::Justification::centred, 1);
+
+  g.setColour(dueBoundaryMissed ? juce::Colours::orange
+                                : juce::Colours::white);
+  g.drawFittedText(
+      juce::String::formatted(
+          "Due-boundary misses: %lld | nonblocking",
+          static_cast<long long>(processorRef.getSameCallbackTimeoutCount())),
+      area.removeFromTop(24), juce::Justification::centred, 1);
+
+  juce::String priorityText;
+  switch (priorityStatus) {
+    case InferenceQueue::WorkerPriorityStatus::NotAttempted:
+      priorityText = "pending";
+      break;
+    case InferenceQueue::WorkerPriorityStatus::Applied:
+      priorityText = "applied";
+      break;
+    case InferenceQueue::WorkerPriorityStatus::Failed:
+      priorityText = "failed";
+      break;
+    case InferenceQueue::WorkerPriorityStatus::Unsupported:
+      priorityText = "unsupported";
+      break;
+  }
+  g.setColour(priorityFailed ? juce::Colours::orange : juce::Colours::white);
+  g.drawFittedText("Worker priority: " + priorityText, area.removeFromTop(24),
+                   juce::Justification::centred, 1);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {}
+
+void AudioPluginAudioProcessorEditor::timerCallback() {
+  repaint();
+}
 
 #else
 // =============================================================================
@@ -55,7 +150,7 @@ void AudioPluginAudioProcessorEditor::resized() {}
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p) {
-  setSize(360, 320);
+  setSize(360, 420);
   startTimer(100);
 }
 
@@ -79,8 +174,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   // Status
   const auto status = processorRef.getOrtStatusString();
-  g.drawFittedText(status, area.removeFromTop(24),
-                   juce::Justification::centred, 1);
+  g.drawFittedText(status, area.removeFromTop(24), juce::Justification::centred,
+                   1);
 
   area.removeFromTop(20);  // Spacing
 
@@ -95,39 +190,36 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   size_t ringFill = processorRef.getRingFillLevel();
   double sampleRate = processorRef.getSampleRate();
-  if (sampleRate <= 0.0) sampleRate = 44100.0;
+  if (sampleRate <= 0.0)
+    sampleRate = 44100.0;
   double ringFillMs = (static_cast<double>(ringFill) / sampleRate) * 1000.0;
-  // Ring fill up to kOutputChunkSize is normal pipeline buffering already
-  // covered by PDC. Only excess above one chunk adds real latency.
-  size_t ringExcess = (ringFill > static_cast<size_t>(kOutputChunkSize))
-      ? (ringFill - static_cast<size_t>(kOutputChunkSize))
-      : 0;
-  double excessMs = (static_cast<double>(ringExcess) / sampleRate) * 1000.0;
-  double totalDelayMs = latencyMs + excessMs;
   g.drawFittedText(
-      juce::String::formatted("Ring: %zu samples (%.1f ms) | Total: %.1f ms",
-                              ringFill, ringFillMs, totalDelayMs),
+      juce::String::formatted("Scheduled model: %zu samples (%.1f ms)",
+                              ringFill, ringFillMs),
       area.removeFromTop(24), juce::Justification::centred, 1);
 
   const bool fallbackBlendActive = processorRef.isUnderrunActive();
   const uint64_t underrunBlocks = processorRef.getUnderrunBlockCount();
   const uint64_t underrunSamples = processorRef.getUnderrunSampleCount();
-  const size_t lastUnderrunSamples = processorRef.getUnderrunSamplesInLastBlock();
+  const size_t lastUnderrunSamples =
+      processorRef.getUnderrunSamplesInLastBlock();
   const bool underrunThisBlock = (lastUnderrunSamples > 0);
   const uint64_t queueFullDrops = processorRef.getQueueFullChunkDropCount();
   const uint64_t ringOverflowEvents = processorRef.getRingOverflowEventCount();
-  const uint64_t ringOverflowSamples = processorRef.getRingOverflowSampleDropCount();
+  const uint64_t ringOverflowSamples =
+      processorRef.getRingOverflowSampleDropCount();
+  const uint64_t dueBoundaryMisses =
+      processorRef.getSameCallbackTimeoutCount();
 
-  g.setColour(fallbackBlendActive ? juce::Colours::orange : juce::Colours::white);
-  g.drawFittedText(
-      juce::String("Fallback blend: ") +
-          (fallbackBlendActive ? "active" : "inactive"),
-      area.removeFromTop(24), juce::Justification::centred, 1);
+  g.setColour(fallbackBlendActive ? juce::Colours::orange
+                                  : juce::Colours::white);
+  g.drawFittedText(juce::String("Dry fallback: ") +
+                       (fallbackBlendActive ? "active" : "inactive"),
+                   area.removeFromTop(24), juce::Justification::centred, 1);
   g.setColour(underrunThisBlock ? juce::Colours::orange : juce::Colours::white);
-  g.drawFittedText(
-      juce::String("Underrun this block: ") +
-          (underrunThisBlock ? "yes" : "no"),
-      area.removeFromTop(24), juce::Justification::centred, 1);
+  g.drawFittedText(juce::String("Underrun this block: ") +
+                       (underrunThisBlock ? "yes" : "no"),
+                   area.removeFromTop(24), juce::Justification::centred, 1);
   g.setColour(juce::Colours::white);
   g.drawFittedText("Underrun events: " + juce::String(underrunBlocks),
                    area.removeFromTop(24), juce::Justification::centred, 1);
@@ -135,18 +227,30 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
                        " (last: " + juce::String(lastUnderrunSamples) + ")",
                    area.removeFromTop(24), juce::Justification::centred, 1);
   g.drawFittedText("Queue-full drops: " +
-                       juce::String(static_cast<juce::int64>(queueFullDrops)) + " chunks",
+                       juce::String(static_cast<juce::int64>(queueFullDrops)) +
+                       " chunks",
                    area.removeFromTop(24), juce::Justification::centred, 1);
-  g.drawFittedText("Ring overflow drops: " +
-                       juce::String(static_cast<juce::int64>(ringOverflowSamples)) +
-                       " samples (" +
-                       juce::String(static_cast<juce::int64>(ringOverflowEvents)) + " events)",
-                   area.removeFromTop(24), juce::Justification::centred, 1);
+  g.drawFittedText(
+      "Dropped model output: " +
+          juce::String(static_cast<juce::int64>(ringOverflowSamples)) +
+          " samples (" +
+          juce::String(static_cast<juce::int64>(ringOverflowEvents)) +
+          " events)",
+      area.removeFromTop(24), juce::Justification::centred, 1);
+  g.setColour(dueBoundaryMisses > 0U ? juce::Colours::orange
+                                    : juce::Colours::white);
+  g.drawFittedText(
+      "Due-boundary misses: " +
+          juce::String(static_cast<juce::int64>(dueBoundaryMisses)) +
+          " | nonblocking",
+      area.removeFromTop(24), juce::Justification::centred, 1);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {}
 
-void AudioPluginAudioProcessorEditor::timerCallback() { repaint(); }
+void AudioPluginAudioProcessorEditor::timerCallback() {
+  repaint();
+}
 
 #endif
 

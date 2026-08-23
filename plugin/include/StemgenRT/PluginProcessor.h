@@ -3,22 +3,18 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 #include <array>
 #include <atomic>
 #include <cstdint>
 #include "Constants.h"
-#include "Crossover.h"
 #include "InferenceQueue.h"
-#include "InputNormalizer.h"
 #include "OnnxRuntime.h"
 #include "OutputWriter.h"
 #include "OverlapAddProcessor.h"
-#include "SoftGate.h"
-#include "StemPostProcessor.h"
-#include "VocalsGate.h"
-#include "LowBandStabilizer.h"
+#include "StreamingSampleRateAdapter.h"
 
 namespace audio_plugin {
 
@@ -32,9 +28,10 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // This accounts for input accumulation, inference queue depth, and output buffering.
+  // c91 emits the previous hop and the real-time path gives the asynchronous
+  // worker one additional callback, for an honest 1024-sample PDC.
   int getLatencySamples() const;
-  
+
   // Returns the current plugin latency in milliseconds based on sample rate.
   double getLatencyMs() const;
 
@@ -44,14 +41,33 @@ public:
   uint64_t getUnderrunBlockCount() const;
   bool isUnderrunActive() const;
 
-  // Ring buffer fill level (samples available for reading).
-  // Reflects the actual pipeline depth beyond the reported PDC latency.
+  // Number of exact-timeline model samples still scheduled after the most
+  // recent callback. Timeline gaps are deliberately not counted as fill.
   size_t getRingFillLevel() const;
 
   // Debug telemetry for dropped model output.
   uint64_t getRingOverflowEventCount() const;
   uint64_t getRingOverflowSampleDropCount() const;
   uint64_t getQueueFullChunkDropCount() const;
+
+  // Host-callback timing diagnostics. The active PDC is fixed during
+  // prepareToPlay(); these lock-free snapshots report a real-time callback
+  // whose size would require a larger scheduling reserve without mutating the
+  // stream from the audio thread.
+  int getPreparedHostBlockSize() const;
+  int getLastHostBlockSize() const;
+  int getRequiredLatencySamplesForLastHostBlock() const;
+  bool isRealtimeCallbackTimingUnsafe() const;
+  uint64_t getUnsafeRealtimeCallbackCount() const;
+
+  // Compatibility diagnostics retained for the existing editor API. A
+  // "timeout" is now an asynchronous callback whose exact due result was not
+  // observable at its boundary. The audio thread never waits, so both wait
+  // duration accessors remain zero.
+  uint64_t getSameCallbackTimeoutCount() const;
+  int getLastSameCallbackWaitMicroseconds() const;
+  int getMaximumSameCallbackWaitMicroseconds() const;
+  InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -85,50 +101,77 @@ public:
 
 private:
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  // ONNX Runtime wrapper (handles environment, session, GPU providers, and inference)
+  // ONNX Runtime wrapper (handles the CPU session and persistent graph state)
   std::unique_ptr<OnnxRuntime> onnxRuntime_;
-  juce::String modelLoadError_;  // Stores the last model loading error for display
+  juce::String
+      modelLoadError_;  // Stores the last model loading error for display
+  mutable std::mutex statusMutex_;
+  std::atomic<bool> sampleRateSupported_{false};
+  std::atomic<int> activeLatencySamples_{0};
 
-  // Overlap-add processor (manages all streaming buffers)
+  // Streaming buffer owner. Overlap-add itself is inside the ONNX graph.
   OverlapAddProcessor overlapAdd_;
 
-  // Output writer (handles crossfade between separated and dry signal)
+  // Host-rate input remains native for Main/fallback. A separate streaming
+  // bridge supplies the graph's fixed 44.1 kHz clock.
+  StreamingSampleRateAdapter inputSampleRateAdapter_;
+  std::array<std::vector<float>, kNumChannels> sanitizedHostInputScratch_;
+  std::array<std::vector<float>, kNumChannels> modelInputScratch_;
+  int hostSampleRate_{kModelSampleRate};
+  int sampleRateConversionDelaySamples_{0};
+  int modelSchedulingLatencySamples_{kPluginLatencySamples};
+  bool sampleRateConversionActive_{false};
+
+  // Output writer (handles confidence state, aligned fallback, and exact
+  // residual)
   OutputWriter outputWriter_;
-
-  // Vocals gate with smoothing
-  VocalsGate vocalsGate_;
-
-  // Stabilizes low-frequency stem content using dry-signal-constrained redistribution.
-  LowBandStabilizer lowBandStabilizer_;
 
   // Background inference queue (handles thread, requests, and epoch tracking)
   InferenceQueue inferenceQueue_;
 
-  // Chunk sequence tracking for contiguous-only boundary crossfades.
+  // Monotonic input sequence lets the worker detect dropped chunks and reset
+  // recurrent model state instead of bridging a discontinuity.
   uint64_t nextInputChunkSequence_{0};
-  uint64_t lastOutputChunkSequence_{0};
-  bool hasLastOutputChunkSequence_{false};
 
-  // LR4 crossover for low-frequency bypass (splits input into LP + HP)
-  Crossover crossover_;
+  // The qualified real-time callback consumes only the request submitted by
+  // the preceding callback.  Missing results expire at that boundary; a late
+  // completion is discarded on a later callback and is never replayed.
+  bool realtimeDueResultPending_{false};
+  uint64_t realtimeDueSequence_{0};
+  uint32_t realtimeDueEpoch_{0};
 
   // Internal methods
-  void allocateStreamingBuffers();  // Allocate streaming buffers
-  void resetStreamingBuffersRT();  // RT-safe reset (O(1), no memory operations)
+  void allocateStreamingBuffers(int maximumHostBlockSize,
+                                double hostSampleRate);
 #endif
+
+  void resetStreamingBuffersRT();
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};
+  bool hasExpectedPlayheadPosition_{false};
+  int64_t expectedPlayheadPosition_{0};
+  // Exact stopped callbacks still required to drain the graph plus queue
+  // after a play-to-stop transition.
+  uint32_t stoppedFlushCallbacksRemaining_{0};
 
   std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
   std::atomic<uint64_t> totalUnderrunSamples_{0};
   std::atomic<uint64_t> totalUnderrunBlocks_{0};
   std::atomic<bool> underrunActive_{false};
-  std::atomic<uint64_t> outputChunksConsumed_{0};  // Grace period: don't count startup underruns
-  std::atomic<size_t> ringFillLevel_{0};           // Ring buffer fill level snapshot
+  std::atomic<size_t> ringFillLevel_{0};  // Ring buffer fill level snapshot
   std::atomic<uint64_t> totalRingOverflowEvents_{0};
   std::atomic<uint64_t> totalRingOverflowSamplesDropped_{0};
   std::atomic<uint64_t> totalQueueFullChunkDrops_{0};
+  std::atomic<int> preparedHostBlockSize_{0};
+  std::atomic<int> lastHostBlockSize_{0};
+  std::atomic<int> requiredLatencySamplesForLastHostBlock_{0};
+  std::atomic<bool> realtimeCallbackTimingUnsafe_{false};
+  std::atomic<uint64_t> unsafeRealtimeCallbackCount_{0};
+  // Compatibility name: counts exact-due asynchronous misses, not waits.
+  std::atomic<uint64_t> sameCallbackTimeoutCount_{0};
+  std::atomic<int> lastSameCallbackWaitMicroseconds_{0};
+  std::atomic<int> maximumSameCallbackWaitMicroseconds_{0};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

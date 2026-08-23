@@ -2,19 +2,25 @@
 # Download the official ONNX Runtime release (self-contained, no external dependencies)
 # Usage: ./scripts/download-onnxruntime.sh
 
-set -e
+set -euo pipefail
 
-VERSION="1.22.0"
+VERSION="1.26.0"
+ARCHIVE_SHA256="7a1280bbb1701ea514f71828765237e7896e0f2e1cd332f1f70dbd5c3e33aca3"
+ARCHIVE_BYTES="31717869"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DEST_DIR="$PROJECT_ROOT/libs/onnxruntime"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/stemgenrt-ort.XXXXXX")"
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Detect architecture
 ARCH=$(uname -m)
 if [[ "$ARCH" == "arm64" ]]; then
     PLATFORM="osx-arm64"
 elif [[ "$ARCH" == "x86_64" ]]; then
-    PLATFORM="osx-x64"
+    echo "ONNX Runtime ${VERSION} does not publish an official macOS x86_64 archive."
+    echo "Run this script from a native Apple Silicon shell."
+    exit 1
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
@@ -26,14 +32,43 @@ URL="https://github.com/microsoft/onnxruntime/releases/download/v${VERSION}/${FI
 echo "Downloading ONNX Runtime ${VERSION} for ${PLATFORM}..."
 echo "URL: $URL"
 
-# Create destination directory
-mkdir -p "$DEST_DIR"
+# Download and validate before replacing an existing SDK.
+ARCHIVE_PATH="$TEMP_DIR/$FILENAME"
+EXTRACT_DIR="$TEMP_DIR/extracted"
+mkdir -p "$EXTRACT_DIR"
+curl --fail --location --retry 3 -o "$ARCHIVE_PATH" "$URL"
 
-# Download and extract
-cd "$DEST_DIR"
-curl -L -o "$FILENAME" "$URL"
-tar -xzf "$FILENAME" --strip-components=1
-rm "$FILENAME"
+ACTUAL_ARCHIVE_BYTES="$(wc -c < "$ARCHIVE_PATH" | tr -d '[:space:]')"
+ACTUAL_ARCHIVE_SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
+if [[ "$ACTUAL_ARCHIVE_BYTES" != "$ARCHIVE_BYTES" ||
+      "$ACTUAL_ARCHIVE_SHA256" != "$ARCHIVE_SHA256" ]]; then
+    echo "Downloaded archive identity mismatch." >&2
+    echo "Expected: ${ARCHIVE_BYTES} bytes, SHA-256 ${ARCHIVE_SHA256}" >&2
+    echo "Observed: ${ACTUAL_ARCHIVE_BYTES} bytes, SHA-256 ${ACTUAL_ARCHIVE_SHA256}" >&2
+    exit 1
+fi
+
+tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR"
+
+SDK_DIR="$EXTRACT_DIR/onnxruntime-${PLATFORM}-${VERSION}"
+if [[ ! -d "$SDK_DIR" ]]; then
+    echo "Downloaded archive did not contain the expected SDK directory: $SDK_DIR"
+    exit 1
+fi
+
+INSTALLED_VERSION="$(tr -d '[:space:]' < "$SDK_DIR/VERSION_NUMBER")"
+if [[ "$INSTALLED_VERSION" != "$VERSION" ]]; then
+    echo "Downloaded SDK reports ONNX Runtime $INSTALLED_VERSION; expected $VERSION"
+    exit 1
+fi
+if [[ ! -f "$SDK_DIR/include/onnxruntime_c_api.h" || ! -e "$SDK_DIR/lib/libonnxruntime.dylib" ]]; then
+    echo "Downloaded SDK is incomplete (header or dylib missing)."
+    exit 1
+fi
+
+rm -rf "$DEST_DIR"
+mkdir -p "$(dirname "$DEST_DIR")"
+mv "$SDK_DIR" "$DEST_DIR"
 
 echo ""
 echo "✓ ONNX Runtime ${VERSION} installed to: $DEST_DIR"
@@ -42,5 +77,5 @@ echo "Contents:"
 ls -la "$DEST_DIR"
 echo ""
 echo "Now rebuild your project:"
-echo "  rm -rf build && cmake --preset release && cmake --build build-release"
-
+echo "  cmake --preset release"
+echo "  cmake --build --preset release"

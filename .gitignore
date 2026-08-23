@@ -3,6 +3,7 @@
 libs/
 build/
 build-release/
+build-*/
 xcode-build/
 release-build/
 out/
