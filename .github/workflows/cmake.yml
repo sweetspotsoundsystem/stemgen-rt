@@ -1,5 +1,8 @@
 name: CMake
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "main" ]
@@ -12,7 +15,9 @@ jobs:
   build:
     if: >-
       github.event_name != 'workflow_dispatch' &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled')
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name != 'target-mac-qualification')
     strategy:
       matrix:
         os: [macos-14, windows-latest]
@@ -118,24 +123,66 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'target-mac-qualification'))
+       contains(github.event.pull_request.labels.*.name, 'target-mac-qualification') &&
+       (github.event.action != 'labeled' ||
+        github.event.label.name == 'target-mac-qualification'))
     runs-on: macos-14
-    timeout-minutes: 45
+    timeout-minutes: 90
     permissions:
       contents: read
     env:
       EVIDENCE_DIR: ${{ runner.temp }}/c91-mac-qualification
+      WRAPPER_DIR: ${{ runner.temp }}/c91-mac-ci-wrapper
 
     steps:
+    - name: Initialize fail-safe wrapper evidence
+      shell: bash
+      run: |
+        umask 077
+        mkdir "$WRAPPER_DIR"
+        {
+          date -u '+start_utc=%Y-%m-%dT%H:%M:%SZ'
+          echo "run_id=${{ github.run_id }}"
+          echo "run_attempt=${{ github.run_attempt }}"
+          echo "candidate_sha=${{ github.event.pull_request.head.sha || github.sha }}"
+        } > "$WRAPPER_DIR/run.txt"
+        printf '%s\n' \
+          'qualifier_exit_code=not_started_or_interrupted' \
+          'tee_exit_code=not_started_or_interrupted' \
+          > "$WRAPPER_DIR/qualifier-exit.txt"
+
     - name: Check out the exact candidate
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
         lfs: true
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        persist-credentials: false
+
+    - name: Select and authenticate Xcode 16.2
+      shell: bash
+      run: |
+        sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+        xcodebuild -version | tee "$WRAPPER_DIR/xcode.txt"
+        grep -Fxq 'Xcode 16.2' "$WRAPPER_DIR/xcode.txt"
+        uname -a | tee "$WRAPPER_DIR/uname.txt"
 
     - name: Run fail-closed target-machine qualification
+      timeout-minutes: 75
       shell: bash
-      run: ./scripts/qualify-c91-macos.sh "$EVIDENCE_DIR"
+      run: |
+        set -o pipefail
+        set +e
+        ./scripts/qualify-c91-macos.sh "$EVIDENCE_DIR" 2>&1 |
+          tee "$WRAPPER_DIR/qualifier-console.log"
+        statuses=("${PIPESTATUS[@]}")
+        set -e
+        printf 'qualifier_exit_code=%s\ntee_exit_code=%s\n' \
+          "${statuses[0]}" "${statuses[1]}" \
+          > "$WRAPPER_DIR/qualifier-exit.txt"
+        if (( statuses[0] != 0 )); then
+          exit "${statuses[0]}"
+        fi
+        exit "${statuses[1]}"
 
     - name: Upload qualification evidence
       if: always()
@@ -143,7 +190,8 @@ jobs:
       with:
         name: c91-mac-qualification-${{ github.run_id }}-${{ github.run_attempt }}
         path: |
+          ${{ env.WRAPPER_DIR }}
           ${{ env.EVIDENCE_DIR }}
           ${{ env.EVIDENCE_DIR }}.SHA256SUMS.sha256
-        if-no-files-found: warn
+        if-no-files-found: error
         retention-days: 30
