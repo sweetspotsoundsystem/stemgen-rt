@@ -25,10 +25,11 @@ InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
   if (result != 0) {
     return InferenceQueue::WorkerPriorityStatus::Failed;
   }
+  qos_class_t observedClass{};
   int relativePriority = 0;
-  const qos_class_t observedClass =
-      pthread_get_qos_class_np(pthread_self(), &relativePriority);
-  return observedClass == QOS_CLASS_USER_INTERACTIVE
+  const int getResult = pthread_get_qos_class_np(
+      pthread_self(), &observedClass, &relativePriority);
+  return getResult == 0 && observedClass == QOS_CLASS_USER_INTERACTIVE
              ? InferenceQueue::WorkerPriorityStatus::Applied
              : InferenceQueue::WorkerPriorityStatus::Failed;
 #elif defined(_WIN32)
