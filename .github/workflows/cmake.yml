@@ -130,16 +130,17 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
-    env:
-      EVIDENCE_DIR: ${{ runner.temp }}/c91-mac-qualification
-      WRAPPER_DIR: ${{ runner.temp }}/c91-mac-ci-wrapper
 
     steps:
     - name: Initialize fail-safe wrapper evidence
       shell: bash
       run: |
         umask 077
+        WRAPPER_DIR="$RUNNER_TEMP/c91-mac-ci-wrapper"
+        EVIDENCE_DIR="$RUNNER_TEMP/c91-mac-qualification"
         mkdir "$WRAPPER_DIR"
+        printf 'WRAPPER_DIR=%s\nEVIDENCE_DIR=%s\n' \
+          "$WRAPPER_DIR" "$EVIDENCE_DIR" >> "$GITHUB_ENV"
         {
           date -u '+start_utc=%Y-%m-%dT%H:%M:%SZ'
           echo "run_id=${{ github.run_id }}"
@@ -190,8 +191,8 @@ jobs:
       with:
         name: c91-mac-qualification-${{ github.run_id }}-${{ github.run_attempt }}
         path: |
-          ${{ env.WRAPPER_DIR }}
-          ${{ env.EVIDENCE_DIR }}
-          ${{ env.EVIDENCE_DIR }}.SHA256SUMS.sha256
+          ${{ runner.temp }}/c91-mac-ci-wrapper
+          ${{ runner.temp }}/c91-mac-qualification
+          ${{ runner.temp }}/c91-mac-qualification.SHA256SUMS.sha256
         if-no-files-found: error
         retention-days: 30
