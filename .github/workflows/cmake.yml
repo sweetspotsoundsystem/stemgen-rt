@@ -19,6 +19,7 @@ jobs:
        github.event.action != 'labeled' ||
        github.event.label.name != 'target-mac-qualification')
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-14, windows-latest]
         build_type: [Release]

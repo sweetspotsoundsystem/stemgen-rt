@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <string_view>
 #include <system_error>
@@ -41,8 +42,22 @@ float sineAtSample(int64_t sampleIndex, float freqHz, float amplitude) {
 }
 
 int qualificationCallbackCount() {
+#if defined(_WIN32)
+  char* duplicatedOverrideValue = nullptr;
+  size_t duplicatedOverrideSize = 0U;
+  const int duplicateResult =
+      _dupenv_s(&duplicatedOverrideValue, &duplicatedOverrideSize,
+                kQualificationCallbacksEnvironment.data());
+  const std::unique_ptr<char, decltype(&std::free)> ownedOverrideValue(
+      duplicatedOverrideValue, &std::free);
+  if (duplicateResult != 0) {
+    return -1;
+  }
+  const char* overrideValue = ownedOverrideValue.get();
+#else
   const char* overrideValue =
       std::getenv(kQualificationCallbacksEnvironment.data());
+#endif
   if (overrideValue == nullptr || overrideValue[0] == '\0') {
     return kMinimumQualificationCallbacks;
   }
