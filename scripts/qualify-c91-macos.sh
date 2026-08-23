@@ -343,6 +343,8 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
     fail "paced summary contains a due-boundary miss"
 [[ "$PACED_SUMMARY" == *" worker_priority=applied "* ]] ||
     fail "inference worker priority was not applied"
+[[ "$PACED_SUMMARY" == *" callback_priority=applied "* ]] ||
+    fail "synthetic host callback priority was not applied"
 
 RSS_ROWS="$(wc -l < "$RSS_LOG" | tr -d '[:space:]')"
 [[ "$RSS_ROWS" -ge 20 ]] || fail "insufficient RSS samples during paced test"

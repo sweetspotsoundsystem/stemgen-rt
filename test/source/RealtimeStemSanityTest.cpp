@@ -17,6 +17,10 @@
 #include <thread>
 #include <vector>
 
+#if defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 namespace audio_plugin_test {
 namespace {
 
@@ -115,6 +119,24 @@ std::string_view workerPriorityStatusName(
   return "unknown";
 }
 
+bool configureAndVerifyCallbackThreadPriority() noexcept {
+#if defined(__APPLE__)
+  const int setResult =
+      pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+  if (setResult != 0) {
+    return false;
+  }
+
+  qos_class_t observedClass{};
+  int relativePriority = 0;
+  const int getResult = pthread_get_qos_class_np(
+      pthread_self(), &observedClass, &relativePriority);
+  return getResult == 0 && observedClass == QOS_CLASS_USER_INTERACTIVE;
+#else
+  return false;
+#endif
+}
+
 }  // namespace
 
 // Explicit production-style asynchronous qualification soak. This remains
@@ -128,6 +150,9 @@ TEST(RealtimeStemSanityTest,
       << kQualificationCallbacksEnvironment
       << " must be an integer greater than or equal to "
       << kMinimumQualificationCallbacks;
+
+  const bool callbackPriorityApplied =
+      configureAndVerifyCallbackThreadPriority();
 
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kBlockSize);
@@ -333,8 +358,9 @@ TEST(RealtimeStemSanityTest,
       underrunBlocks == 0U && !underrunActive && queueFullDrops == 0U &&
       ringOverflowEvents == 0U && ringOverflowSamples == 0U &&
       !unsafeRealtimeCallback && unsafeRealtimeCallbacks == 0U &&
-      workerPriorityApplied && allOutputSamplesFinite &&
-      retainedSourcesPresent && retainedSourcesDistinct &&
+      callbackPriorityApplied && workerPriorityApplied &&
+      allOutputSamplesFinite && retainedSourcesPresent &&
+      retainedSourcesDistinct &&
       maxAbsReconstructionError <= 1.0e-6f;
 
   std::cerr << std::fixed << std::setprecision(3)
@@ -391,6 +417,8 @@ TEST(RealtimeStemSanityTest,
             << " unsafe_realtime_current="
             << (unsafeRealtimeCallback ? 1 : 0)
             << " unsafe_realtime_callbacks=" << unsafeRealtimeCallbacks
+            << " callback_priority="
+            << (callbackPriorityApplied ? "applied" : "failed")
             << " worker_priority="
             << workerPriorityStatusName(workerPriorityStatus)
             << " finite_outputs=" << (allOutputSamplesFinite ? 1 : 0)
@@ -435,6 +463,9 @@ TEST(RealtimeStemSanityTest,
   EXPECT_EQ(ringOverflowSamples, 0U);
   EXPECT_FALSE(unsafeRealtimeCallback);
   EXPECT_EQ(unsafeRealtimeCallbacks, 0U);
+  EXPECT_TRUE(callbackPriorityApplied)
+      << "Callback/test thread QoS was not independently observed as "
+         "QOS_CLASS_USER_INTERACTIVE";
   EXPECT_EQ(workerPriorityStatus,
             audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied);
   EXPECT_EQ(completeCallbackDeadlineMisses, 0U)
