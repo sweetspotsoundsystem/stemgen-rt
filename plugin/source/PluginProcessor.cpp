@@ -343,11 +343,12 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
 
   modelSchedulingLatencySamples_ = calculateModelSchedulingLatencySamples(
       hostSampleRate_, safeHostBlockSize);
-  const int latencySamples = calculatePluginLatencySamples(
+  const int calculatedLatencySamples = calculatePluginLatencySamples(
       hostSampleRate_, safeHostBlockSize, sampleRateConversionDelaySamples_);
-  activeLatencySamples_.store(latencySamples, std::memory_order_release);
+  activeLatencySamples_.store(calculatedLatencySamples,
+                              std::memory_order_release);
   overlapAdd_.allocate(static_cast<size_t>(safeHostBlockSize),
-                       static_cast<size_t>(latencySamples),
+                       static_cast<size_t>(calculatedLatencySamples),
                        inferenceQueue_.getMaximumHostOutputSamplesPerHop());
 
   const size_t hostScratchCapacity = static_cast<size_t>(
@@ -375,7 +376,7 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
   DBG("  Model analysis window: " << kAnalysisWindowSize << " samples");
   DBG("  Host sample rate: " << hostSampleRate_ << " Hz");
   DBG("  SRC delay: " << sampleRateConversionDelaySamples_ << " samples");
-  DBG("  Reported PDC: " << latencySamples << " samples");
+  DBG("  Reported PDC: " << calculatedLatencySamples << " samples");
   DBG("  Inference queue size: " << kNumInferenceBuffers << " slots");
 }
 
