@@ -374,7 +374,7 @@ TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
 
   // Output consumption precedes request publication in a callback, so this
   // oversized first callback deterministically has no model result. Only the
-  // portion at/after the 512-sample PDC boundary is an underrun.
+  // portion at/after the 1,024-sample PDC boundary is an underrun.
   juce::AudioBuffer<float> largeBuffer(12, kLargeCallbackSize);
   largeBuffer.clear();
   auto inputBus = processor->getBusBuffer(largeBuffer, true, 0);
@@ -694,7 +694,7 @@ TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
 }
 
 TEST_F(AudioProcessorTest,
-       LargePreparedBlockFailsClosedForSameCallbackListeningContract) {
+       LargePreparedBlockFailsClosedForAsyncListeningContract) {
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
@@ -793,25 +793,27 @@ TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
   EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
 }
 
-TEST(ConstantsTest, PluginLatencyIsOneModelHopWithNoQueueHop) {
+TEST(ConstantsTest, PluginLatencyIsOneGraphHopPlusOneAsyncQueueHop) {
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
-  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 0);
-  EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 1);
-  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 512);
+  EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
+  EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 2);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 1024);
+  EXPECT_EQ(audio_plugin::kAudioThreadWaitBudgetMicroseconds, 0);
+  EXPECT_EQ(audio_plugin::kSameCallbackWaitBudgetMicroseconds, 0);
 }
 
 TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 992);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 960);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 896);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 768);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 512);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1024);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1024);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2048);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 1504);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 1472);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 1408);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 1280);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 1024);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1536);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1536);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2560);
 }
 
-TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromSameCallbackQualification) {
+TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(48000));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(88200));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(96000));
@@ -820,21 +822,21 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromSameCallbackQualification) 
   EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
 
   EXPECT_TRUE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(44100, 512));
+      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
   EXPECT_FALSE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(48000, 512));
+      audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
   EXPECT_FALSE(
-      audio_plugin::isQualifiedSameCallbackHostConfiguration(44100, 256));
+      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
-            1582);
+            2139);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(88200, 1024),
-            1024);
+            2048);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(96000, 512),
-            2651);
+            3766);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(192000, 512),
-            4790);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 1719);
+            7019);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 2276);
 }
 
 TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
@@ -1423,8 +1425,8 @@ TEST_F(AudioQualityTest, StereoImageIsPreserved) {
   float inputCorrelation = 0.0f;
   float outputCorrelation = 0.0f;
 
-  // The same-callback c91 path delays Main by one 512-sample block. Feed three
-  // continuous blocks and inspect a stable latency-aligned Main copy.
+  // The asynchronous c91 path delays Main by two 512-sample blocks. Feed three
+  // continuous blocks and inspect the first stable latency-aligned Main copy.
   for (int block = 0; block < 3; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
     buffer.clear();

@@ -52,9 +52,10 @@ TEST(TransportUnderrunE2ETest,
   processor.setPlayHead(&playHead);
   juce::MidiBuffer midiBuffer;
 
-  // A 4,096-sample actual callback is outside the prepared same-callback
-  // contract and therefore renders fail-closed fallback. While stopped, this
-  // is idle pipeline fill rather than a missed real-time playback deadline.
+  // A 4,096-sample actual callback is outside the prepared asynchronous
+  // exact-hop contract and therefore renders fail-closed fallback. While
+  // stopped, this is idle pipeline fill rather than a missed playback
+  // deadline.
   constexpr int kStoppedCallbackSize = 4096;
   juce::AudioBuffer<float> stoppedBuffer(kTotalChannels, kStoppedCallbackSize);
   stoppedBuffer.clear();
@@ -130,46 +131,68 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
 
-  // c91's previous-hop output needs one zero-input callback to flush the final
-  // playing hop. Make that callback non-real-time so this is a deterministic
-  // tail/state test rather than another CPU deadline measurement.
+  // c91 needs one zero-input graph hop to flush the final playing hop. The
+  // asynchronous queue adds a boundary: the first stopped callback submits
+  // that flush while rendering the penultimate delayed hop, and the following
+  // callback claims and renders the final separated hop. Make both callbacks
+  // non-real-time so this is a deterministic tail/state test rather than a CPU
+  // deadline measurement.
   processor.setNonRealtime(true);
   playHead.setPosition(false, playbackSample);
-  juce::AudioBuffer<float> afterStop(kTotalChannels, kBlockSize);
-  afterStop.clear();
-  processor.processBlock(afterStop, midiBuffer);
-  const auto stoppedMain = processor.getBusBuffer(afterStop, false, 0);
-  const auto stoppedDrums = processor.getBusBuffer(afterStop, false, 1);
-  const auto stoppedBass = processor.getBusBuffer(afterStop, false, 2);
-  const auto stoppedOther = processor.getBusBuffer(afterStop, false, 3);
-  const auto stoppedVocals = processor.getBusBuffer(afterStop, false, 4);
-  float maximumTailRetainedStem = 0.0f;
-  for (int channel = 0; channel < stoppedMain.getNumChannels(); ++channel) {
-    for (int sample = 0; sample < stoppedMain.getNumSamples(); ++sample) {
-      const int64_t delayedSample = playbackSample - kBlockSize + sample;
-      const float expectedMain =
-          channel == 0
-              ? sineAtSample(delayedSample, 73.0f, 0.30f) +
-                    sineAtSample(delayedSample, 509.0f, 0.20f)
-              : sineAtSample(delayedSample, 97.0f, 0.30f) +
-                    sineAtSample(delayedSample, 761.0f, 0.20f);
-      const float drums = stoppedDrums.getSample(channel, sample);
-      const float bass = stoppedBass.getSample(channel, sample);
-      const float other = stoppedOther.getSample(channel, sample);
-      const float vocals = stoppedVocals.getSample(channel, sample);
-      EXPECT_NEAR(stoppedMain.getSample(channel, sample), expectedMain,
-                  1.0e-6f);
-      EXPECT_NEAR(expectedMain, drums + bass + other + vocals, 1.0e-6f);
-      maximumTailRetainedStem =
-          std::max({maximumTailRetainedStem, std::abs(drums),
-                    std::abs(bass), std::abs(vocals)});
+  const auto expectSeparatedDelayedBlock =
+      [&](juce::AudioBuffer<float>& tailBuffer,
+          int64_t firstDelayedSample) -> float {
+    const auto main = processor.getBusBuffer(tailBuffer, false, 0);
+    const auto drums = processor.getBusBuffer(tailBuffer, false, 1);
+    const auto bass = processor.getBusBuffer(tailBuffer, false, 2);
+    const auto other = processor.getBusBuffer(tailBuffer, false, 3);
+    const auto vocals = processor.getBusBuffer(tailBuffer, false, 4);
+    float maximumRetainedStem = 0.0f;
+    for (int channel = 0; channel < main.getNumChannels(); ++channel) {
+      for (int sample = 0; sample < main.getNumSamples(); ++sample) {
+        const int64_t delayedSample = firstDelayedSample + sample;
+        const float expectedMain =
+            channel == 0
+                ? sineAtSample(delayedSample, 73.0f, 0.30f) +
+                      sineAtSample(delayedSample, 509.0f, 0.20f)
+                : sineAtSample(delayedSample, 97.0f, 0.30f) +
+                      sineAtSample(delayedSample, 761.0f, 0.20f);
+        const float drumsSample = drums.getSample(channel, sample);
+        const float bassSample = bass.getSample(channel, sample);
+        const float otherSample = other.getSample(channel, sample);
+        const float vocalsSample = vocals.getSample(channel, sample);
+        EXPECT_NEAR(main.getSample(channel, sample), expectedMain, 1.0e-6f);
+        EXPECT_NEAR(expectedMain,
+                    drumsSample + bassSample + otherSample + vocalsSample,
+                    1.0e-6f);
+        maximumRetainedStem =
+            std::max({maximumRetainedStem, std::abs(drumsSample),
+                      std::abs(bassSample), std::abs(vocalsSample)});
+      }
     }
-  }
-  EXPECT_GT(maximumTailRetainedStem, 1.0e-3f)
-      << "The play-to-stop callback did not flush c91's final separated hop";
+    return maximumRetainedStem;
+  };
 
-  // The flush callback resets the graph only after rendering. A subsequent
-  // stopped callback must therefore be clean pre-roll, with no repeated tail.
+  juce::AudioBuffer<float> flushSubmission(kTotalChannels, kBlockSize);
+  flushSubmission.clear();
+  processor.processBlock(flushSubmission, midiBuffer);
+  EXPECT_GT(expectSeparatedDelayedBlock(
+                flushSubmission, playbackSample - 2 * kBlockSize),
+            1.0e-3f)
+      << "The first stopped callback did not render the penultimate delayed "
+         "hop while submitting the zero-input flush";
+
+  juce::AudioBuffer<float> finalTail(kTotalChannels, kBlockSize);
+  finalTail.clear();
+  processor.processBlock(finalTail, midiBuffer);
+  EXPECT_GT(expectSeparatedDelayedBlock(finalTail,
+                                       playbackSample - kBlockSize),
+            1.0e-3f)
+      << "The callback after flush submission did not render c91's final "
+         "separated hop";
+
+  // Reset occurs only after that final asynchronous tail is rendered. The
+  // next stopped callback must be clean pre-roll, with no repeated tail.
   juce::AudioBuffer<float> afterTail(kTotalChannels, kBlockSize);
   afterTail.clear();
   processor.processBlock(afterTail, midiBuffer);
@@ -191,7 +214,7 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     SmallPreparedHostBlocksFailClosedForSameCallbackListeningContract) {
+     SmallPreparedHostBlocksFailClosedForAsyncListeningContract) {
   constexpr int kSmallBlockSize = 64;
 
   audio_plugin::AudioPluginAudioProcessor processor;
@@ -401,7 +424,7 @@ TEST(TransportUnderrunE2ETest,
                                 (drums + bass + other + vocals)));
           if (outputSample >= kMeasurementStartSample &&
               callbackSize !=
-                  audio_plugin::kSameCallbackQualifiedHostBlockSize) {
+                  audio_plugin::kAsyncQualifiedHostBlockSize) {
             maximumMismatchedCallbackRetainedStemMagnitude =
                 std::max(maximumMismatchedCallbackRetainedStemMagnitude,
                          std::abs(drums));
@@ -422,7 +445,7 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_LE(maximumMainDelayError, 1.0e-6f);
   EXPECT_FLOAT_EQ(maximumMismatchedCallbackRetainedStemMagnitude, 0.0f)
       << "A variable-size offline callback exposed model fragments despite "
-         "the exact-512 listening contract";
+         "the exact-512 asynchronous listening contract";
   EXPECT_LE(maximumReconstructionError, 1.0e-6f);
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
   EXPECT_FALSE(processor.isRealtimeCallbackTimingUnsafe());

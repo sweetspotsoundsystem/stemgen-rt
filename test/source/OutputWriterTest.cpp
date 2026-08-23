@@ -312,16 +312,19 @@ TEST(OutputWriterTest, RoutesTinyAlignedMainEntirelyToOther) {
   expectMixtureLossless(output, 0);
 }
 
-TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
+TEST(OutputWriterTest,
+     RoutesLowLevelDryFallbackEntirelyToOtherAfterTwoHopDelay) {
   constexpr size_t kBlockSize = 512;
   constexpr float kTinyLeft = 8.0e-6f;
   constexpr float kTinyRight = -4.0e-6f;
 
   OutputWriterHarness harness;
-  // The fallback delay is one 512-sample same-callback c91 hop. Feed one more
-  // block so the first reaches the writer without model output available.
-  harness.writeDryFallback(
+  // Main and its complete-Other fallback share the asynchronous two-hop PDC.
+  // The first input therefore appears only after two silent output blocks.
+  const WriterOutput firstPrefix = harness.writeDryFallback(
       makeConstantStereo(kBlockSize, kTinyLeft, kTinyRight));
+  const WriterOutput secondPrefix =
+      harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.0f, 0.0f));
   const WriterOutput output =
       harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.0f, 0.0f));
 
@@ -329,6 +332,13 @@ TEST(OutputWriterTest, RoutesLowLevelDryFallbackEntirelyToOther) {
        ++ch) {
     const float expectedMain = ch == 0 ? kTinyLeft : kTinyRight;
     for (size_t i = 0; i < kBlockSize; ++i) {
+      EXPECT_FLOAT_EQ(firstPrefix.main[ch][i], 0.0f);
+      EXPECT_FLOAT_EQ(secondPrefix.main[ch][i], 0.0f);
+      for (size_t stem = 0;
+           stem < static_cast<size_t>(audio_plugin::kNumStems); ++stem) {
+        EXPECT_FLOAT_EQ(firstPrefix.stems[stem][ch][i], 0.0f);
+        EXPECT_FLOAT_EQ(secondPrefix.stems[stem][ch][i], 0.0f);
+      }
       EXPECT_FLOAT_EQ(output.main[ch][i], expectedMain);
       EXPECT_FLOAT_EQ(output.stems[0][ch][i], 0.0f);
       EXPECT_FLOAT_EQ(output.stems[1][ch][i], 0.0f);
@@ -345,6 +355,11 @@ TEST(OutputWriterTest, ReportsMissingModelOnlyAtOrAfterLatency) {
 
   harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));
   EXPECT_FALSE(harness.getLastWriteResult().hadUnderrun);
+  EXPECT_FALSE(harness.getLastWriteResult().underrunTransition);
+
+  harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));
+  EXPECT_FALSE(harness.getLastWriteResult().hadUnderrun);
+  EXPECT_FALSE(harness.getLastWriteResult().isUnderrunNow);
   EXPECT_FALSE(harness.getLastWriteResult().underrunTransition);
 
   harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));

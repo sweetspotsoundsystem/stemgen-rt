@@ -54,20 +54,22 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   const bool unsafeTiming = processorRef.isRealtimeCallbackTimingUnsafe();
   const bool fallbackActive = processorRef.isUnderrunActive();
-  const bool deadlineMissed = processorRef.getSameCallbackTimeoutCount() > 0U;
+  const bool dueBoundaryMissed =
+      processorRef.getSameCallbackTimeoutCount() > 0U;
   const bool modelReady = processorRef.getLatencySamples() > 0;
   const auto priorityStatus = processorRef.getInferenceWorkerPriorityStatus();
   const bool priorityFailed =
       priorityStatus == InferenceQueue::WorkerPriorityStatus::Failed;
-  const juce::String health = unsafeTiming     ? "PDC timing warning"
-                              : fallbackActive ? "Dry fallback active"
-                              : deadlineMissed ? "Deadline miss recorded"
-                              : modelReady     ? "Streaming normally"
-                                               : "Model unavailable";
+  const juce::String health =
+      unsafeTiming         ? "PDC timing warning"
+      : fallbackActive     ? "Dry fallback active"
+      : dueBoundaryMissed  ? "Due-boundary miss recorded"
+      : modelReady         ? "Streaming normally"
+                           : "Model unavailable";
   g.setColour(
       unsafeTiming || !modelReady
           ? juce::Colours::orangered
-          : (fallbackActive || deadlineMissed || priorityFailed
+          : (fallbackActive || dueBoundaryMissed || priorityFailed
                  ? juce::Colours::orange
                  : juce::Colours::limegreen));
   g.setFont(16.0f);
@@ -106,13 +108,12 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
                        " callbacks",
                    area.removeFromTop(24), juce::Justification::centred, 1);
 
-  g.setColour(deadlineMissed ? juce::Colours::orange : juce::Colours::white);
+  g.setColour(dueBoundaryMissed ? juce::Colours::orange
+                                : juce::Colours::white);
   g.drawFittedText(
       juce::String::formatted(
-          "Deadline misses: %lld | wait: %d us (max %d)",
-          static_cast<long long>(processorRef.getSameCallbackTimeoutCount()),
-          processorRef.getLastSameCallbackWaitMicroseconds(),
-          processorRef.getMaximumSameCallbackWaitMicroseconds()),
+          "Due-boundary misses: %lld | nonblocking",
+          static_cast<long long>(processorRef.getSameCallbackTimeoutCount())),
       area.removeFromTop(24), juce::Justification::centred, 1);
 
   juce::String priorityText;
@@ -207,7 +208,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   const uint64_t ringOverflowEvents = processorRef.getRingOverflowEventCount();
   const uint64_t ringOverflowSamples =
       processorRef.getRingOverflowSampleDropCount();
-  const uint64_t deadlineMisses = processorRef.getSameCallbackTimeoutCount();
+  const uint64_t dueBoundaryMisses =
+      processorRef.getSameCallbackTimeoutCount();
 
   g.setColour(fallbackBlendActive ? juce::Colours::orange
                                   : juce::Colours::white);
@@ -235,16 +237,12 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           juce::String(static_cast<juce::int64>(ringOverflowEvents)) +
           " events)",
       area.removeFromTop(24), juce::Justification::centred, 1);
-  g.setColour(deadlineMisses > 0U ? juce::Colours::orange
-                                 : juce::Colours::white);
+  g.setColour(dueBoundaryMisses > 0U ? juce::Colours::orange
+                                    : juce::Colours::white);
   g.drawFittedText(
-      "Deadline misses: " +
-          juce::String(static_cast<juce::int64>(deadlineMisses)) +
-          " | wait: " +
-          juce::String(processorRef.getLastSameCallbackWaitMicroseconds()) +
-          " us (max " +
-          juce::String(processorRef.getMaximumSameCallbackWaitMicroseconds()) +
-          ")",
+      "Due-boundary misses: " +
+          juce::String(static_cast<juce::int64>(dueBoundaryMisses)) +
+          " | nonblocking",
       area.removeFromTop(24), juce::Justification::centred, 1);
 }
 

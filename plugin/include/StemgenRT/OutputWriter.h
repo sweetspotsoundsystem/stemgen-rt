@@ -54,7 +54,8 @@ public:
   // Set underrunTelemetryEnabled false when a known host transport is stopped,
   // because idle callbacks have no playback deadline to miss.
   // Set modelOutputEnabled false whenever the actual callback violates the
-  // same-callback contract, including an offline bounce with variable block
+  // asynchronous exact-hop contract, including an offline bounce with variable
+  // block
   // sizes. Scheduled samples are discarded on their original timeline and the
   // complete mixture is routed to Other.
   WriteResult writeBlock(

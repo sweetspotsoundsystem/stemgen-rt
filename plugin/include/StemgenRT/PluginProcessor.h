@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // c91 emits the previous hop and the listening path completes inference in
-  // the callback that supplies the current hop, for one 512-sample PDC hop.
+  // c91 emits the previous hop and the real-time path gives the asynchronous
+  // worker one additional callback, for an honest 1024-sample PDC.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -59,6 +59,11 @@ public:
   int getRequiredLatencySamplesForLastHostBlock() const;
   bool isRealtimeCallbackTimingUnsafe() const;
   uint64_t getUnsafeRealtimeCallbackCount() const;
+
+  // Compatibility diagnostics retained for the existing editor API. A
+  // "timeout" is now an asynchronous callback whose exact due result was not
+  // observable at its boundary. The audio thread never waits, so both wait
+  // duration accessors remain zero.
   uint64_t getSameCallbackTimeoutCount() const;
   int getLastSameCallbackWaitMicroseconds() const;
   int getMaximumSameCallbackWaitMicroseconds() const;
@@ -128,16 +133,27 @@ private:
   // recurrent model state instead of bridging a discontinuity.
   uint64_t nextInputChunkSequence_{0};
 
+  // The qualified real-time callback consumes only the request submitted by
+  // the preceding callback.  Missing results expire at that boundary; a late
+  // completion is discarded on a later callback and is never replayed.
+  bool realtimeDueResultPending_{false};
+  uint64_t realtimeDueSequence_{0};
+  uint32_t realtimeDueEpoch_{0};
+
   // Internal methods
   void allocateStreamingBuffers(int maximumHostBlockSize,
                                 double hostSampleRate);
-  void resetStreamingBuffersRT();
 #endif
+
+  void resetStreamingBuffersRT();
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};
   bool hasExpectedPlayheadPosition_{false};
   int64_t expectedPlayheadPosition_{0};
+  // Exact stopped callbacks still required to drain the graph plus queue
+  // after a play-to-stop transition.
+  uint32_t stoppedFlushCallbacksRemaining_{0};
 
   std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
   std::atomic<uint64_t> totalUnderrunSamples_{0};
@@ -152,6 +168,7 @@ private:
   std::atomic<int> requiredLatencySamplesForLastHostBlock_{0};
   std::atomic<bool> realtimeCallbackTimingUnsafe_{false};
   std::atomic<uint64_t> unsafeRealtimeCallbackCount_{0};
+  // Compatibility name: counts exact-due asynchronous misses, not waits.
   std::atomic<uint64_t> sameCallbackTimeoutCount_{0};
   std::atomic<int> lastSameCallbackWaitMicroseconds_{0};
   std::atomic<int> maximumSameCallbackWaitMicroseconds_{0};

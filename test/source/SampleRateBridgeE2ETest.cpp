@@ -336,7 +336,7 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported c91 same-callback configuration"));
+      "Unsupported c91 asynchronous configuration"));
   processor.releaseResources();
 }
 

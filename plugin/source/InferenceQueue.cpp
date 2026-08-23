@@ -22,8 +22,15 @@ InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
 #if defined(__APPLE__)
   const int result =
       pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
-  return result == 0 ? InferenceQueue::WorkerPriorityStatus::Applied
-                     : InferenceQueue::WorkerPriorityStatus::Failed;
+  if (result != 0) {
+    return InferenceQueue::WorkerPriorityStatus::Failed;
+  }
+  int relativePriority = 0;
+  const qos_class_t observedClass =
+      pthread_get_qos_class_np(pthread_self(), &relativePriority);
+  return observedClass == QOS_CLASS_USER_INTERACTIVE
+             ? InferenceQueue::WorkerPriorityStatus::Applied
+             : InferenceQueue::WorkerPriorityStatus::Failed;
 #elif defined(_WIN32)
   const BOOL result =
       SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
@@ -225,7 +232,6 @@ void InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
 
 void InferenceQueue::stopThread() {
   shouldStop_.store(true, std::memory_order_release);
-  cv_.notify_all();
 
   if (thread_ && thread_->joinable()) {
     thread_->join();
@@ -301,9 +307,6 @@ void InferenceQueue::submitWriteSlot(uint32_t epoch) {
     // Advance write index
     writeIdx_.store((idx + 1) % kNumInferenceBuffers,
                     std::memory_order_release);
-
-    // Notify inference thread
-    cv_.notify_one();
   }
 }
 
@@ -342,13 +345,11 @@ void InferenceQueue::submitForWarmup() {
     const uint32_t epoch = getEpoch();
     uint64_t expected = InferenceRequest::makeControl(
         epoch, InferenceRequest::SlotState::Writing);
-    if (slot->control_.compare_exchange_strong(
-            expected,
-            InferenceRequest::makeControl(epoch,
-                                          InferenceRequest::SlotState::Ready),
-            std::memory_order_release, std::memory_order_relaxed)) {
-      cv_.notify_one();
-    }
+    static_cast<void>(slot->control_.compare_exchange_strong(
+        expected,
+        InferenceRequest::makeControl(epoch,
+                                      InferenceRequest::SlotState::Ready),
+        std::memory_order_release, std::memory_order_relaxed));
   }
 }
 
@@ -496,7 +497,6 @@ uint32_t InferenceQueue::reset() {
     }
   }
 
-  cv_.notify_one();
   return newEpoch;
 }
 
@@ -525,10 +525,6 @@ void InferenceQueue::fullReset() {
 
 uint32_t InferenceQueue::getEpoch() const {
   return epochFromControl(epochControl_.load(std::memory_order_acquire));
-}
-
-void InferenceQueue::notifyThread() {
-  cv_.notify_one();
 }
 
 bool InferenceQueue::reclaimStaleSlots(uint64_t observedEpochControl) {
@@ -627,27 +623,25 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   while (!shouldStop_.load(std::memory_order_acquire)) {
     synchronizeEpoch();
 
-    // Wait for work
-    {
-      std::unique_lock<std::mutex> lock(mutex_);
-      cv_.wait_for(
-          lock, std::chrono::milliseconds(5), [this, &lastSeenEpochControl] {
-            const size_t idx = readIdx_.load(std::memory_order_acquire);
-            const bool requestReady =
-                queue_[idx] &&
-                queue_[idx]->getState() == InferenceRequest::SlotState::Ready;
-            return shouldStop_.load(std::memory_order_acquire) ||
-                   epochControl_.load(std::memory_order_acquire) !=
-                       lastSeenEpochControl ||
-                   requestReady;
-          });
+    // Audio-thread publication is atomic-only. When idle, the worker owns the
+    // scheduling tradeoff and sleeps for a short bounded interval instead of
+    // requiring the callback to enter an OS condition-variable wake path.
+    const size_t pendingIndex = readIdx_.load(std::memory_order_acquire);
+    const bool requestReady =
+        queue_[pendingIndex] &&
+        queue_[pendingIndex]->getState() == InferenceRequest::SlotState::Ready;
+    const bool epochChanged =
+        epochControl_.load(std::memory_order_acquire) != lastSeenEpochControl;
+    if (!requestReady && !epochChanged &&
+        !shouldStop_.load(std::memory_order_acquire)) {
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 
     if (shouldStop_.load(std::memory_order_acquire)) {
       break;
     }
 
-    // A reset may have woken the thread instead of a request. Synchronize
+    // A reset may have been published instead of a request. Synchronize
     // before looking at a slot, and repeat this check before every run.
     synchronizeEpoch();
 

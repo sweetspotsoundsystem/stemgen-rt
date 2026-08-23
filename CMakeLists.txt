@@ -41,6 +41,9 @@ foreach(_stemgenrt_contract_variable IN ITEMS
     STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS
     STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE
     STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS
+    STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS
+    STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS
+    STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES
     STEMGENRT_QUALIFIED_INPUT_AUDIO_NAME
     STEMGENRT_QUALIFIED_INPUT_PAST_NAME
     STEMGENRT_QUALIFIED_INPUT_OVERLAP_NAME
@@ -105,9 +108,26 @@ foreach(_stemgenrt_positive_contract_integer IN ITEMS
       "Qualified model contract requires a positive integer for ${_stemgenrt_positive_contract_integer}")
   endif()
 endforeach()
-if(NOT STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS MATCHES "^[0-9]+$")
+foreach(_stemgenrt_nonnegative_contract_integer IN ITEMS
+    STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS
+    STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS
+    STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS
+    STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES)
+  if(NOT ${_stemgenrt_nonnegative_contract_integer} MATCHES "^[0-9]+$")
+    message(FATAL_ERROR
+      "${_stemgenrt_nonnegative_contract_integer} must be a non-negative integer")
+  endif()
+endforeach()
+math(EXPR _stemgenrt_expected_plugin_latency_chunks
+     "${STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS} + ${STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS}")
+math(EXPR _stemgenrt_expected_plugin_latency_samples
+     "${_stemgenrt_expected_plugin_latency_chunks} * ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
+if(NOT STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS EQUAL
+       _stemgenrt_expected_plugin_latency_chunks OR
+   NOT STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES EQUAL
+       _stemgenrt_expected_plugin_latency_samples)
   message(FATAL_ERROR
-    "Qualified model output delay must be a non-negative integer")
+    "Qualified plugin latency must equal graph delay plus asynchronous queue delay")
 endif()
 foreach(_stemgenrt_source_index_variable IN ITEMS
     STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX
@@ -160,7 +180,7 @@ cpmaddpackage(
   NAME
   JUCE
   GIT_TAG
-  8.0.6
+  51a8a6d7aeae7326956d747737ccf1575e61e209
   VERSION
   8.0.6
   GITHUB_REPOSITORY
@@ -173,6 +193,8 @@ cpmaddpackage(
 cpmaddpackage(
   NAME
   GOOGLETEST
+  GIT_TAG
+  6910c9d9165801d8827d628cb72eb7ea9dd538c5
   GITHUB_REPOSITORY
   google/googletest
   VERSION

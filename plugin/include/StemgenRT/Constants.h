@@ -25,31 +25,43 @@ constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
 constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
 constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 
-// c91's graph delay is one hop. Same-callback worker completion removes the
-// former additional asynchronous queue hop, keeping total PDC at one hop.
+// c91's graph delay is one hop. The worker then gets one complete hop to
+// publish that result for the following callback, so total PDC is two hops.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
-constexpr int kAsyncQueueDelayChunks = 0;
-constexpr int kPluginLatencyChunks =
-    kModelOutputDelayChunks + kAsyncQueueDelayChunks;
-constexpr int kPluginLatencySamples = kPluginLatencyChunks * kOutputChunkSize;
+constexpr int kAsyncQueueDelayChunks =
+    qualified_model::kAsyncQueueDelayChunks;
+constexpr int kPluginLatencyChunks = qualified_model::kPluginLatencyChunks;
+constexpr int kPluginLatencySamples = qualified_model::kPluginLatencySamples;
 
-// Same-callback completion is defined only for an exact model-hop callback.
-// Other callback sizes or rates fail closed instead of silently adding delay.
-constexpr int kSameCallbackQualifiedHostSampleRate = kModelSampleRate;
-constexpr int kSameCallbackQualifiedHostBlockSize = kOutputChunkSize;
+// This hardened asynchronous candidate is defined only for an exact model-hop
+// callback. Other callback sizes or rates fail closed instead of silently
+// adding delay.
+constexpr int kAsyncQualifiedHostSampleRate = kModelSampleRate;
+constexpr int kAsyncQualifiedHostBlockSize = kOutputChunkSize;
 
-constexpr bool isQualifiedSameCallbackHostConfiguration(int sampleRate,
-                                                        int blockSize) {
-  return sampleRate == kSameCallbackQualifiedHostSampleRate &&
-         blockSize == kSameCallbackQualifiedHostBlockSize;
+constexpr bool isQualifiedAsyncHostConfiguration(int sampleRate,
+                                                 int blockSize) {
+  return sampleRate == kAsyncQualifiedHostSampleRate &&
+         blockSize == kAsyncQualifiedHostBlockSize;
 }
 
-// Provisional listening budget. It is measured from processBlock entry and
-// leaves about 1.61 ms of a 44.1 kHz / 512-sample callback for scheduling,
-// output publication, and host return. Target hardware still requires native
-// DAW-load qualification.
-constexpr int kSameCallbackWaitBudgetMicroseconds = 10000;
+// Temporary source-compatibility names for diagnostics and tests being
+// migrated with the queue. They do not restore same-callback completion.
+constexpr int kSameCallbackQualifiedHostSampleRate =
+    kAsyncQualifiedHostSampleRate;
+constexpr int kSameCallbackQualifiedHostBlockSize =
+    kAsyncQualifiedHostBlockSize;
+constexpr bool isQualifiedSameCallbackHostConfiguration(int sampleRate,
+                                                        int blockSize) {
+  return isQualifiedAsyncHostConfiguration(sampleRate, blockSize);
+}
+
+// The audio callback never waits for inference. Keep the legacy name at zero
+// only until the corresponding runtime diagnostics are renamed.
+constexpr int kAudioThreadWaitBudgetMicroseconds = 0;
+constexpr int kSameCallbackWaitBudgetMicroseconds =
+    kAudioThreadWaitBudgetMicroseconds;
 
 // Host clocks explicitly covered by the native sample-rate bridge. The graph
 // contract itself remains fixed at 44.1 kHz. Keep this list qualification-
@@ -73,10 +85,10 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
          static_cast<std::uint64_t>(numerator % denominator != 0U);
 }
 
-// c91 emits hop N-1 while callback N is in progress. The generic helpers are
-// retained for diagnostics and future bridge work; the listening path below is
-// admitted only at the exact 44.1 kHz / 512-sample point where its one-hop PDC
-// is unambiguous.
+// c91 emits hop N-1 while the worker processes request N, then publishes it for
+// callback N+1. The generic helpers are retained for diagnostics and future
+// bridge work; the listening path is admitted only at the exact 44.1 kHz /
+// 512-sample point where its two-hop PDC is unambiguous.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
   const int callbacksPerModelHop = 1 + (kOutputChunkSize - 1) / safeBlockSize;
@@ -85,7 +97,7 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
 }
 
 // Rate-aware form of the same diagnostic reserve. This remains available for
-// later requalification; the same-callback listening build accepts only the
+// later requalification; the asynchronous listening build accepts only the
 // exact configuration above.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
@@ -133,30 +145,34 @@ constexpr int calculatePluginLatencySamples(int hostSampleRate,
 }
 
 static_assert(kAnalysisWindowSize == 2 * kOutputChunkSize);
-static_assert(kPluginLatencySamples == 512);
-static_assert(calculatePluginLatencySamples(32) == 992);
-static_assert(calculatePluginLatencySamples(64) == 960);
-static_assert(calculatePluginLatencySamples(128) == 896);
-static_assert(calculatePluginLatencySamples(256) == 768);
-static_assert(calculatePluginLatencySamples(512) == 512);
-static_assert(calculatePluginLatencySamples(768) == 1024);
-static_assert(calculatePluginLatencySamples(1024) == 1024);
+static_assert(kModelSampleRate == 44100);
+static_assert(kOutputChunkSize == 512);
+static_assert(kPluginLatencyChunks ==
+              kModelOutputDelayChunks + kAsyncQueueDelayChunks);
+static_assert(kPluginLatencySamples == kPluginLatencyChunks * kOutputChunkSize);
+static_assert(kPluginLatencyChunks == 2);
+static_assert(kPluginLatencySamples == 1024);
+static_assert(calculatePluginLatencySamples(32) == 1504);
+static_assert(calculatePluginLatencySamples(64) == 1472);
+static_assert(calculatePluginLatencySamples(128) == 1408);
+static_assert(calculatePluginLatencySamples(256) == 1280);
+static_assert(calculatePluginLatencySamples(512) == 1024);
+static_assert(calculatePluginLatencySamples(768) == 1536);
+static_assert(calculatePluginLatencySamples(1024) == 1536);
 static_assert(kModelOutputDelayChunks == 1);
-static_assert(kAsyncQueueDelayChunks == 0);
-static_assert(isQualifiedSameCallbackHostConfiguration(44100, 512));
-static_assert(!isQualifiedSameCallbackHostConfiguration(48000, 512));
-static_assert(!isQualifiedSameCallbackHostConfiguration(44100, 256));
-static_assert(kSameCallbackWaitBudgetMicroseconds > 0);
-static_assert(kSameCallbackWaitBudgetMicroseconds <
-              (1000000 * kOutputChunkSize) / kModelSampleRate);
+static_assert(kAsyncQueueDelayChunks == 1);
+static_assert(isQualifiedAsyncHostConfiguration(44100, 512));
+static_assert(!isQualifiedAsyncHostConfiguration(48000, 512));
+static_assert(!isQualifiedAsyncHostConfiguration(44100, 256));
+static_assert(kAudioThreadWaitBudgetMicroseconds == 0);
 static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));
 static_assert(!isQualifiedHostSampleRate(48001));
-static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 960);
-static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 512);
-static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1582);
-static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1024);
+static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 1472);
+static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 1024);
+static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 2139);
+static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 2048);
 
 // A repeated, order-balanced Apple Silicon qualification found three ORT
 // intra-op threads had lower mean/tail latency and lower aggregate CPU cost

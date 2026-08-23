@@ -71,7 +71,8 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // c91 needs one final zero-input graph hop to flush the last real input hop.
+  // c91 needs one zero-input graph hop plus the asynchronous publication hop
+  // to render the last real input after transport stops.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
       activeLatencySamples_.load(std::memory_order_acquire);
@@ -131,7 +132,8 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
           sampleRateError.isNotEmpty()
               ? sampleRateError
               : juce::String(
-                    "This listening build requires 44.1 kHz / 512 samples"));
+                    "This asynchronous build requires 44.1 kHz / 512 "
+                    "samples and reports 1024-sample PDC"));
     }
     juce::String modelLoadError;
     {
@@ -406,8 +408,12 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
     inferenceQueue_.startThread(onnxRuntime_.get());
   }
 
-  // Reset input sequence tracking used for recurrent-state gap detection.
+  // Reset input sequence and callback-boundary admission tracking used for
+  // recurrent-state gap detection and the asynchronous queue hop.
   nextInputChunkSequence_ = 0;
+  realtimeDueResultPending_ = false;
+  realtimeDueSequence_ = 0;
+  realtimeDueEpoch_ = inferenceQueue_.getEpoch();
 
   // Snapshot diagnostics describe the current streaming generation. Lifetime
   // totals intentionally remain cumulative across resets.
@@ -417,6 +423,7 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
 
   DBG("[HS-TasNet] Streaming buffers reset");
 #endif
+  stoppedFlushCallbacksRemaining_ = 0;
 }
 
 void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
@@ -447,7 +454,11 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
 
   // Start a new contiguous input sequence after transport resets.
   nextInputChunkSequence_ = 0;
+  realtimeDueResultPending_ = false;
+  realtimeDueSequence_ = 0;
+  realtimeDueEpoch_ = inferenceQueue_.getEpoch();
 #endif
+  stoppedFlushCallbacksRemaining_ = 0;
 }
 
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
@@ -480,15 +491,15 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   const bool sampleRateSupported =
       sampleRateCanConvertToInt &&
       std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
-      isQualifiedSameCallbackHostConfiguration(roundedSampleRate,
-                                               samplesPerBlock);
+      isQualifiedAsyncHostConfiguration(roundedSampleRate, samplesPerBlock);
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c91 same-callback configuration ") +
+        juce::String("Unsupported c91 asynchronous configuration ") +
         juce::String(sampleRate, 1) + " Hz / " +
         juce::String(samplesPerBlock) +
-        " samples; this build requires 44100 Hz / 512 samples";
+        " samples; this build requires 44100 Hz / 512 samples with " +
+        juce::String(kPluginLatencySamples) + "-sample PDC";
     {
       const std::lock_guard<std::mutex> lock(statusMutex_);
       modelLoadError_ = error;
@@ -718,11 +729,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   juce::ScopedNoDenormals noDenormals;
   const int numSamples = buffer.getNumSamples();
   const bool nonRealtimeRender = isNonRealtime();
-  const bool callbackMatchesSameCallbackContract =
-      numSamples == kSameCallbackQualifiedHostBlockSize;
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  const auto callbackEntryTime = std::chrono::steady_clock::now();
-#endif
+  const bool callbackMatchesAsyncContract =
+      numSamples == kAsyncQualifiedHostBlockSize;
+  // Compatibility wait telemetry is intentionally pinned to zero: no branch
+  // reachable from processBlock waits for inference on a real-time callback.
+  lastSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int requiredLatencySamples =
       numSamples > 0
@@ -732,6 +743,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 #else
   const int requiredLatencySamples =
       numSamples > 0 ? calculatePluginLatencySamples(numSamples) : 0;
+  juce::ignoreUnused(nonRealtimeRender);
 #endif
   lastHostBlockSize_.store(numSamples, std::memory_order_release);
   requiredLatencySamplesForLastHostBlock_.store(requiredLatencySamples,
@@ -772,7 +784,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       const bool playbackStarted = isPlaying && !wasPlayingBefore;
       const bool playbackStopped = !isPlaying && wasPlayingBefore;
       bool transportDiscontinuity = playbackStarted;
-      resetAfterCurrentCallback = playbackStopped;
       if (const auto timeInSamples = posInfo->getTimeInSamples()) {
         if (hasExpectedPlayheadPosition_) {
           if (isPlaying && wasPlayingBefore &&
@@ -796,13 +807,21 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
 
       // Reset immediately on starts, seeks, scrubs, and loop wraps. A
-      // play-to-stop transition is different: c91 needs the first stopped
-      // zero-input callback to emit the preceding final hop. Defer that reset
-      // until after this callback renders, then start subsequent stopped
-      // callbacks from deterministic zero state.
+      // play-to-stop transition is different: c91's graph delay plus the
+      // asynchronous queue delay require two exact stopped callbacks to drain
+      // the final playing input. Reset after the second one renders so a third
+      // stopped callback cannot replay stale tail/state.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
         resetAfterCurrentCallback = false;
+      } else {
+        const StoppedFlushCallbackPlan stoppedFlushPlan =
+            planStoppedFlushCallback(
+                stoppedFlushCallbacksRemaining_, playbackStopped,
+                !isPlaying && callbackMatchesAsyncContract);
+        stoppedFlushCallbacksRemaining_ =
+            stoppedFlushPlan.callbacksRemaining;
+        resetAfterCurrentCallback = stoppedFlushPlan.resetAfterCallback;
       }
     }
   }
@@ -867,6 +886,130 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     uint64_t ringOverflowSamplesDroppedThisBlock = 0;
     uint64_t queueFullDropsThisBlock = 0;
 
+    const bool synchronousOfflineRender = nonRealtimeRender;
+    const bool qualifiedRealtimeAsyncCallback =
+        !nonRealtimeRender && !unsafeRealtimeCallback &&
+        callbackMatchesAsyncContract;
+
+    // Copy one already-claimed result onto its immutable absolute timeline.
+    // The qualified real-time path requires a complete hop beginning at the
+    // current callback boundary.  Generic/offline draining may retain a future
+    // result until the bounded ring horizon reaches it, but it still never
+    // shifts an elapsed prefix onto a newer range.
+    const auto scheduleClaimedInferenceResult =
+        [&](InferenceRequest* consumeRequest,
+            bool requireCompleteCurrentHop) -> bool {
+      if (consumeRequest == nullptr) {
+        return true;
+      }
+
+      // Failed runs and c91's successful sequence-zero pre-roll both publish
+      // invalid markers so the exact-timeline consumer can advance entirely on
+      // the latency-aligned dry fallback.
+      if (!consumeRequest->outputValid) {
+        return true;
+      }
+
+      if (sampleRateConversionActive_ &&
+          (!consumeRequest->hostOutputValid ||
+           consumeRequest->hostOutputSampleCount == 0U)) {
+        ++ringOverflowEventsThisBlock;
+        return true;
+      }
+
+      const uint64_t outputTimelineSample =
+          overlapAdd_.getOutputTimelineSample();
+      const size_t convertedSampleCount =
+          sampleRateConversionActive_ ? consumeRequest->hostOutputSampleCount
+                                      : static_cast<size_t>(kOutputChunkSize);
+      ModelOutputSchedulePlan schedulePlan;
+      if (sampleRateConversionActive_) {
+        const uint64_t schedulingLatency =
+            static_cast<uint64_t>(modelSchedulingLatencySamples_);
+        if (consumeRequest->hostOutputStartSample >
+            std::numeric_limits<uint64_t>::max() - schedulingLatency) {
+          schedulePlan.action =
+              ModelOutputScheduleAction::kDiscardTimelineOverflow;
+        } else {
+          schedulePlan = planModelOutputRange(
+              schedulingLatency + consumeRequest->hostOutputStartSample,
+              convertedSampleCount, outputTimelineSample, outRingSize);
+        }
+      } else {
+        const uint64_t latency = static_cast<uint64_t>(
+            activeLatencySamples_.load(std::memory_order_acquire));
+        schedulePlan = planModelOutputSchedule(
+            consumeRequest->chunkSequence, latency, outputTimelineSample,
+            outRingSize);
+      }
+
+      if (requireCompleteCurrentHop) {
+        if (!isCompleteModelOutputHopAtBoundary(
+                schedulePlan, outputTimelineSample, convertedSampleCount)) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(convertedSampleCount);
+          return true;
+        }
+      } else {
+        if (schedulePlan.action ==
+            ModelOutputScheduleAction::kWaitForHorizon) {
+          // Keep Reading ownership and retry this exact range after the bounded
+          // ring horizon advances.
+          return false;
+        }
+        if (schedulePlan.action != ModelOutputScheduleAction::kSchedule) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(convertedSampleCount);
+          return true;
+        }
+      }
+
+      if (!overlapAdd_.canScheduleModelOutput(
+              schedulePlan.scheduleTimelineSample,
+              schedulePlan.sampleCount)) {
+        // A same-timeline collision is a duplicate/corrupt result. Preserve the
+        // first publication and discard this one instead of shifting either.
+        ++ringOverflowEventsThisBlock;
+        ringOverflowSamplesDroppedThisBlock +=
+            static_cast<uint64_t>(schedulePlan.sampleCount);
+        return true;
+      }
+
+      for (size_t i = 0; i < schedulePlan.sampleCount; ++i) {
+        const size_t sourceIndex = schedulePlan.sourceOffset + i;
+        const size_t destinationIndex = overlapAdd_.getOutputRingPosition(
+            schedulePlan.scheduleTimelineSample + static_cast<uint64_t>(i));
+        for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+          if (sampleRateConversionActive_) {
+            for (const int retainedStem :
+                 {kStemDrums, kStemBass, kStemVocals}) {
+              const size_t stem = static_cast<size_t>(retainedStem);
+              outputRingBuffers[stem][ch][destinationIndex] =
+                  consumeRequest->hostOutputChunk[stem][ch][sourceIndex];
+            }
+          } else {
+            delayedInputBuffer[ch][destinationIndex] =
+                consumeRequest->alignedInput[ch][sourceIndex];
+            for (size_t stem = 0; stem < static_cast<size_t>(kNumStems);
+                 ++stem) {
+              outputRingBuffers[stem][ch][destinationIndex] =
+                  consumeRequest->outputChunk[stem][ch][sourceIndex];
+            }
+          }
+        }
+      }
+      overlapAdd_.markModelOutputScheduled(schedulePlan.scheduleTimelineSample,
+                                           schedulePlan.sampleCount);
+      if (schedulePlan.sourceOffset > 0U) {
+        ++ringOverflowEventsThisBlock;
+        ringOverflowSamplesDroppedThisBlock +=
+            static_cast<uint64_t>(schedulePlan.sourceOffset);
+      }
+      return true;
+    };
+
     const auto drainReadyInferenceResults = [&]() {
       size_t consumedResults = 0;
       for (int resultIndex = 0; resultIndex < kNumInferenceBuffers;
@@ -880,107 +1023,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         if (consumeRequest == nullptr) {
           break;
         }
-
-        // Failed runs and c91's successful sequence-zero pre-roll both publish
-        // invalid markers so the exact-timeline consumer can advance.
-        if (!consumeRequest->outputValid) {
-          inferenceQueue_.releaseOutputSlot();
-          ++consumedResults;
-          continue;
-        }
-
-        if (sampleRateConversionActive_ &&
-            (!consumeRequest->hostOutputValid ||
-             consumeRequest->hostOutputSampleCount == 0U)) {
-          ++ringOverflowEventsThisBlock;
-          inferenceQueue_.releaseOutputSlot();
-          ++consumedResults;
-          continue;
-        }
-
-        const uint64_t outputTimelineSample =
-            overlapAdd_.getOutputTimelineSample();
-        const size_t convertedSampleCount =
-            sampleRateConversionActive_ ? consumeRequest->hostOutputSampleCount
-                                        : static_cast<size_t>(kOutputChunkSize);
-        ModelOutputSchedulePlan schedulePlan;
-        if (sampleRateConversionActive_) {
-          const uint64_t schedulingLatency =
-              static_cast<uint64_t>(modelSchedulingLatencySamples_);
-          if (consumeRequest->hostOutputStartSample >
-              std::numeric_limits<uint64_t>::max() - schedulingLatency) {
-            schedulePlan.action =
-                ModelOutputScheduleAction::kDiscardTimelineOverflow;
-          } else {
-            schedulePlan = planModelOutputRange(
-                schedulingLatency + consumeRequest->hostOutputStartSample,
-                convertedSampleCount, outputTimelineSample, outRingSize);
-          }
-        } else {
-          const uint64_t latency = static_cast<uint64_t>(
-              activeLatencySamples_.load(std::memory_order_acquire));
-          schedulePlan =
-              planModelOutputSchedule(consumeRequest->chunkSequence, latency,
-                                      outputTimelineSample, outRingSize);
-        }
-
-        if (schedulePlan.action == ModelOutputScheduleAction::kWaitForHorizon) {
-          // Keep ownership and retry against the same absolute timeline after
-          // the bounded ring horizon advances.
+        if (!scheduleClaimedInferenceResult(consumeRequest, false)) {
           break;
-        }
-        if (schedulePlan.action != ModelOutputScheduleAction::kSchedule) {
-          ++ringOverflowEventsThisBlock;
-          ringOverflowSamplesDroppedThisBlock +=
-              static_cast<uint64_t>(convertedSampleCount);
-          inferenceQueue_.releaseOutputSlot();
-          ++consumedResults;
-          continue;
-        }
-
-        if (!overlapAdd_.canScheduleModelOutput(
-                schedulePlan.scheduleTimelineSample,
-                schedulePlan.sampleCount)) {
-          // A same-timeline collision is a duplicate/corrupt result. Preserve
-          // the first publication and discard this one instead of shifting
-          // either.
-          ++ringOverflowEventsThisBlock;
-          ringOverflowSamplesDroppedThisBlock +=
-              static_cast<uint64_t>(schedulePlan.sampleCount);
-          inferenceQueue_.releaseOutputSlot();
-          ++consumedResults;
-          continue;
-        }
-
-        for (size_t i = 0; i < schedulePlan.sampleCount; ++i) {
-          const size_t sourceIndex = schedulePlan.sourceOffset + i;
-          const size_t destinationIndex = overlapAdd_.getOutputRingPosition(
-              schedulePlan.scheduleTimelineSample + static_cast<uint64_t>(i));
-          for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-            if (sampleRateConversionActive_) {
-              for (const int retainedStem :
-                   {kStemDrums, kStemBass, kStemVocals}) {
-                const size_t stem = static_cast<size_t>(retainedStem);
-                outputRingBuffers[stem][ch][destinationIndex] =
-                    consumeRequest->hostOutputChunk[stem][ch][sourceIndex];
-              }
-            } else {
-              delayedInputBuffer[ch][destinationIndex] =
-                  consumeRequest->alignedInput[ch][sourceIndex];
-              for (size_t stem = 0; stem < static_cast<size_t>(kNumStems);
-                   ++stem) {
-                outputRingBuffers[stem][ch][destinationIndex] =
-                    consumeRequest->outputChunk[stem][ch][sourceIndex];
-              }
-            }
-          }
-        }
-        overlapAdd_.markModelOutputScheduled(
-            schedulePlan.scheduleTimelineSample, schedulePlan.sampleCount);
-        if (schedulePlan.sourceOffset > 0) {
-          ++ringOverflowEventsThisBlock;
-          ringOverflowSamplesDroppedThisBlock +=
-              static_cast<uint64_t>(schedulePlan.sourceOffset);
         }
         inferenceQueue_.releaseOutputSlot();
         ++consumedResults;
@@ -988,7 +1032,83 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       return consumedResults;
     };
 
-    drainReadyInferenceResults();
+    const auto consumeExactRealtimeDueResult = [&]() {
+      if (!realtimeDueResultPending_) {
+        return;
+      }
+
+      const uint64_t dueSequence = realtimeDueSequence_;
+      const uint32_t dueEpoch = realtimeDueEpoch_;
+      const uint32_t currentEpoch = inferenceQueue_.getEpoch();
+      bool exactDueResultAvailable = false;
+      for (int resultIndex = 0; resultIndex < kNumInferenceBuffers;
+           ++resultIndex) {
+        InferenceRequest* consumeRequest =
+            inferenceQueue_.getCurrentOutputSlot();
+        if (consumeRequest == nullptr) {
+          consumeRequest = inferenceQueue_.getOutputSlot(currentEpoch);
+        }
+        if (consumeRequest == nullptr) {
+          break;
+        }
+
+        if (consumeRequest->getEpoch() != dueEpoch) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(kOutputChunkSize);
+          inferenceQueue_.releaseOutputSlot();
+          continue;
+        }
+
+        const AsyncDueResultPlan duePlan = planAsyncDueResult(
+            dueSequence, consumeRequest->chunkSequence,
+            consumeRequest->outputValid);
+        if (duePlan.action == AsyncDueResultAction::kDiscardLate) {
+          ++ringOverflowEventsThisBlock;
+          ringOverflowSamplesDroppedThisBlock +=
+              static_cast<uint64_t>(kOutputChunkSize);
+          inferenceQueue_.releaseOutputSlot();
+          continue;
+        }
+        if (duePlan.action == AsyncDueResultAction::kHoldFuture) {
+          // The result remains Reading and can only be consumed at its own
+          // callback boundary. It is never pulled earlier to fill this gap.
+          break;
+        }
+
+        exactDueResultAvailable = true;
+        if (duePlan.action == AsyncDueResultAction::kConsumeValid) {
+          static_cast<void>(
+              scheduleClaimedInferenceResult(consumeRequest, true));
+        }
+        // Invalid exact markers (including sequence-zero pre-roll) deliberately
+        // leave this complete callback range on latency-aligned fallback.
+        inferenceQueue_.releaseOutputSlot();
+        break;
+      }
+
+      if (!exactDueResultAvailable) {
+        // Preserve the public compatibility counter while giving it its honest
+        // asynchronous meaning: the exact request was absent at the boundary,
+        // and the complete hop therefore rendered from aligned fallback.
+        sameCallbackTimeoutCount_.fetch_add(1, std::memory_order_relaxed);
+      }
+
+      // The physical callback boundary has elapsed whether or not its exact
+      // result was ready. A later completion is stale and will be discarded
+      // against the next due sequence.
+      realtimeDueResultPending_ = false;
+    };
+
+    if (qualifiedRealtimeAsyncCallback) {
+      consumeExactRealtimeDueResult();
+    } else {
+      // Offline rendering may schedule completed results early on their exact
+      // absolute ranges. Unsafe real-time callback shapes never wait and the
+      // writer below forces complete fallback even if a result is drained.
+      realtimeDueResultPending_ = false;
+      drainReadyInferenceResults();
+    }
 
     // Preserve every sanitized native host frame for Main/fallback before
     // advancing the independent 44.1 kHz model clock.
@@ -1010,10 +1130,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // The inference worker binds these exact finite samples to the graph
     // without deployment-time level normalization. Queue submission remains
     // entirely on the 44.1 kHz clock.
-    const bool synchronousOfflineRender = nonRealtimeRender;
-    const bool synchronousRealtimeCallback =
-        !nonRealtimeRender && !unsafeRealtimeCallback &&
-        callbackMatchesSameCallbackContract;
     bool offlineInferenceTimedOut = false;
     const auto submitAccumulatedModelHop = [&]() {
       if (!overlapAdd_.readyForInference()) {
@@ -1026,6 +1142,17 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
 
       const uint64_t chunkSequence = nextInputChunkSequence_++;
+      const uint32_t submittedEpoch = inferenceQueue_.getEpoch();
+      if (qualifiedRealtimeAsyncCallback) {
+        // Every physical hop gets exactly one due boundary, including a hop
+        // dropped because the bounded queue is full. Recording the gap keeps
+        // fallback and subsequent recurrent-state recovery on the same
+        // immutable timeline.
+        realtimeDueResultPending_ = true;
+        realtimeDueSequence_ = chunkSequence;
+        realtimeDueEpoch_ = submittedEpoch;
+      }
+
       InferenceRequest* request = inferenceQueue_.getWriteSlot();
       if (request == nullptr && synchronousOfflineRender) {
         drainReadyInferenceResults();
@@ -1041,42 +1168,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                       static_cast<size_t>(kOutputChunkSize) * sizeof(float));
         }
 
-        const uint32_t submittedEpoch = inferenceQueue_.getEpoch();
         inferenceQueue_.submitWriteSlot(submittedEpoch);
 
-        if (synchronousRealtimeCallback) {
-          const auto waitStarted = std::chrono::steady_clock::now();
-          const auto deadline =
-              callbackEntryTime +
-              std::chrono::microseconds(
-                  kSameCallbackWaitBudgetMicroseconds);
-          const bool completed = inferenceQueue_.waitUntilProcessed(
-              request, submittedEpoch, deadline);
-          const auto waitFinished = std::chrono::steady_clock::now();
-          const auto waitMicroseconds =
-              std::chrono::duration_cast<std::chrono::microseconds>(
-                  waitFinished - waitStarted)
-                  .count();
-          const int boundedWaitMicroseconds = static_cast<int>(std::min<
-              int64_t>(waitMicroseconds,
-                       static_cast<int64_t>(std::numeric_limits<int>::max())));
-          lastSameCallbackWaitMicroseconds_.store(
-              boundedWaitMicroseconds, std::memory_order_release);
-          int observedMaximum = maximumSameCallbackWaitMicroseconds_.load(
-              std::memory_order_relaxed);
-          while (boundedWaitMicroseconds > observedMaximum &&
-                 !maximumSameCallbackWaitMicroseconds_.compare_exchange_weak(
-                     observedMaximum, boundedWaitMicroseconds,
-                     std::memory_order_release, std::memory_order_relaxed)) {
-          }
-
-          if (completed && inferenceQueue_.getEpoch() == submittedEpoch) {
-            drainReadyInferenceResults();
-          } else {
-            sameCallbackTimeoutCount_.fetch_add(1,
-                                                std::memory_order_relaxed);
-          }
-        } else if (synchronousOfflineRender) {
+        if (synchronousOfflineRender) {
           constexpr auto kOfflineHopTimeout = std::chrono::seconds(5);
           const auto deadline =
               std::chrono::steady_clock::now() + kOfflineHopTimeout;
@@ -1165,7 +1259,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const auto writeStats = outputWriter_.writeBlock(
         overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
         numSamples, underrunTelemetryEnabled,
-        !unsafeRealtimeCallback && callbackMatchesSameCallbackContract,
+        !unsafeRealtimeCallback && callbackMatchesAsyncContract,
         !sampleRateConversionActive_);
 
     // Report exact-timeline model samples that remain scheduled after this
@@ -1207,6 +1301,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     return;
   }
+#else
+  juce::ignoreUnused(underrunTelemetryEnabled, resetAfterCurrentCallback);
 #endif
 
   // Fail-safe path when the qualified model is unavailable. Keep Main as the

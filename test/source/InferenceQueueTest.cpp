@@ -183,7 +183,7 @@ TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
   EXPECT_EQ(queue.getWorkerPriorityStatus(), status);
 }
 
-TEST(InferenceQueueTest, SameCallbackWaitObservesProcessedPreroll) {
+TEST(InferenceQueueTest, CompatibilityWaitObservesProcessedPreroll) {
   FakeRuntime runtime;
   InferenceQueue queue;
   queue.allocate();
@@ -211,7 +211,7 @@ TEST(InferenceQueueTest, SameCallbackWaitObservesProcessedPreroll) {
 }
 
 TEST(InferenceQueueTest,
-     SameCallbackTimeoutLeavesRequestLiveForExactTimelineDiscard) {
+     CompatibilityTimeoutLeavesRequestLiveForExactTimelineDiscard) {
   FakeRuntime runtime;
   InferenceQueue queue;
   queue.allocate();

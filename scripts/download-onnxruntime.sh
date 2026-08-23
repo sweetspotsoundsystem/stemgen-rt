@@ -5,6 +5,8 @@
 set -euo pipefail
 
 VERSION="1.26.0"
+ARCHIVE_SHA256="7a1280bbb1701ea514f71828765237e7896e0f2e1cd332f1f70dbd5c3e33aca3"
+ARCHIVE_BYTES="31717869"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 DEST_DIR="$PROJECT_ROOT/libs/onnxruntime"
@@ -35,6 +37,17 @@ ARCHIVE_PATH="$TEMP_DIR/$FILENAME"
 EXTRACT_DIR="$TEMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
 curl --fail --location --retry 3 -o "$ARCHIVE_PATH" "$URL"
+
+ACTUAL_ARCHIVE_BYTES="$(wc -c < "$ARCHIVE_PATH" | tr -d '[:space:]')"
+ACTUAL_ARCHIVE_SHA256="$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')"
+if [[ "$ACTUAL_ARCHIVE_BYTES" != "$ARCHIVE_BYTES" ||
+      "$ACTUAL_ARCHIVE_SHA256" != "$ARCHIVE_SHA256" ]]; then
+    echo "Downloaded archive identity mismatch." >&2
+    echo "Expected: ${ARCHIVE_BYTES} bytes, SHA-256 ${ARCHIVE_SHA256}" >&2
+    echo "Observed: ${ACTUAL_ARCHIVE_BYTES} bytes, SHA-256 ${ACTUAL_ARCHIVE_SHA256}" >&2
+    exit 1
+fi
+
 tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR"
 
 SDK_DIR="$EXTRACT_DIR/onnxruntime-${PLATFORM}-${VERSION}"

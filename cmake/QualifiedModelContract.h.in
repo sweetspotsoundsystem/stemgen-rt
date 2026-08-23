@@ -28,6 +28,12 @@ inline constexpr int kFusionHiddenSize =
     @STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE@;
 inline constexpr int kModelOutputDelayChunks =
     @STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS@;
+inline constexpr int kAsyncQueueDelayChunks =
+    @STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS@;
+inline constexpr int kPluginLatencyChunks =
+    @STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS@;
+inline constexpr int kPluginLatencySamples =
+    @STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES@;
 inline constexpr int kDrumsSourceIndex =
     @STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX@;
 inline constexpr int kBassSourceIndex =
@@ -83,6 +89,8 @@ inline constexpr std::string_view kExternalData =
     "@STEMGENRT_QUALIFIED_METADATA_EXTERNAL_DATA@";
 inline constexpr std::string_view kOutputAlignment =
     "@STEMGENRT_QUALIFIED_OUTPUT_ALIGNMENT@";
+inline constexpr std::string_view kPreroll =
+    "@STEMGENRT_QUALIFIED_METADATA_PREROLL@";
 inline constexpr std::string_view kInputNamesJson =
     R"json(@STEMGENRT_QUALIFIED_METADATA_INPUT_NAMES@)json";
 inline constexpr std::string_view kOutputNamesJson =
@@ -118,8 +126,7 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      "@STEMGENRT_QUALIFIED_METADATA_OUTPUT_DELAY_HOPS@"},
     {"hs_tasnet.streaming.overlap_add_buffer_shape",
      kOverlapAddBufferShapeJson},
-    {"hs_tasnet.streaming.preroll",
-     "@STEMGENRT_QUALIFIED_METADATA_PREROLL@"},
+    {"hs_tasnet.streaming.preroll", kPreroll},
 });
 
 static_assert(kInputAudioShape ==
@@ -142,7 +149,15 @@ static_assert(kInputNames.size() == 4);
 static_assert(kOutputNames.size() == 4);
 static_assert(kNumChannels == 2);
 static_assert(kNumStems == 4);
+static_assert(kSampleRate == 44100);
+static_assert(kHopSamples == 512);
 static_assert(kModelOutputDelayChunks == 1);
+static_assert(kAsyncQueueDelayChunks == 1);
+static_assert(kPluginLatencyChunks ==
+              kModelOutputDelayChunks + kAsyncQueueDelayChunks);
+static_assert(kPluginLatencyChunks == 2);
+static_assert(kPluginLatencySamples == kPluginLatencyChunks * kHopSamples);
+static_assert(kPluginLatencySamples == 1024);
 static_assert(
     [] {
       for (const int index : kSourceOrder) {
@@ -169,5 +184,7 @@ static_assert(kOtherSourceIndex == kResidualSourceIndex);
 static_assert(kResidualSourceIndex >= 0 && kResidualSourceIndex < kNumStems);
 static_assert(kOutputAlignment == "previous_input_chunk",
               "The native scheduler supports only previous-hop alignment");
+static_assert(kPreroll == "discard_first_output_chunk",
+              "Sequence zero must remain successful-but-output-invalid");
 
 }  // namespace audio_plugin::qualified_model
