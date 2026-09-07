@@ -28,7 +28,7 @@ std::vector<Reference> readReferences() {
   if (!stream)
     return {};
   std::array<char, 8> magic{};
-  EXPECT_EQ(stream->read(magic.data(), magic.size()), 8);
+  EXPECT_EQ(stream->read(magic.data(), static_cast<int>(magic.size())), 8);
   EXPECT_EQ(std::string(magic.data(), magic.size()), "SGRTG001");
   const int count = stream->readInt();
   EXPECT_EQ(count, 8);
