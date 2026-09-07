@@ -154,6 +154,40 @@ TEST(InferenceQueueTest, ReservationIsExclusiveAndResetReclaimsStaleReadyRing) {
   EXPECT_EQ(replacement->getEpoch(), epochAfterAbandonedWrite);
 }
 
+TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
+  FakeRuntime runtime;
+  audio_plugin::WorkerTimingTrace trace(1U);
+  InferenceQueue queue;
+  queue.allocate();
+  ASSERT_TRUE(queue.setWorkerTimingTrace(&trace));
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  EXPECT_FALSE(queue.setWorkerTimingTrace(nullptr));
+  const auto epoch = queue.getEpoch();
+  const auto beforeSubmit = std::chrono::steady_clock::now();
+  for (uint64_t sequence = 0U; sequence < 2U; ++sequence) {
+    submit(queue, epoch, sequence);
+    const auto* output = waitForOutput(queue, epoch);
+    ASSERT_NE(output, nullptr);
+    EXPECT_EQ(output->chunkSequence, sequence);
+    queue.releaseOutputSlot();
+  }
+  queue.stopThread();
+  ASSERT_EQ(trace.samples().size(), 1U);
+  EXPECT_EQ(trace.omitted(), 1U);
+  const auto& sample = trace.samples().front();
+  EXPECT_EQ(sample.epoch, epoch);
+  EXPECT_EQ(sample.inputSequence, 0U);
+  EXPECT_TRUE(sample.inferenceOk);
+  EXPECT_GE(sample.acquired, beforeSubmit);
+  EXPECT_LE(sample.acquired, sample.runStarted);
+  EXPECT_LE(sample.runStarted, sample.runFinished);
+  EXPECT_LE(sample.runFinished, sample.publishStarted);
+  EXPECT_LE(sample.publishStarted, sample.publishFinished);
+  EXPECT_LE(sample.publishFinished, std::chrono::steady_clock::now());
+  EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
+}
+
 TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
   FakeRuntime runtime;
   InferenceQueue queue;
@@ -253,8 +287,10 @@ TEST(InferenceQueueTest,
 TEST(InferenceQueueTest,
      ResetDuringInFlightRunDiscardsStaleOutputAndKeepsOnePreroll) {
   FakeRuntime runtime;
+  audio_plugin::WorkerTimingTrace trace(3U);
   InferenceQueue queue;
   queue.allocate();
+  ASSERT_TRUE(queue.setWorkerTimingTrace(&trace));
   struct FirstRunReleaseGuard {
     ~FirstRunReleaseGuard() {
       runtime.releaseFirstRun.store(true, std::memory_order_release);
@@ -297,6 +333,12 @@ TEST(InferenceQueueTest,
   }));
   EXPECT_EQ(runtime.runCalls.load(std::memory_order_acquire), 3U);
   queue.stopThread();
+  ASSERT_EQ(trace.samples().size(), 2U);
+  EXPECT_EQ(trace.omitted(), 0U);
+  for (size_t index = 0U; index < trace.samples().size(); ++index) {
+    EXPECT_EQ(trace.samples()[index].epoch, currentEpoch);
+    EXPECT_EQ(trace.samples()[index].inputSequence, index);
+  }
 }
 
 TEST(InferenceQueueTest,

@@ -245,6 +245,14 @@ void InferenceQueue::stopThread() {
   threadRunning_.store(false, std::memory_order_release);
 }
 
+bool InferenceQueue::setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept {
+  if (isThreadRunning()) {
+    return false;
+  }
+  workerTimingTrace_ = trace;
+  return true;
+}
+
 InferenceRequest* InferenceQueue::getWriteSlot() {
   const size_t idx = writeIdx_.load(std::memory_order_acquire);
   auto& slot = queue_[idx];
@@ -600,6 +608,7 @@ bool InferenceQueue::reclaimStaleSlots(uint64_t observedEpochControl) {
 }
 
 void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
+  auto* const timingTrace = workerTimingTrace_;
   const WorkerPriorityStatus priorityStatus = configureCurrentThreadPriority();
   workerPriorityStatus_.store(priorityStatus, std::memory_order_release);
   if (priorityStatus == WorkerPriorityStatus::Failed) {
@@ -730,6 +739,12 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       }
 
       const uint64_t inputSequence = request->chunkSequence;
+      WorkerTimingSample timing;
+      if (timingTrace != nullptr) {
+        timing.epoch = requestEpoch;
+        timing.inputSequence = inputSequence;
+        timing.acquired = WorkerTimingSample::Clock::now();
+      }
       if (callbacks.reset != nullptr && hasPreviousInputSequence &&
           inputSequence != previousInputSequence + 1) {
         DBG("[InferenceQueue] Input sequence gap; resetting model state");
@@ -752,10 +767,16 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // This is the final epoch check immediately before invoking the
       // graph. An in-flight old-epoch run is discarded below if reset()
       // arrives concurrently.
+      if (timingTrace != nullptr) {
+        timing.runStarted = WorkerTimingSample::Clock::now();
+      }
       if (epochControl_.load(std::memory_order_acquire) ==
               currentEpochControl &&
           callbacks.run != nullptr) {
         inferenceOk = callbacks.run(callbacks.context, *request);
+      }
+      if (timingTrace != nullptr) {
+        timing.runFinished = WorkerTimingSample::Clock::now();
       }
 
       if (inferenceOk && request->outputValid &&
@@ -803,12 +824,20 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = true;
       }
 
+      if (timingTrace != nullptr) {
+        timing.publishStarted = WorkerTimingSample::Clock::now();
+        timing.inferenceOk = inferenceOk;
+      }
       uint64_t expected = processingControl;
       if (request->control_.compare_exchange_strong(
               expected,
               InferenceRequest::makeControl(
                   requestEpoch, InferenceRequest::SlotState::Processed),
               std::memory_order_release, std::memory_order_relaxed)) {
+        if (timingTrace != nullptr) {
+          timing.publishFinished = WorkerTimingSample::Clock::now();
+          timingTrace->record(timing);
+        }
         readIdx_.store((idx + 1) % kNumInferenceBuffers,
                        std::memory_order_release);
       }

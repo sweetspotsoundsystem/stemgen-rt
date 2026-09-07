@@ -9,6 +9,7 @@
 #include <vector>
 #include "Constants.h"
 #include "StreamingSampleRateAdapter.h"
+#include "WorkerTimingTrace.h"
 
 namespace audio_plugin {
 
@@ -139,6 +140,10 @@ public:
     return workerPriorityStatus_.load(std::memory_order_acquire);
   }
 
+  // Optional diagnostic. Configure only from the lifecycle thread while the
+  // worker is stopped; concurrent start/stop/configuration is unsupported.
+  bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
+
   // Check if a write slot is available (called from audio thread)
   // Returns pointer to the request if available, nullptr if queue is full
   InferenceRequest* getWriteSlot();
@@ -240,6 +245,7 @@ private:
   std::atomic<bool> threadRunning_{false};
   std::atomic<WorkerPriorityStatus> workerPriorityStatus_{
       WorkerPriorityStatus::NotAttempted};
+  WorkerTimingTrace* workerTimingTrace_{nullptr};
 };
 
 }  // namespace audio_plugin

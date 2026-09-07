@@ -68,6 +68,8 @@ public:
   int getLastSameCallbackWaitMicroseconds() const;
   int getMaximumSameCallbackWaitMicroseconds() const;
   InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
+  // Diagnostic only: attach before prepareToPlay, read after releaseResources.
+  bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;

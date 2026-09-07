@@ -15,6 +15,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <string_view>
 #include <system_error>
 #include <thread>
@@ -34,6 +35,7 @@ constexpr int kWarmupBlocks = 100;
 constexpr int kMinimumQualificationCallbacks = 10000;
 constexpr std::string_view kQualificationCallbacksEnvironment =
     "STEMGENRT_QUALIFICATION_CALLBACKS";
+constexpr std::string_view kWorkerTimingEnvironment = "STEMGENRT_TRACE_WORKER";
 
 constexpr float kPi = 3.14159265358979323846f;
 
@@ -43,13 +45,15 @@ float sineAtSample(int64_t sampleIndex, float freqHz, float amplitude) {
   return amplitude * std::sin(2.0f * kPi * freqHz * t);
 }
 
-int qualificationCallbackCount() {
+int integerEnvironment(std::string_view name,
+                       int defaultValue,
+                       int minimum,
+                       int maximum) {
 #if defined(_WIN32)
   char* duplicatedOverrideValue = nullptr;
   size_t duplicatedOverrideSize = 0U;
   const int duplicateResult =
-      _dupenv_s(&duplicatedOverrideValue, &duplicatedOverrideSize,
-                kQualificationCallbacksEnvironment.data());
+      _dupenv_s(&duplicatedOverrideValue, &duplicatedOverrideSize, name.data());
   const std::unique_ptr<char, decltype(&std::free)> ownedOverrideValue(
       duplicatedOverrideValue, &std::free);
   if (duplicateResult != 0) {
@@ -57,11 +61,10 @@ int qualificationCallbackCount() {
   }
   const char* overrideValue = ownedOverrideValue.get();
 #else
-  const char* overrideValue =
-      std::getenv(kQualificationCallbacksEnvironment.data());
+  const char* overrideValue = std::getenv(name.data());
 #endif
   if (overrideValue == nullptr || overrideValue[0] == '\0') {
-    return kMinimumQualificationCallbacks;
+    return defaultValue;
   }
 
   const std::string_view text(overrideValue);
@@ -69,12 +72,28 @@ int qualificationCallbackCount() {
   const auto parseResult =
       std::from_chars(text.data(), text.data() + text.size(), callbackCount);
   if (parseResult.ec != std::errc{} ||
-      parseResult.ptr != text.data() + text.size() ||
-      callbackCount < kMinimumQualificationCallbacks ||
-      callbackCount > std::numeric_limits<int>::max() - kWarmupBlocks) {
+      parseResult.ptr != text.data() + text.size() || callbackCount < minimum ||
+      callbackCount > maximum) {
     return -1;
   }
   return callbackCount;
+}
+
+int qualificationCallbackCount() {
+  return integerEnvironment(kQualificationCallbacksEnvironment,
+                            kMinimumQualificationCallbacks,
+                            kMinimumQualificationCallbacks,
+                            std::numeric_limits<int>::max() - kWarmupBlocks);
+}
+
+struct CallbackTimingSample {
+  std::chrono::steady_clock::time_point started;
+  std::chrono::steady_clock::time_point finished;
+};
+
+double microsecondsBetween(std::chrono::steady_clock::time_point end,
+                           std::chrono::steady_clock::time_point start) {
+  return std::chrono::duration<double, std::micro>(end - start).count();
 }
 
 double percentileFromSorted(const std::vector<double>& sortedValues,
@@ -120,6 +139,105 @@ TimingDistribution summarizeTiming(std::vector<double>& values) {
   return summary;
 }
 
+// Called only after releaseResources has joined the worker. Sequence N was
+// submitted inside callback N and is due during N+1. Submission and result
+// admission occur somewhere inside their processBlock intervals; report
+// bounds rather than pretending callback starts are exact queue timestamps.
+void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
+                       const std::vector<CallbackTimingSample>& callbacks,
+                       const PacedQualificationTrace& failures) {
+  std::vector<const audio_plugin::WorkerTimingSample*> bySequence(
+      callbacks.size(), nullptr);
+  uint64_t duplicateSequences = 0U;
+  for (const auto& sample : trace.samples()) {
+    if (sample.acquired < callbacks.front().started ||
+        sample.inputSequence >= callbacks.size()) {
+      continue;  // Ignore prepareToPlay's separate warmup epoch.
+    }
+    auto& entry = bySequence[static_cast<size_t>(sample.inputSequence)];
+    if (entry != nullptr) {
+      ++duplicateSequences;
+    }
+    entry = &sample;
+  }
+
+  std::vector<double> runTimes;
+  std::vector<double> dispatchLowerBounds;
+  std::vector<double> dispatchUpperBounds;
+  uint64_t missingMeasuredRequests = 0U;
+  uint64_t publishedAfterDueCallback = 0U;
+  for (size_t due = static_cast<size_t>(kWarmupBlocks); due < callbacks.size();
+       ++due) {
+    const auto* sample = bySequence[due - 1U];
+    if (sample == nullptr) {
+      ++missingMeasuredRequests;
+      continue;
+    }
+    runTimes.push_back(
+        microsecondsBetween(sample->runFinished, sample->runStarted));
+    dispatchLowerBounds.push_back(std::max(
+        0.0,
+        microsecondsBetween(sample->acquired, callbacks[due - 1U].finished)));
+    dispatchUpperBounds.push_back(
+        microsecondsBetween(sample->acquired, callbacks[due - 1U].started));
+    if (sample->publishStarted > callbacks[due].finished) {
+      ++publishedAfterDueCallback;
+    }
+  }
+  const auto run = summarizeTiming(runTimes);
+  const auto dispatchLower = summarizeTiming(dispatchLowerBounds);
+  const auto dispatchUpper = summarizeTiming(dispatchUpperBounds);
+  std::cerr << std::fixed << std::setprecision(3)
+            << "STEMGENRT_WORKER_TIMING scope=measured_due_requests"
+            << " traced_samples=" << trace.samples().size()
+            << " omitted_samples=" << trace.omitted()
+            << " matched_measured_requests=" << runTimes.size()
+            << " missing_measured_requests=" << missingMeasuredRequests
+            << " duplicate_sequences=" << duplicateSequences
+            << " published_after_due_callback=" << publishedAfterDueCallback
+            << " run_mean_us=" << run.mean << " run_p99_us=" << run.p99
+            << " run_max_us=" << run.maximum
+            << " dispatch_lower_p99_us=" << dispatchLower.p99
+            << " dispatch_upper_p99_us=" << dispatchUpper.p99
+            << " dispatch_lower_max_us=" << dispatchLower.maximum
+            << " dispatch_upper_max_us=" << dispatchUpper.maximum << '\n';
+
+  for (size_t index = 0; index < failures.size(); ++index) {
+    const auto& failure = failures.events()[index];
+    if (failure.delta.dueBoundaryMisses == 0U || failure.callbackIndex < 1) {
+      continue;
+    }
+    const auto due = static_cast<size_t>(failure.callbackIndex);
+    const auto* sample = bySequence[due - 1U];
+    std::cerr << "STEMGENRT_WORKER_FAILURE callback_index=" << due
+              << " input_sequence=" << due - 1U
+              << " trace_found=" << (sample != nullptr ? 1 : 0);
+    if (sample != nullptr) {
+      std::cerr
+          << " epoch=" << sample->epoch
+          << " inference_ok=" << (sample->inferenceOk ? 1 : 0)
+          << " dispatch_lower_us="
+          << std::max(0.0, microsecondsBetween(sample->acquired,
+                                               callbacks[due - 1U].finished))
+          << " dispatch_upper_us="
+          << microsecondsBetween(sample->acquired, callbacks[due - 1U].started)
+          << " run_us="
+          << microsecondsBetween(sample->runFinished, sample->runStarted)
+          << " post_run_to_publish_upper_us="
+          << microsecondsBetween(sample->publishFinished, sample->runFinished)
+          << " publish_relative_due_start_lower_us="
+          << microsecondsBetween(sample->publishStarted, callbacks[due].started)
+          << " publish_relative_due_start_upper_us="
+          << microsecondsBetween(sample->publishFinished,
+                                 callbacks[due].started)
+          << " publish_relative_due_finish_lower_us="
+          << microsecondsBetween(sample->publishStarted,
+                                 callbacks[due].finished);
+    }
+    std::cerr << '\n';
+  }
+}
+
 std::string_view workerPriorityStatusName(
     audio_plugin::InferenceQueue::WorkerPriorityStatus status) {
   using Status = audio_plugin::InferenceQueue::WorkerPriorityStatus;
@@ -156,6 +274,46 @@ bool configureAndVerifyCallbackThreadPriority() noexcept {
 
 }  // namespace
 
+TEST(RealtimeStemSanityTest, WorkerTraceUsesSubmissionBoundsAndExcludesWarmup) {
+  using Clock = std::chrono::steady_clock;
+  using Microseconds = std::chrono::microseconds;
+  const auto start = Clock::time_point{} + std::chrono::seconds(1);
+  std::vector<CallbackTimingSample> callbacks(101U);
+  for (size_t index = 0U; index < callbacks.size(); ++index) {
+    callbacks[index].started = start + Microseconds(3000 * index);
+    callbacks[index].finished = callbacks[index].started + Microseconds(10);
+  }
+  audio_plugin::WorkerTimingTrace trace(2U);
+  audio_plugin::WorkerTimingSample warmup;
+  warmup.inputSequence = 99U;
+  warmup.acquired = start - Microseconds(1);
+  trace.record(warmup);
+  audio_plugin::WorkerTimingSample late;
+  late.inputSequence = 99U;
+  late.epoch = 7U;
+  late.acquired = callbacks[99].finished + Microseconds(200);
+  late.runStarted = late.acquired;
+  late.runFinished = callbacks[100].started + Microseconds(20);
+  late.publishStarted = late.runFinished + Microseconds(5);
+  late.publishFinished = late.publishStarted + Microseconds(1);
+  late.inferenceOk = true;
+  trace.record(late);
+  PacedQualificationTrace failures(kWarmupBlocks);
+  failures.observe(100, {1U, 128U, 0U}, 3000.0, 0.0, 0.0);
+  std::ostringstream output;
+  auto* previousBuffer = std::cerr.rdbuf(output.rdbuf());
+  printWorkerTiming(trace, callbacks, failures);
+  std::cerr.rdbuf(previousBuffer);
+  const auto text = output.str();
+  for (const auto expected :
+       {"matched_measured_requests=1 ", "missing_measured_requests=0 ",
+        "duplicate_sequences=0 ", "published_after_due_callback=1 ",
+        "dispatch_lower_us=200.000 ", "dispatch_upper_us=210.000 ",
+        "run_us=2810.000 ", "publish_relative_due_finish_lower_us=15.000"}) {
+    EXPECT_NE(text.find(expected), std::string::npos) << text;
+  }
+}
+
 // Explicit production-style asynchronous qualification soak. This remains
 // disabled by default because 10,000 paced callbacks take about 29 seconds
 // at 44.1 kHz. Complete fallback routes the mixture only to Other, so every
@@ -171,7 +329,20 @@ TEST(RealtimeStemSanityTest,
   const bool callbackPriorityApplied =
       configureAndVerifyCallbackThreadPriority();
 
+  const int traceWorker = integerEnvironment(kWorkerTimingEnvironment, 0, 0, 1);
+  ASSERT_GE(traceWorker, 0) << kWorkerTimingEnvironment << " must be 0 or 1";
+  const auto totalCallbacks =
+      static_cast<size_t>(kWarmupBlocks + measureBlocks);
+  // Cap diagnostic storage even for an arbitrarily long requested soak.
+  // Omitted/missing counts explicitly disclose incomplete trace coverage.
+  audio_plugin::WorkerTimingTrace workerTrace(
+      traceWorker != 0 ? std::min(totalCallbacks + 1U, size_t{100000U}) : 0U);
+  std::vector<CallbackTimingSample> callbackTrace(
+      traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
+  if (traceWorker != 0) {
+    ASSERT_TRUE(processor.setWorkerTimingTrace(&workerTrace));
+  }
   processor.prepareToPlay(kSampleRate, kBlockSize);
 
   ASSERT_GT(processor.getLatencySamples(), 0)
@@ -233,6 +404,9 @@ TEST(RealtimeStemSanityTest,
     const auto processStarted = std::chrono::steady_clock::now();
     processor.processBlock(buffer, midiBuffer);
     const auto processFinished = std::chrono::steady_clock::now();
+    if (traceWorker != 0) {
+      callbackTrace[static_cast<size_t>(b)] = {processStarted, processFinished};
+    }
 
     const double startLatenessMicroseconds =
         std::chrono::duration<double, std::micro>(processStarted -
@@ -422,6 +596,7 @@ TEST(RealtimeStemSanityTest,
             << (qualificationPassed ? "pass" : "fail")
             << " warmup_callbacks=" << kWarmupBlocks
             << " measured_callbacks=" << measureBlocks
+            << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")
             << " callback_samples=" << kBlockSize
             << " sample_rate=" << static_cast<int>(kSampleRate)
             << " pdc_samples=" << processor.getLatencySamples()
@@ -524,6 +699,10 @@ TEST(RealtimeStemSanityTest,
   EXPECT_TRUE(qualificationPassed);
 
   processor.releaseResources();
+  if (traceWorker != 0) {
+    printWorkerTiming(workerTrace, callbackTrace, failureTrace);
+    ASSERT_TRUE(processor.setWorkerTimingTrace(nullptr));
+  }
 }
 
 }  // namespace audio_plugin_test

@@ -289,6 +289,16 @@ AudioPluginAudioProcessor::getInferenceWorkerPriorityStatus() const {
 #endif
 }
 
+bool AudioPluginAudioProcessor::setWorkerTimingTrace(
+    WorkerTimingTrace* trace) noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.setWorkerTimingTrace(trace);
+#else
+  juce::ignoreUnused(trace);
+  return false;
+#endif
+}
+
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 void AudioPluginAudioProcessor::allocateStreamingBuffers(
     int maximumHostBlockSize,
