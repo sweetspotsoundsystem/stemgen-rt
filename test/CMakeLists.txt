@@ -16,6 +16,7 @@ set(SOURCE_FILES
   source/OutputWriterTest.cpp
   source/OrtRunBenchmarkTest.cpp
   source/RealtimeStemSanityTest.cpp
+  source/PacedQualificationTraceTest.cpp
   source/SampleRateBridgeE2ETest.cpp
   source/TransportUnderrunE2ETest.cpp
 )

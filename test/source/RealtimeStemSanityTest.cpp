@@ -1,6 +1,8 @@
 #include <StemgenRT/PluginProcessor.h>
 #include <gtest/gtest.h>
 
+#include "PacedQualificationTrace.h"
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -205,6 +207,8 @@ TEST(RealtimeStemSanityTest,
   auto scheduledCallbackStart = std::chrono::steady_clock::now();
   auto previousCallbackStart = scheduledCallbackStart;
   bool havePreviousCallbackStart = false;
+  double previousStartLatenessMicroseconds = 0.0;
+  PacedQualificationTrace failureTrace(kWarmupBlocks);
   const double callbackDeadlineMicroseconds =
       1.0e6 * static_cast<double>(kBlockSize) / kSampleRate;
 
@@ -230,21 +234,29 @@ TEST(RealtimeStemSanityTest,
     processor.processBlock(buffer, midiBuffer);
     const auto processFinished = std::chrono::steady_clock::now();
 
+    const double startLatenessMicroseconds =
+        std::chrono::duration<double, std::micro>(processStarted -
+                                                  scheduledCallbackStart)
+            .count();
+    const double interarrivalMicroseconds =
+        havePreviousCallbackStart ? std::chrono::duration<double, std::micro>(
+                                        processStarted - previousCallbackStart)
+                                        .count()
+                                  : 0.0;
+    failureTrace.observe(b,
+                         {processor.getSameCallbackTimeoutCount(),
+                          processor.getUnderrunSampleCount(),
+                          processor.getRingOverflowEventCount()},
+                         interarrivalMicroseconds, startLatenessMicroseconds,
+                         previousStartLatenessMicroseconds);
+
     if (b >= kWarmupBlocks) {
-      const double startLatenessMicroseconds =
-          std::chrono::duration<double, std::micro>(processStarted -
-                                                    scheduledCallbackStart)
-              .count();
       callbackStartLatenessMicroseconds.push_back(startLatenessMicroseconds);
       if (processStarted - scheduledCallbackStart > blockDuration) {
         ++callbackStartDeadlineMisses;
       }
 
       if (havePreviousCallbackStart) {
-        const double interarrivalMicroseconds =
-            std::chrono::duration<double, std::micro>(processStarted -
-                                                      previousCallbackStart)
-                .count();
         callbackStartInterarrivalMicroseconds.push_back(
             interarrivalMicroseconds);
         if (interarrivalMicroseconds < 0.5 * callbackDeadlineMicroseconds) {
@@ -301,6 +313,7 @@ TEST(RealtimeStemSanityTest,
       }
     }
     previousCallbackStart = processStarted;
+    previousStartLatenessMicroseconds = startLatenessMicroseconds;
     havePreviousCallbackStart = true;
 
     sampleIndex += buffer.getNumSamples();
@@ -318,6 +331,37 @@ TEST(RealtimeStemSanityTest,
             static_cast<size_t>(measureBlocks));
   ASSERT_EQ(callbackStartLatenessMicroseconds.size(),
             static_cast<size_t>(measureBlocks));
+
+  // Print after pacing has ended, so failure logging cannot disturb the next
+  // callback. Existing cumulative counters and zero-miss gates remain intact.
+  const auto warmupFailures = failureTrace.warmupCounters();
+  const auto measuredFailures = failureTrace.measuredCounters();
+  std::cerr
+      << "STEMGENRT_PACED_FAILURE_PHASES counter_scope=warmup_plus_measured"
+      << " warmup_due_boundary_misses=" << warmupFailures.dueBoundaryMisses
+      << " measured_due_boundary_misses=" << measuredFailures.dueBoundaryMisses
+      << " warmup_underrun_samples=" << warmupFailures.underrunSamples
+      << " measured_underrun_samples=" << measuredFailures.underrunSamples
+      << " warmup_late_discard_events=" << warmupFailures.lateDiscardEvents
+      << " measured_late_discard_events=" << measuredFailures.lateDiscardEvents
+      << " retained_events=" << failureTrace.size()
+      << " omitted_events=" << failureTrace.omittedEvents() << '\n';
+  for (size_t index = 0; index < failureTrace.size(); ++index) {
+    const auto& event = failureTrace.events()[index];
+    std::cerr << "STEMGENRT_PACED_FAILURE_EVENT callback_index="
+              << event.callbackIndex
+              << " phase=" << (event.duringWarmup ? "warmup" : "measured")
+              << " due_boundary_misses=" << event.delta.dueBoundaryMisses
+              << " underrun_samples=" << event.delta.underrunSamples
+              << " late_discard_events=" << event.delta.lateDiscardEvents
+              << " preceding_callback_spacing_us="
+              << event.callbackSpacingMicroseconds
+              << " current_start_lateness_us="
+              << event.callbackStartLatenessMicroseconds
+              << " previous_start_lateness_us="
+              << event.previousCallbackStartLatenessMicroseconds << '\n';
+  }
+  EXPECT_TRUE(failureTrace.countersMonotonic());
 
   const TimingDistribution callbackTiming =
       summarizeTiming(completeCallbackMicroseconds);
@@ -357,7 +401,7 @@ TEST(RealtimeStemSanityTest,
                   maxAbsRetainedPairDifferences.end(),
                   [](float difference) { return difference > 1.0e-5f; });
   const bool qualificationPassed =
-      completeCallbackDeadlineMisses == 0U &&
+      failureTrace.countersMonotonic() && completeCallbackDeadlineMisses == 0U &&
       callbackStartDeadlineMisses == 0U &&
       callbackStartCatchupIntervals == 0U &&
       callbackTiming.p999 < callbackDeadlineMicroseconds &&
