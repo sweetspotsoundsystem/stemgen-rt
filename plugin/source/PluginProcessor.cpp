@@ -299,6 +299,14 @@ bool AudioPluginAudioProcessor::setWorkerTimingTrace(
 #endif
 }
 
+int AudioPluginAudioProcessor::getConfiguredOrtIntraOpThreads() const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->getConfiguredIntraOpThreadCount() : 0;
+#else
+  return 0;
+#endif
+}
+
 bool AudioPluginAudioProcessor::setDiagnosticOrtIntraOpThreads(
     int count) noexcept {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
@@ -430,7 +438,12 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
   }
   if (restartInferenceThread && onnxRuntime_ &&
       onnxRuntime_->isReadyForInference()) {
-    inferenceQueue_.startThread(onnxRuntime_.get());
+    if (!inferenceQueue_.startThread(onnxRuntime_.get())) {
+      const std::lock_guard<std::mutex> lock(statusMutex_);
+      modelLoadError_ = "Inference worker could not start";
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+    }
   }
 
   // Reset input sequence and callback-boundary admission tracking used for
@@ -645,11 +658,19 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
     // Reset streaming buffers to clean state for new playback session
     resetStreamingBuffers();
 
-    // Start the background inference thread (no-op if already running)
-    inferenceQueue_.startThread(onnxRuntime_.get());
-
-    // Report latency to host for Plugin Delay Compensation (PDC)
-    setLatencySamples(activeLatencySamples_.load(std::memory_order_acquire));
+    const auto failStartup = [this](const juce::String& message) {
+      // Lifecycle only: joining a provider call may outlast the warmup timeout.
+      inferenceQueue_.stopThread();
+      inferenceQueue_.reset();
+      const std::lock_guard<std::mutex> lock(statusMutex_);
+      modelLoadError_ = message;
+      activeLatencySamples_.store(0, std::memory_order_release);
+      setLatencySamples(0);
+    };
+    if (!inferenceQueue_.startThread(onnxRuntime_.get())) {
+      failStartup("Inference worker could not start");
+      return;
+    }
 
     // Warm up ORT: queue a dummy inference to trigger lazy initialization.
     // Use submitForWarmup() which doesn't advance write index, then reset()
@@ -662,8 +683,8 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       warmup->chunkSequence = 0;
       inferenceQueue_.submitForWarmup();
 
-      // Wait for completion (blocking is acceptable in prepareToPlay), but
-      // never indefinitely in case inference thread is stalled.
+      // Bound the completion wait. A failure disables inference; lifecycle
+      // cleanup still joins any in-flight provider call.
       constexpr auto kWarmupTimeout = std::chrono::seconds(2);
       const auto deadline = std::chrono::steady_clock::now() + kWarmupTimeout;
       while (!warmup->isProcessed()) {
@@ -674,21 +695,24 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       }
       const bool warmupCompleted = warmup->isProcessed();
 
-      if (warmupCompleted) {
+      if (!warmupCompleted || !warmup->inferenceSucceeded) {
+        failStartup(warmupCompleted ? "Inference warmup failed"
+                                    : "Inference warmup timed out");
+        return;
+      }
+      {
         // Release without advancing consumeIdx; warmup never advances the
         // queue's write/consume timeline.
         inferenceQueue_.releaseWarmupSlot(warmup);
         DBG("[HS-TasNet] ORT warmup complete");
-      } else {
-        DBG("[HS-TasNet] ORT warmup timed out after "
-            << static_cast<int>(kWarmupTimeout.count())
-            << "s; continuing without blocking.");
       }
-
-      // Always advance epoch after warmup attempt to invalidate any late warmup
-      // result and re-sync queue indices for real-time processing.
       inferenceQueue_.reset();
+    } else {
+      failStartup("Inference warmup slot unavailable");
+      return;
     }
+    // Advertise the prepared latency only after successful worker warmup.
+    setLatencySamples(activeLatencySamples_.load(std::memory_order_acquire));
   }
 #else
   juce::ignoreUnused(sampleRate, samplesPerBlock);

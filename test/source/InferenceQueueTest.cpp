@@ -4,6 +4,7 @@
 #include <thread>
 
 #include <gtest/gtest.h>
+#include <juce_audio_basics/juce_audio_basics.h>
 
 #include "StemgenRT/InferenceQueue.h"
 
@@ -86,6 +87,8 @@ public:
   }
 
   bool process(InferenceRequest& request) {
+    denormalsDisabled.store(juce::FloatVectorOperations::areDenormalsDisabled(),
+                            std::memory_order_release);
     runCalls.fetch_add(1, std::memory_order_relaxed);
     if (blockFirstRun.exchange(false, std::memory_order_acq_rel)) {
       firstRunEntered.store(true, std::memory_order_release);
@@ -105,6 +108,7 @@ public:
     resetCalls.fetch_add(1, std::memory_order_release);
   }
 
+  std::atomic<bool> denormalsDisabled{false};
   std::atomic<uint32_t> resetCalls{0};
   std::atomic<uint32_t> runCalls{0};
   std::atomic<uint32_t> runsSinceReset{0};
@@ -510,3 +514,42 @@ TEST(InferenceQueueTest,
 }
 
 }  // namespace
+
+TEST(InferenceQueueTest, WorkerDisablesDenormalsAndReportsSuccessfulPreroll) {
+  InferenceQueue queue;
+  queue.allocate();
+  FakeRuntime runtime;
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0U);
+  auto* result = waitForOutput(queue, epoch);
+  ASSERT_NE(result, nullptr);
+  EXPECT_TRUE(runtime.denormalsDisabled.load(std::memory_order_acquire));
+  EXPECT_TRUE(result->inferenceSucceeded);
+  EXPECT_FALSE(result->outputValid);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+}
+
+TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
+  InferenceQueue queue;
+  queue.allocate();
+  InferenceQueueTestPeer::startThread(
+      queue, nullptr,
+      [](void*, InferenceRequest& request) {
+        request.outputValid = true;
+        request.hostOutputValid = true;
+        return false;
+      },
+      nullptr);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0U);
+  auto* result = waitForOutput(queue, epoch);
+  ASSERT_NE(result, nullptr);
+  EXPECT_FALSE(result->inferenceSucceeded);
+  EXPECT_FALSE(result->outputValid);
+  EXPECT_FALSE(result->hostOutputValid);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+}

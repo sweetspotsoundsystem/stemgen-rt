@@ -2,7 +2,7 @@
 
 Separate a stereo mix into Drums, Bass, Other and Vocals in your DAW. Main carries the complete latency-aligned mix; the four stem outputs reconstruct it.
 
-This experimental branch bundles the **hop128 asymmetric-window teacher** model. With a **44.1 kHz session and a 128-sample host buffer**, it reports **256 samples / 5.80 ms** of delay. The real-time audio callback never waits for inference.
+This experimental branch bundles the **hop128 asymmetric-window teacher** model. With a **44.1 kHz session and a 128-sample host buffer**, it reports **256 samples / 5.80 ms** of delay. The real-time audio callback never waits for inference. Production inference runs on one dedicated worker with no ORT helper threads.
 
 The model passes short export and long native waveform checks. It remains below the accepted 11.6 ms model on the fixed quality panel, and its bass probes are mixed. Listening acceptance and performance in the intended DAW on Apple M4 are pending. See [model provenance and validation](model/README.md) for the measurements.
 
@@ -53,7 +53,7 @@ A Release configuration verifies the bundled model's size and SHA-256. Runtime l
 
 ## Validation
 
-The tests cover streaming state/reset behavior, queue epochs, late-output discard, sample-accurate Main and stem alignment, output reconstruction, low-frequency seams, non-finite input, low-level confidence, and variable offline buffers. The checked-in [PyTorch fixtures](test/fixtures/cropped1024-pytorch.json) independently verify all four native stems and the actual output buses through eight final clip lengths, including one sample and partial hops.
+The tests include a stopped worker with a saturated queue and transport seek, plus ready-result recovery, with a C++ heap-traffic probe around real-time callbacks. The probe covers C++ new/delete on the calling thread, not C allocation or provider internals. They also cover streaming state/reset behavior, queue epochs, late-output discard, sample-accurate Main and stem alignment, output reconstruction, low-frequency seams, non-finite input, low-level confidence, and variable offline buffers. The checked-in [PyTorch fixtures](test/fixtures/cropped1024-pytorch.json) independently verify all four native stems and the actual output buses through eight final clip lengths, including one sample and partial hops.
 
 Performance tests are separate from correctness tests. Run the native Mac gate from a fresh checkout with an output directory outside the repository:
 

@@ -640,68 +640,67 @@ TEST(RealtimeStemSanityTest,
       allOutputSamplesFinite && retainedSourcesPresent &&
       retainedSourcesDistinct && maxAbsReconstructionError <= 1.0e-6f;
 
-  std::cerr << std::fixed << std::setprecision(3)
-            << "STEMGENRT_QUALIFICATION_SUMMARY status="
-            << (qualificationPassed ? "pass" : "fail")
-            << " warmup_callbacks=" << kWarmupBlocks
-            << " measured_callbacks=" << measureBlocks
-            << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")
-            << " ort_intra_op_threads_override=" << ortThreads
-            << " callback_samples=" << kBlockSize
-            << " sample_rate=" << static_cast<int>(kSampleRate)
-            << " pdc_samples=" << processor.getLatencySamples()
-            << " deadline_us=" << callbackDeadlineMicroseconds
-            << " min_us=" << callbackTiming.minimum
-            << " mean_us=" << callbackTiming.mean
-            << " p50_us=" << callbackTiming.p50
-            << " p95_us=" << callbackTiming.p95
-            << " p99_us=" << callbackTiming.p99
-            << " p99.9_us=" << callbackTiming.p999
-            << " max_us=" << callbackTiming.maximum
-            << " deadline_misses=" << completeCallbackDeadlineMisses
-            << " start_interarrival_min_us=" << startInterarrivalTiming.minimum
-            << " start_interarrival_mean_us=" << startInterarrivalTiming.mean
-            << " start_interarrival_p50_us=" << startInterarrivalTiming.p50
-            << " start_interarrival_p95_us=" << startInterarrivalTiming.p95
-            << " start_interarrival_p99_us=" << startInterarrivalTiming.p99
-            << " start_interarrival_p99.9_us=" << startInterarrivalTiming.p999
-            << " start_interarrival_max_us=" << startInterarrivalTiming.maximum
-            << " start_lateness_min_us=" << startLatenessTiming.minimum
-            << " start_lateness_mean_us=" << startLatenessTiming.mean
-            << " start_lateness_p50_us=" << startLatenessTiming.p50
-            << " start_lateness_p95_us=" << startLatenessTiming.p95
-            << " start_lateness_p99_us=" << startLatenessTiming.p99
-            << " start_lateness_p99.9_us=" << startLatenessTiming.p999
-            << " start_lateness_max_us=" << startLatenessTiming.maximum
-            << " start_deadline_misses=" << callbackStartDeadlineMisses
-            << " start_catchup_intervals=" << callbackStartCatchupIntervals
-            << " due_boundary_misses=" << dueBoundaryMisses
-            << " last_wait_us=" << lastWaitMicroseconds
-            << " max_wait_us=" << maximumWaitMicroseconds << " wait_budget_us="
-            << audio_plugin::kAudioThreadWaitBudgetMicroseconds
-            << " underrun_samples_last_block=" << underrunSamplesInLastBlock
-            << " underrun_samples=" << underrunSamples
-            << " underrun_blocks=" << underrunBlocks
-            << " underrun_active=" << (underrunActive ? 1 : 0)
-            << " queue_full_drops=" << queueFullDrops
-            << " ring_overflow_events=" << ringOverflowEvents
-            << " ring_overflow_samples=" << ringOverflowSamples
-            << " unsafe_realtime_current=" << (unsafeRealtimeCallback ? 1 : 0)
-            << " unsafe_realtime_callbacks=" << unsafeRealtimeCallbacks
-            << " callback_priority="
-            << (callbackPriorityApplied ? "applied" : "failed")
-            << " worker_priority="
-            << workerPriorityStatusName(workerPriorityStatus)
-            << " finite_outputs=" << (allOutputSamplesFinite ? 1 : 0)
-            << std::scientific << std::setprecision(9)
-            << " reconstruction_max_abs=" << maxAbsReconstructionError
-            << " drums_max_abs=" << maxAbsRetainedStems[0]
-            << " bass_max_abs=" << maxAbsRetainedStems[1]
-            << " vocals_max_abs=" << maxAbsRetainedStems[2]
-            << " drums_bass_max_abs_diff=" << maxAbsRetainedPairDifferences[0]
-            << " drums_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[1]
-            << " bass_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[2]
-            << '\n';
+  std::cerr
+      << std::fixed << std::setprecision(3)
+      << "STEMGENRT_QUALIFICATION_SUMMARY status="
+      << (qualificationPassed ? "pass" : "fail")
+      << " warmup_callbacks=" << kWarmupBlocks
+      << " measured_callbacks=" << measureBlocks
+      << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")
+      << " ort_intra_op_threads_override=" << ortThreads
+      << " ort_intra_op_threads=" << processor.getConfiguredOrtIntraOpThreads()
+      << " callback_samples=" << kBlockSize
+      << " sample_rate=" << static_cast<int>(kSampleRate)
+      << " pdc_samples=" << processor.getLatencySamples()
+      << " deadline_us=" << callbackDeadlineMicroseconds
+      << " min_us=" << callbackTiming.minimum
+      << " mean_us=" << callbackTiming.mean << " p50_us=" << callbackTiming.p50
+      << " p95_us=" << callbackTiming.p95 << " p99_us=" << callbackTiming.p99
+      << " p99.9_us=" << callbackTiming.p999
+      << " max_us=" << callbackTiming.maximum
+      << " deadline_misses=" << completeCallbackDeadlineMisses
+      << " start_interarrival_min_us=" << startInterarrivalTiming.minimum
+      << " start_interarrival_mean_us=" << startInterarrivalTiming.mean
+      << " start_interarrival_p50_us=" << startInterarrivalTiming.p50
+      << " start_interarrival_p95_us=" << startInterarrivalTiming.p95
+      << " start_interarrival_p99_us=" << startInterarrivalTiming.p99
+      << " start_interarrival_p99.9_us=" << startInterarrivalTiming.p999
+      << " start_interarrival_max_us=" << startInterarrivalTiming.maximum
+      << " start_lateness_min_us=" << startLatenessTiming.minimum
+      << " start_lateness_mean_us=" << startLatenessTiming.mean
+      << " start_lateness_p50_us=" << startLatenessTiming.p50
+      << " start_lateness_p95_us=" << startLatenessTiming.p95
+      << " start_lateness_p99_us=" << startLatenessTiming.p99
+      << " start_lateness_p99.9_us=" << startLatenessTiming.p999
+      << " start_lateness_max_us=" << startLatenessTiming.maximum
+      << " start_deadline_misses=" << callbackStartDeadlineMisses
+      << " start_catchup_intervals=" << callbackStartCatchupIntervals
+      << " due_boundary_misses=" << dueBoundaryMisses
+      << " last_wait_us=" << lastWaitMicroseconds
+      << " max_wait_us=" << maximumWaitMicroseconds
+      << " wait_budget_us=" << audio_plugin::kAudioThreadWaitBudgetMicroseconds
+      << " underrun_samples_last_block=" << underrunSamplesInLastBlock
+      << " underrun_samples=" << underrunSamples
+      << " underrun_blocks=" << underrunBlocks
+      << " underrun_active=" << (underrunActive ? 1 : 0)
+      << " queue_full_drops=" << queueFullDrops
+      << " ring_overflow_events=" << ringOverflowEvents
+      << " ring_overflow_samples=" << ringOverflowSamples
+      << " unsafe_realtime_current=" << (unsafeRealtimeCallback ? 1 : 0)
+      << " unsafe_realtime_callbacks=" << unsafeRealtimeCallbacks
+      << " callback_priority="
+      << (callbackPriorityApplied ? "applied" : "failed")
+      << " worker_priority=" << workerPriorityStatusName(workerPriorityStatus)
+      << " finite_outputs=" << (allOutputSamplesFinite ? 1 : 0)
+      << std::scientific << std::setprecision(9)
+      << " reconstruction_max_abs=" << maxAbsReconstructionError
+      << " drums_max_abs=" << maxAbsRetainedStems[0]
+      << " bass_max_abs=" << maxAbsRetainedStems[1]
+      << " vocals_max_abs=" << maxAbsRetainedStems[2]
+      << " drums_bass_max_abs_diff=" << maxAbsRetainedPairDifferences[0]
+      << " drums_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[1]
+      << " bass_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[2]
+      << '\n';
 
   EXPECT_TRUE(allOutputSamplesFinite);
   EXPECT_GT(maxAbsRetainedStems[0], 1.0e-3f)

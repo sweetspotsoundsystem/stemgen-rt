@@ -175,28 +175,17 @@ static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 640);
 static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 791);
 static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1280);
 
-// Retain the user's existing two-thread macOS policy as the starting point.
-// The new graph still requires measurement on the actual Apple M4; a prior
-// model's thread sweep does not establish its timing. Other platforms keep
-// their existing cap. Explicit thread counts are benchmark overrides.
-#if defined(__APPLE__)
-constexpr int kOrtAutomaticIntraOpThreadCap = 2;
-#else
-constexpr int kOrtAutomaticIntraOpThreadCap = 4;
-#endif
+// Production inference runs entirely on its dedicated worker. Do not create
+// ORT helper threads based on the machine's core count. Explicit thread counts
+// remain diagnostic overrides and cannot qualify the production policy.
+constexpr int kOrtAutomaticIntraOpThreadCap = 1;
 
-constexpr int calculateAutomaticOrtIntraOpThreadCount(int hardwareThreads) {
-  const int safeHardwareThreads = hardwareThreads > 0 ? hardwareThreads : 1;
-  const int halfHardwareThreads = safeHardwareThreads / 2;
-  const int atLeastTwoThreads =
-      halfHardwareThreads > 2 ? halfHardwareThreads : 2;
-  return atLeastTwoThreads < kOrtAutomaticIntraOpThreadCap
-             ? atLeastTwoThreads
-             : kOrtAutomaticIntraOpThreadCap;
+constexpr int calculateAutomaticOrtIntraOpThreadCount(int /*hardwareThreads*/) {
+  return kOrtAutomaticIntraOpThreadCap;
 }
 
-static_assert(calculateAutomaticOrtIntraOpThreadCount(0) == 2);
-static_assert(calculateAutomaticOrtIntraOpThreadCount(4) == 2);
+static_assert(calculateAutomaticOrtIntraOpThreadCount(0) == 1);
+static_assert(calculateAutomaticOrtIntraOpThreadCount(4) == 1);
 static_assert(calculateAutomaticOrtIntraOpThreadCount(14) ==
               kOrtAutomaticIntraOpThreadCap);
 

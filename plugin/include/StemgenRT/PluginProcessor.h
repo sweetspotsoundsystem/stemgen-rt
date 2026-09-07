@@ -73,6 +73,7 @@ public:
   // Measurement only; call before the first prepareToPlay. Zero retains the
   // production policy, 1..4 select a fresh session's immutable thread count.
   bool setDiagnosticOrtIntraOpThreads(int count) noexcept;
+  int getConfiguredOrtIntraOpThreads() const noexcept;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -105,6 +106,7 @@ public:
   void resetStreamingBuffers();
 
 private:
+  friend class AudioPluginProcessorTestPeer;
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   // ONNX Runtime wrapper (handles the CPU session and persistent graph state)
   std::unique_ptr<OnnxRuntime> onnxRuntime_;

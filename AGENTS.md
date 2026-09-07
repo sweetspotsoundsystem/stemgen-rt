@@ -40,7 +40,7 @@ Only the inference worker advances/resets model state. Audio-thread resets inval
 - Keep raw input levels unchanged. Do not add per-hop normalization, external context/reflection padding, crossover reinjection, bass processing, input gates or output clipping.
 - Preserve all four graph outputs in `OnnxRuntime`. After the existing output confidence/recovery fade, `Other = Main - Drums - Bass - Vocals`. Complete fallback is zero Drums/Bass/Vocals and Main in Other.
 - Preserve the linked confidence envelope: instantaneous open, 50 ms hold, 60 dB/100 ms release, smoothstep from -96 to -72 dBFS peak. Changes need new numerical/listening evidence.
-- Retain the user's two-thread macOS ORT cap as the starting policy. Other platforms retain four. A previous model's timing does not qualify this one. Explicit thread overrides are for measurement.
+- Production inference uses one dedicated worker on every platform: ORT sequential execution, intra-op 1, inter-op 1, and spinning disabled. The user's single-thread request supersedes the earlier two-thread macOS/four-thread policy. Explicit overrides are for measurement only; qualification must report an actual configured count of one. A previous model's timing does not qualify this one.
 
 ## Verification
 

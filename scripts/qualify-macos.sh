@@ -350,6 +350,8 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
     fail "qualification must use an uninstrumented worker"
 [[ "$PACED_SUMMARY" == *" ort_intra_op_threads_override=0 "* ]] ||
     fail "qualification must use the production automatic thread policy"
+[[ "$PACED_SUMMARY" == *" ort_intra_op_threads=1 "* ]] ||
+    fail "qualification requires exactly one ORT inference thread"
 [[ "$PACED_SUMMARY" == *" callback_samples=${EXPECTED_CALLBACK_SAMPLES} "* ]] ||
     fail "paced summary callback size changed"
 [[ "$PACED_SUMMARY" == *" sample_rate=${EXPECTED_SAMPLE_RATE} "* ]] ||

@@ -407,12 +407,14 @@ TEST(OrtStreamingRuntimeTest, ExplicitIntraOpThreadOverrideMustBePositive) {
   EXPECT_FALSE(runtime.isModelLoaded());
 
   loadError.clear();
+  EXPECT_EQ(runtime.getConfiguredIntraOpThreadCount(), 0);
   const int aboveProductionCap =
       audio_plugin::kOrtAutomaticIntraOpThreadCap + 1;
   ASSERT_TRUE(runtime.loadModel(modelFile.getFullPathName(), loadError,
                                 aboveProductionCap))
       << loadError;
   ASSERT_TRUE(runtime.isModelLoaded());
+  EXPECT_EQ(runtime.getConfiguredIntraOpThreadCount(), aboveProductionCap);
   juce::String preparationError;
   ASSERT_TRUE(runtime.prepareForInference(preparationError))
       << preparationError;

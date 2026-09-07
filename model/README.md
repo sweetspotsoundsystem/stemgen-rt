@@ -22,6 +22,8 @@ The [matched comparison](validation/matched-quality-comparison.json) uses exactl
 
 ## Runtime evidence and limits
 
+The current production policy uses one dedicated inference worker, sequential ORT execution, one intra-op thread and one inter-op thread, with spinning disabled. Thread-count overrides remain diagnostic only. The worker owns graph state without a streaming mutex, uses a cached ORT API and disables denormals; the callback uses bounded queue ownership attempts. Startup requires a successful warmup. These changes do not qualify M4 timing or replace the historical measurements below. The one-thread build still needs the paced gate and installed-DAW check on the target machine.
+
 The [export verification](validation/export-verification.json) passes all six short comparisons of the original CPU PyTorch model, export copy and ORT, including nonzero state, reset, partial EOF and final-sample recovery.
 
 The [native Linux diagnostic](validation/native-linux-diagnostic.json) processes 75 seconds of continuous music from sample zero with no interior flush. All four stems in seconds 60–75 pass the unchanged waveform thresholds: maximum absolute error **1.812e-5** (limit 1e-4), maximum callback RMS **8.499e-6** (limit 1e-5). Every real input sample is recovered, with one graph flush and one queue drain. Physical samples map to callback samples plus **256**, and mixture reconstruction error is at most **1.491e-8**. All eight partial EOF cases and deterministic reset replays pass.

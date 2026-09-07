@@ -44,6 +44,8 @@ struct InferenceRequest {
   // True only when the graph result aligned to the preceding input sequence is
   // safe to publish. The first successful run after reset is invalid pre-roll.
   bool outputValid{false};
+  // Successful invalid pre-roll is distinct from an inference failure.
+  bool inferenceSucceeded{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};
   size_t hostOutputSampleCount{0};
@@ -131,7 +133,7 @@ public:
   }
 
   // Start/stop the background inference thread
-  void startThread(OnnxRuntime* runtime);
+  bool startThread(OnnxRuntime* runtime);
   void stopThread();
   bool isThreadRunning() const {
     return threadRunning_.load(std::memory_order_acquire);
@@ -204,6 +206,7 @@ private:
   };
 
   friend class InferenceQueueTestPeer;
+  friend class AudioPluginProcessorTestPeer;
 
   static constexpr uint64_t makeEpochControl(uint32_t epoch,
                                              size_t startIndex) {
@@ -217,7 +220,7 @@ private:
     return static_cast<size_t>(static_cast<uint32_t>(control));
   }
 
-  void startThreadWithCallbacks(WorkerCallbacks callbacks);
+  bool startThreadWithCallbacks(WorkerCallbacks callbacks);
   void inferenceThreadFunc(WorkerCallbacks callbacks);
   bool reclaimStaleSlots(uint64_t observedEpochControl);
   bool convertOutputToHost(InferenceRequest& request) noexcept;

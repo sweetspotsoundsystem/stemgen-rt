@@ -37,6 +37,17 @@ endif()
 # Thanks to the fact that we link against the gtest_main library, we don't have to write the main function ourselves.
 target_link_libraries(${PROJECT_NAME} PRIVATE AudioPlugin GTest::gtest_main)
 
+# Keep global allocator interception out of the normal/paced timing binary.
+set(REALTIME_SAFETY_SOURCES
+  source/RealtimeAllocationGuard.cpp
+  source/RealtimeSafetyTest.cpp)
+add_executable(RealtimeSafetyTest ${REALTIME_SAFETY_SOURCES})
+target_link_libraries(RealtimeSafetyTest PRIVATE AudioPlugin GTest::gtest_main)
+target_include_directories(RealtimeSafetyTest PRIVATE
+  ${GOOGLETEST_SOURCE_DIR}/googletest/include)
+set_source_files_properties(${REALTIME_SAFETY_SOURCES} PROPERTIES
+  COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
+
 # Enables strict C++ warnings and treats warnings as errors.
 # This needs to be set up only for your projects, not 3rd party
 set_source_files_properties(${SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
@@ -90,6 +101,8 @@ else()
   )
 endif()
 add_dependencies(${PROJECT_NAME}_BundleModel ${PROJECT_NAME})
+# Both test executables share an output directory, model and Windows ORT DLL.
+add_dependencies(RealtimeSafetyTest ${PROJECT_NAME}_BundleModel)
 
 # Add all tests defined with googletest to the CMake metadata
 # so that these tests are run upon a call to ctest in the test
@@ -102,6 +115,8 @@ if(CMAKE_GENERATOR STREQUAL Xcode)
   # Thus, we need to delay test discovery until run time.
   # Source: https://discourse.cmake.org/t/googletest-crash-when-using-cmake-xcode-arm64/5766/8
   gtest_discover_tests(${PROJECT_NAME} DISCOVERY_MODE PRE_TEST)
+  gtest_discover_tests(RealtimeSafetyTest DISCOVERY_MODE PRE_TEST)
 else()
   gtest_discover_tests(${PROJECT_NAME})
+  gtest_discover_tests(RealtimeSafetyTest)
 endif()
