@@ -418,18 +418,18 @@ TEST(InferenceQueueTest,
   EXPECT_TRUE(second->outputValid);
   EXPECT_TRUE(second->hostOutputValid);
   EXPECT_EQ(second->hostOutputStartSample, 0U);
-  EXPECT_EQ(second->hostOutputSampleCount, 279U);
+  EXPECT_EQ(second->hostOutputSampleCount, 140U);
   queue.releaseOutputSlot();
 
   InferenceRequest* third = waitForOutput(queue, epoch);
   ASSERT_NE(third, nullptr);
   EXPECT_TRUE(third->hostOutputValid);
-  EXPECT_EQ(third->hostOutputStartSample, 279U);
+  EXPECT_EQ(third->hostOutputStartSample, 140U);
   queue.releaseOutputSlot();
 
   // A sequence gap resets state and converter phase before processing the new
   // sequence. Sequence five is the new invalid pre-roll; sequence six emits
-  // frame five at absolute model sample 5 * 256 instead of reusing the prior
+  // frame five at absolute model sample 5 * 128 instead of reusing the prior
   // local converter phase.
   submit(queue, epoch, 5U);
   submit(queue, epoch, 6U);
@@ -445,7 +445,7 @@ TEST(InferenceQueueTest,
   EXPECT_EQ(next->chunkSequence, 6U);
   EXPECT_TRUE(next->outputValid);
   EXPECT_TRUE(next->hostOutputValid);
-  EXPECT_EQ(next->hostOutputStartSample, 1394U);
+  EXPECT_EQ(next->hostOutputStartSample, 697U);
   queue.releaseOutputSlot();
   queue.stopThread();
 }

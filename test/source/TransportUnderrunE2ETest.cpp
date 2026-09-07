@@ -152,11 +152,10 @@ TEST(TransportUnderrunE2ETest,
       for (int sample = 0; sample < main.getNumSamples(); ++sample) {
         const int64_t delayedSample = firstDelayedSample + sample;
         const float expectedMain =
-            channel == 0
-                ? sineAtSample(delayedSample, 73.0f, 0.30f) +
-                      sineAtSample(delayedSample, 509.0f, 0.20f)
-                : sineAtSample(delayedSample, 97.0f, 0.30f) +
-                      sineAtSample(delayedSample, 761.0f, 0.20f);
+            channel == 0 ? sineAtSample(delayedSample, 73.0f, 0.30f) +
+                               sineAtSample(delayedSample, 509.0f, 0.20f)
+                         : sineAtSample(delayedSample, 97.0f, 0.30f) +
+                               sineAtSample(delayedSample, 761.0f, 0.20f);
         const float drumsSample = drums.getSample(channel, sample);
         const float bassSample = bass.getSample(channel, sample);
         const float otherSample = other.getSample(channel, sample);
@@ -176,8 +175,8 @@ TEST(TransportUnderrunE2ETest,
   juce::AudioBuffer<float> flushSubmission(kTotalChannels, kBlockSize);
   flushSubmission.clear();
   processor.processBlock(flushSubmission, midiBuffer);
-  EXPECT_GT(expectSeparatedDelayedBlock(
-                flushSubmission, playbackSample - 2 * kBlockSize),
+  EXPECT_GT(expectSeparatedDelayedBlock(flushSubmission,
+                                        playbackSample - 2 * kBlockSize),
             1.0e-3f)
       << "The first stopped callback did not render the penultimate delayed "
          "hop while submitting the zero-input flush";
@@ -185,8 +184,7 @@ TEST(TransportUnderrunE2ETest,
   juce::AudioBuffer<float> finalTail(kTotalChannels, kBlockSize);
   finalTail.clear();
   processor.processBlock(finalTail, midiBuffer);
-  EXPECT_GT(expectSeparatedDelayedBlock(finalTail,
-                                       playbackSample - kBlockSize),
+  EXPECT_GT(expectSeparatedDelayedBlock(finalTail, playbackSample - kBlockSize),
             1.0e-3f)
       << "The callback after flush submission did not render c91's final "
          "separated hop";
@@ -220,7 +218,7 @@ TEST(TransportUnderrunE2ETest,
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kSmallBlockSize);
   EXPECT_EQ(processor.getPreparedHostBlockSize(), kSmallBlockSize);
-  ASSERT_EQ(processor.getLatencySamples(), 704)
+  ASSERT_EQ(processor.getLatencySamples(), 320)
       << processor.getOrtStatusString().toStdString();
   processor.releaseResources();
 }
@@ -281,7 +279,7 @@ TEST(TransportUnderrunE2ETest,
 
     const size_t unavailableSamples = processor.getUnderrunSamplesInLastBlock();
     if (unavailableSamples > 0) {
-      // Model output is hop-aligned and 64 divides 512, so a callback cannot
+      // Model output is hop-aligned and 64 divides 128, so a callback cannot
       // contain a partial model-availability transition in this scenario.
       ASSERT_EQ(unavailableSamples, static_cast<size_t>(kActualBlockSize));
     }
@@ -420,14 +418,12 @@ TEST(TransportUnderrunE2ETest,
                        std::abs(mainBus.getSample(channel, sample) -
                                 (drums + bass + other + vocals)));
           if (outputSample >= kMeasurementStartSample &&
-              callbackSize !=
-                  audio_plugin::kAsyncQualifiedHostBlockSize) {
+              callbackSize != audio_plugin::kAsyncQualifiedHostBlockSize) {
             maximumMismatchedCallbackRetainedStemMagnitude =
                 std::max(maximumMismatchedCallbackRetainedStemMagnitude,
                          std::abs(drums));
-            maximumMismatchedCallbackRetainedStemMagnitude =
-                std::max(maximumMismatchedCallbackRetainedStemMagnitude,
-                         std::abs(bass));
+            maximumMismatchedCallbackRetainedStemMagnitude = std::max(
+                maximumMismatchedCallbackRetainedStemMagnitude, std::abs(bass));
             maximumMismatchedCallbackRetainedStemMagnitude =
                 std::max(maximumMismatchedCallbackRetainedStemMagnitude,
                          std::abs(vocals));

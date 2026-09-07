@@ -16,8 +16,8 @@ constexpr int kStemBass = qualified_model::kBassSourceIndex;
 constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
-// Fixed model contract. The graph consumes one 256-sample hop and emits the
-// preceding hop while carrying 768-sample audio history, fusion-GRU and both
+// Fixed model contract. The graph consumes one 128-sample hop and emits the
+// preceding hop while carrying 896-sample audio history, fusion-GRU and both
 // overlap tails.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
@@ -31,13 +31,12 @@ constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 // publish that result for the following callback, so total PDC is two hops.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
-constexpr int kAsyncQueueDelayChunks =
-    qualified_model::kAsyncQueueDelayChunks;
+constexpr int kAsyncQueueDelayChunks = qualified_model::kAsyncQueueDelayChunks;
 constexpr int kPluginLatencyChunks = qualified_model::kPluginLatencyChunks;
 constexpr int kPluginLatencySamples = qualified_model::kPluginLatencySamples;
 
 // The graph clock is fixed at 44.1 kHz. Host blocks are accumulated onto its
-// 256-sample clock; prepareToPlay reports their complete scheduling reserve.
+// 128-sample clock; prepareToPlay reports their complete scheduling reserve.
 constexpr int kAsyncQualifiedHostSampleRate = kModelSampleRate;
 constexpr int kAsyncQualifiedHostBlockSize = kOutputChunkSize;
 
@@ -87,7 +86,7 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
 }
 
 // Include graph lookahead, host accumulation phase and a full worker reserve.
-// A matching 256-sample host hop needs 512 samples; other blocks report the
+// A matching 128-sample host hop needs 256 samples; other blocks report the
 // additional reserve rather than claiming the same latency.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
@@ -143,23 +142,23 @@ constexpr int calculatePluginLatencySamples(int hostSampleRate,
   return schedulingLatency + safeConversionDelay;
 }
 
-static_assert(kAnalysisWindowSize == 4 * kOutputChunkSize);
+static_assert(kAnalysisWindowSize == 8 * kOutputChunkSize);
 static_assert(kAnalysisHistorySize + kOutputChunkSize == kAnalysisWindowSize);
 static_assert(kSynthesisFrameSize == 2 * kOutputChunkSize);
 static_assert(kModelSampleRate == 44100);
-static_assert(kOutputChunkSize == 256);
+static_assert(kOutputChunkSize == 128);
 static_assert(kPluginLatencyChunks ==
               kModelOutputDelayChunks + kAsyncQueueDelayChunks);
 static_assert(kPluginLatencySamples == kPluginLatencyChunks * kOutputChunkSize);
 static_assert(kPluginLatencyChunks == 2);
-static_assert(kPluginLatencySamples == 512);
-static_assert(calculatePluginLatencySamples(32) == 736);
-static_assert(calculatePluginLatencySamples(64) == 704);
-static_assert(calculatePluginLatencySamples(128) == 640);
-static_assert(calculatePluginLatencySamples(256) == 512);
-static_assert(calculatePluginLatencySamples(512) == 768);
-static_assert(calculatePluginLatencySamples(768) == 1024);
-static_assert(calculatePluginLatencySamples(1024) == 1280);
+static_assert(kPluginLatencySamples == 256);
+static_assert(calculatePluginLatencySamples(32) == 352);
+static_assert(calculatePluginLatencySamples(64) == 320);
+static_assert(calculatePluginLatencySamples(128) == 256);
+static_assert(calculatePluginLatencySamples(256) == 384);
+static_assert(calculatePluginLatencySamples(512) == 640);
+static_assert(calculatePluginLatencySamples(768) == 896);
+static_assert(calculatePluginLatencySamples(1024) == 1152);
 static_assert(kModelOutputDelayChunks == 1);
 static_assert(kAsyncQueueDelayChunks == 1);
 static_assert(isQualifiedAsyncHostConfiguration(44100, 256));
@@ -171,10 +170,10 @@ static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));
 static_assert(!isQualifiedHostSampleRate(48001));
-static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 704);
-static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 768);
-static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1070);
-static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1536);
+static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 320);
+static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 640);
+static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 791);
+static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1280);
 
 // Retain the user's existing two-thread macOS policy as the starting point.
 // The new graph still requires measurement on the actual Apple M4; a prior

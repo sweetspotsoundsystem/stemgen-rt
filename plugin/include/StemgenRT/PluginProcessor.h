@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // The graph emits the previous hop. With 256-sample host blocks, the worker
-  // has one additional hop to publish, for 512-sample (11.61 ms) PDC.
+  // The graph emits the previous hop. With 128-sample host blocks, the worker
+  // has one additional hop to publish, for 256-sample (5.80 ms) PDC.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.

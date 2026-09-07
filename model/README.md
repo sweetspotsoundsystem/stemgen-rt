@@ -1,29 +1,33 @@
-# Bundled model
+# Bundled experimental model
 
-The payload is the exact **Raw L1 +250 cropped1024** export accepted in the research listening comparison: 250 additional raw-four L1 updates from the 2000-update parent, 2250 total. No new training or graph rewriting was performed for this plugin integration.
+This is the asymmetric-window hop128 endpoint after 500 adaptation updates and 250 matched teacher updates, 5000 total updates in its full ancestry. The frozen accepted 11.6 ms model provided an additional native-output L1 target at weight 0.5 during training. The teacher is absent from inference. Listening acceptance and Apple M4 timing are pending.
 
 | Identity | Value |
 | --- | --- |
-| ONNX SHA-256 | `4a43cf08a088938c8d0f4be5f15ce7c6aa78d82bbd9eeec952b2fad15032598e` |
-| ONNX size | 114,414,055 bytes |
-| Checkpoint SHA-256 | `ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65` |
-| Tensor-state SHA-256 | `a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4` |
-| Architecture | `ola-cropped1024-hann512-hop256-v1` |
-| Sample rate / hop | 44,100 Hz / 256 samples |
-| Graph / queue delay | 256 / 256 samples at the matching host block |
+| ONNX SHA-256 | `6f380e2a1e5e644b0222ff61450a8222af41ca5c51a668a360b1de2f4e6829c7` |
+| ONNX size | 111,342,157 bytes |
+| Checkpoint SHA-256 | `05a973af6efa3482e759f63cb3d268646a80f547a3bdc13679f0e228efba6222` |
+| Tensor-state SHA-256 | `1daa6edb7be90eb641817b788b5540c89de57b125e454bdf463469ffcd3366ea` |
+| Architecture | `cropped1024-asymmetric256-hop128-v1` |
+| Sample rate / hop | 44,100 Hz / 128 samples |
+| Graph / queue delay | 128 / 128 samples at a matching host block |
 
-The [CMake contract](../cmake/QualifiedModelContract.cmake) owns build/runtime identity and interface values. `QUALIFIED` in those variable names is inherited terminology; neither the filename nor the graph's frozen metadata represents M4 DAW qualification.
+The [CMake contract](../cmake/QualifiedModelContract.cmake) owns build/runtime identity and interface values. Its historical `QUALIFIED` names are an identity lock; they do not certify M4 DAW performance. The checkpoint's [canonical metadata receipt](validation/canonical-checkpoint.json) corrects four inherited lineage descriptions and proves every tensor bit-exact to the scored endpoint.
 
-## Evidence and limits
+## Quality
 
-The [original export verification](validation/export-verification.json) passed six three-way comparisons of the original PyTorch model, export copy and ORT, with exact reset replays. The graph preserves the four complete deployed outputs, including Other. The original research native harness recovered all real samples at eight partial EOF lengths with one graph flush and one queue drain. Four-stem error on the audition after its continuous input lead-in was at most 9.425e-6 per sample and 4.550e-6 callback RMS.
+The fixed 14-track full/low/SIR macro scores are **3.846589 / 2.772156 / 6.700406 dB**. Differences against the accepted 11.6 ms model are **-0.211127 / -0.237271 / -0.613642 dB**, each with a negative paired 95% interval.
 
-The user reported that the bass buzzing was gone and that the labelled Actions 60–75 second audition sounded like c91. That is scoped listening acceptance. The 14-track full/low/SIR macro deltas against c91 were **-0.201273 / -0.286965 / -0.355305 dB**, each with a negative paired 95% interval. The candidate is not dataset-wide numerical equivalence to c91.
+The [matched comparison](validation/matched-quality-comparison.json) uses exactly the same 250 augmented batches and learning rates for teacher and weight-zero control. Teacher-minus-control full/low SDR differences are **+0.033602 / +0.047605 dB**, with paired intervals **[+0.005419,+0.062447] / [+0.018561,+0.076508]**. The **+0.045516 dB** SIR difference has an interval crossing zero. Bass probes are mixed: relative unexplained energy on hop-frequency tones remains **4.1271 dB** above the accepted model. These measurements do not establish preserved audible bass fidelity.
 
-Longer Linux research timing runs had **96 missed outputs with two threads** and **100 with four threads**, each over 8192 callbacks. A shorter two-thread pass did not override those failures. The user identified Apple M4 as the deployment target and accepted ending Linux tuning. M4 parity, timing under DAW load, AU/VST3 scanning and installed-plugin listening remain target-machine checks.
+## Runtime evidence and limits
 
-Plugin integration adds an independent [synthetic PyTorch oracle](../test/fixtures/cropped1024-pytorch.json), generated directly from the authenticated checkpoint without ONNX. It verifies all four native outputs and actual Main/stem buses at lengths 1, 255, 256, 257, 511, 512, 513 and 16521, with fixed/variable offline buffers and partial stopped callbacks. The per-stem maximum-error gate is 1e-5; Main uses 1e-7 and mixture reconstruction 1e-6. The existing 64-sample recovery fade is accounted for explicitly.
+The [export verification](validation/export-verification.json) passes all six short comparisons of the original CPU PyTorch model, export copy and ORT, including nonzero state, reset, partial EOF and final-sample recovery.
 
-Run `CroppedModelParityTest.*` for these integration checks. Use `scripts/qualify-macos.sh` for a fresh native Mac build and paced timing evidence. Passing portable tests or CI builds alone does not establish actual M4 real-time performance.
+The [native Linux diagnostic](validation/native-linux-diagnostic.json) processes 75 seconds of continuous music from sample zero with no interior flush. All four stems in seconds 60–75 pass the unchanged waveform thresholds: maximum absolute error **1.812e-5** (limit 1e-4), maximum callback RMS **8.499e-6** (limit 1e-5). Every real input sample is recovered, with one graph flush and one queue drain. Physical samples map to callback samples plus **256**, and mixture reconstruction error is at most **1.491e-8**. All eight partial EOF cases and deterministic reset replays pass.
 
-The original checkpoint and c91 research reference remain unchanged. This PR replaces only the bundled plugin graph and its deployment contract.
+The same run **fails realtime timing and paced correctness on Linux**: median worker inference is **3.893 ms**, exceeding the **2.902494 ms** deadline. It records **646 missed observed output boundaries**, queue drops and sequence gaps. Its [actual exit code is 3](validation/native-linux-execution.json); the overall native result remains failed. Offline mapping and waveform agreement do not override that failure. The user identified Apple M4 as the target and accepted ending Linux tuning.
+
+The independently regenerated [synthetic PyTorch fixtures](../test/fixtures/cropped1024-pytorch.json) cover lengths 1, 127, 128, 129, 255, 256, 257 and 16521. Their generator authenticates the canonical checkpoint and research sources, runs CPU FP32 with zero state and exactly one flush, and never uses ORT as an oracle. Plugin tests retain all-four-stem and actual output-bus checks, including variable offline callbacks and the existing 64-sample recovery fade. The Release build and fixture generation pass. [Linux integration validation](validation/linux-plugin-validation.json) records 150 distinct passing checks, one platform-specific skip and seven opt-in tests disabled. The first full suite found five stale geometry/metadata fixture expectations; all five corrected checks and both native/bus parity checks pass on the rebuilt final binary. Production code is identical across those test runs.
+
+Run `CroppedModelParityTest.*` for integration checks and `scripts/qualify-macos.sh` for a fresh native Mac build and paced timing evidence. An installed-plugin check under representative DAW load and listening acceptance remain required. The accepted model and its working 11.6 ms branch remain available unchanged.

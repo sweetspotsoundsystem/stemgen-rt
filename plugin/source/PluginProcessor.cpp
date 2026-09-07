@@ -132,8 +132,8 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
           sampleRateError.isNotEmpty()
               ? sampleRateError
               : juce::String(
-                    "The model needs a 44.1 kHz session. A 256-sample buffer "
-                    "gives 11.61 ms latency."));
+                    "The model needs a 44.1 kHz session. A 128-sample buffer "
+                    "gives 5.80 ms latency."));
     }
     juce::String modelLoadError;
     {
@@ -277,8 +277,7 @@ int AudioPluginAudioProcessor::getLastSameCallbackWaitMicroseconds() const {
 }
 
 int AudioPluginAudioProcessor::getMaximumSameCallbackWaitMicroseconds() const {
-  return maximumSameCallbackWaitMicroseconds_.load(
-      std::memory_order_acquire);
+  return maximumSameCallbackWaitMicroseconds_.load(std::memory_order_acquire);
 }
 
 InferenceQueue::WorkerPriorityStatus
@@ -950,9 +949,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       } else {
         const uint64_t latency = static_cast<uint64_t>(
             activeLatencySamples_.load(std::memory_order_acquire));
-        schedulePlan = planModelOutputSchedule(
-            consumeRequest->chunkSequence, latency, outputTimelineSample,
-            outRingSize);
+        schedulePlan =
+            planModelOutputSchedule(consumeRequest->chunkSequence, latency,
+                                    outputTimelineSample, outRingSize);
       }
 
       if (requireCompleteCurrentHop) {
@@ -964,8 +963,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           return true;
         }
       } else {
-        if (schedulePlan.action ==
-            ModelOutputScheduleAction::kWaitForHorizon) {
+        if (schedulePlan.action == ModelOutputScheduleAction::kWaitForHorizon) {
           // Keep Reading ownership and retry this exact range after the bounded
           // ring horizon advances.
           return false;
@@ -979,8 +977,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
 
       if (!overlapAdd_.canScheduleModelOutput(
-              schedulePlan.scheduleTimelineSample,
-              schedulePlan.sampleCount)) {
+              schedulePlan.scheduleTimelineSample, schedulePlan.sampleCount)) {
         // A same-timeline collision is a duplicate/corrupt result. Preserve the
         // first publication and discard this one instead of shifting either.
         ++ringOverflowEventsThisBlock;
@@ -1072,9 +1069,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           continue;
         }
 
-        const AsyncDueResultPlan duePlan = planAsyncDueResult(
-            dueSequence, consumeRequest->chunkSequence,
-            consumeRequest->outputValid);
+        const AsyncDueResultPlan duePlan =
+            planAsyncDueResult(dueSequence, consumeRequest->chunkSequence,
+                               consumeRequest->outputValid);
         if (duePlan.action == AsyncDueResultAction::kDiscardLate) {
           ++ringOverflowEventsThisBlock;
           ringOverflowSamplesDroppedThisBlock +=

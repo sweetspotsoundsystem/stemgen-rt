@@ -133,7 +133,7 @@ if [[ -f HANDOFF_CONTENTS.sha256 && ! -L HANDOFF_CONTENTS.sha256 ]]; then
     fi
     cp HANDOFF_CONTENTS.sha256 "$EVIDENCE_DIR/input-handoff-contents.sha256"
     cp SOURCE_PROVENANCE.txt "$EVIDENCE_DIR/input-source-provenance.txt"
-    printf '%s  cropped1024-11ms-source.tar.gz\n' "$HANDOFF_ARCHIVE_SHA256" \
+    printf '%s  hop128-5ms-source.tar.gz\n' "$HANDOFF_ARCHIVE_SHA256" \
         > "$EVIDENCE_DIR/input-handoff-archive.sha256"
     HANDOFF_MANIFEST_SHA256="$(shasum -a 256 HANDOFF_CONTENTS.sha256 | awk '{print $1}')"
     printf '%s\n' "sealed_archive_manifest" > "$EVIDENCE_DIR/source-provenance.txt"

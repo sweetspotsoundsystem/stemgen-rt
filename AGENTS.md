@@ -1,6 +1,6 @@
 # Working on StemgenRT
 
-StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. This branch integrates the user-accepted cropped1024 Raw L1 +250 model (2250 total updates). Its 256-sample graph delay plus 256 samples of asynchronous scheduling gives 512 samples / 11.61 ms at a 44.1 kHz / 256-sample prepared host configuration. Apple M4 DAW timing is pending; the model contract's historical `QUALIFIED` variable prefix is an identity/ABI lock, not proof of platform qualification.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. This experimental branch integrates the asymmetric-window hop128 teacher endpoint (5000 total updates). Its 128-sample graph delay plus 128 samples of asynchronous scheduling gives 256 samples / 5.80 ms at a 44.1 kHz / 128-sample prepared host configuration. Long native waveform parity passes; Linux realtime timing fails. Quality and listening acceptance and Apple M4 DAW timing are pending. The model contract's historical `QUALIFIED` variable prefix is an identity/ABI lock, not proof of platform qualification.
 
 ## Commands
 
@@ -17,15 +17,15 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 46 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 55 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |
-| `audio_chunk` | `[1,2,256]` | `separated_chunk`: `[1,4,2,256]` |
-| `audio_history` | `[1,2,768]` | `next_audio_history`: same shape |
+| `audio_chunk` | `[1,2,128]` | `separated_chunk`: `[1,4,2,128]` |
+| `audio_history` | `[1,2,896]` | `next_audio_history`: same shape |
 | `fusion_hidden` | `[2,1,1000]` | `next_fusion_hidden`: same shape |
-| `spectral_numerator_tail` | `[1,4,2,256]` | `next_spectral_numerator_tail`: same shape |
-| `waveform_tail` | `[1,4,2,256]` | `next_waveform_tail`: same shape |
+| `spectral_numerator_tail` | `[1,4,2,128]` | `next_spectral_numerator_tail`: same shape |
+| `waveform_tail` | `[1,4,2,128]` | `next_waveform_tail`: same shape |
 
 Initialize all four states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not import the old c91 three-state ABI, reuse its history, or add a second graph flush.
 

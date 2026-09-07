@@ -313,7 +313,7 @@ TEST(QualifiedModelContractTest,
 
   ASSERT_EQ(contract::kInputNames.size(), 5U);
   ASSERT_EQ(contract::kOutputNames.size(), 5U);
-  ASSERT_EQ(contract::kMetadata.size(), 46U);
+  ASSERT_EQ(contract::kMetadata.size(), 55U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -537,8 +537,7 @@ TEST(OrtStreamingRuntimeTest,
 
     EXPECT_FLOAT_EQ(
         maxChunkDifference(referenceAligned, previousReferenceInput), 0.0f);
-    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, previousQuietInput),
-                    0.0f);
+    EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, previousQuietInput), 0.0f);
     EXPECT_FLOAT_EQ(
         maxChunkDifference(veryQuietAligned, previousVeryQuietInput), 0.0f);
     EXPECT_TRUE(std::isfinite(maxAbsoluteValue(referenceSeparated)));
@@ -576,15 +575,14 @@ TEST(OrtStreamingRuntimeTest,
   EXPECT_FLOAT_EQ(maxChunkDifference(referenceAligned, previousReferenceInput),
                   0.0f);
   EXPECT_FLOAT_EQ(maxChunkDifference(quietAligned, previousQuietInput), 0.0f);
-  EXPECT_FLOAT_EQ(
-      maxChunkDifference(veryQuietAligned, previousVeryQuietInput), 0.0f);
+  EXPECT_FLOAT_EQ(maxChunkDifference(veryQuietAligned, previousVeryQuietInput),
+                  0.0f);
   EXPECT_LE(maxMixtureReconstructionError(referenceSeparated, referenceAligned),
             1.0e-6f);
   EXPECT_LE(maxMixtureReconstructionError(quietSeparated, quietAligned),
             1.0e-6f);
-  EXPECT_LE(
-      maxMixtureReconstructionError(veryQuietSeparated, veryQuietAligned),
-      1.0e-6f);
+  EXPECT_LE(maxMixtureReconstructionError(veryQuietSeparated, veryQuietAligned),
+            1.0e-6f);
   for (size_t stem = 0; stem < referenceStemPeaks.size(); ++stem) {
     referenceStemPeaks[stem] =
         std::max(referenceStemPeaks[stem],
@@ -625,28 +623,27 @@ TEST(OrtStreamingRuntimeTest,
 
   for (size_t hop = 0; hop < kWarmupHops + kMeasuredHops; ++hop) {
     AudioChunk input = makeZeroAudioChunk();
-    for (size_t i = 0;
-         i < static_cast<size_t>(audio_plugin::kOutputChunkSize); ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(audio_plugin::kOutputChunkSize);
+         ++i) {
       const auto sampleIndex =
           hop * static_cast<size_t>(audio_plugin::kOutputChunkSize) + i;
-      const double phase =
-          kTwoPi * kFrequencyHz * static_cast<double>(sampleIndex) /
-          static_cast<double>(audio_plugin::kModelSampleRate);
+      const double phase = kTwoPi * kFrequencyHz *
+                           static_cast<double>(sampleIndex) /
+                           static_cast<double>(audio_plugin::kModelSampleRate);
       const float sample = kInputPeak * static_cast<float>(std::sin(phase));
       input[0][i] = sample;
       input[1][i] = sample;
     }
 
-    ASSERT_TRUE(
-        runtime.runInference(input, separated, aligned, outputValid));
+    ASSERT_TRUE(runtime.runInference(input, separated, aligned, outputValid));
     if (hop == 0U) {
       ASSERT_FALSE(outputValid);
       continue;
     }
     ASSERT_TRUE(outputValid);
     if (hop >= kWarmupHops) {
-      for (size_t measuredStem = 0;
-           measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
+      for (size_t measuredStem = 0; measuredStem < kMeasuredStemIndices.size();
+           ++measuredStem) {
         const size_t stem = kMeasuredStemIndices[measuredStem];
         for (size_t ch = 0;
              ch < static_cast<size_t>(audio_plugin::kNumChannels); ++ch) {
@@ -676,13 +673,13 @@ TEST(OrtStreamingRuntimeTest,
   // large periodic boundary derivative observed in the no-OLA c126 graph.
   // These are listening-regression ceilings; target-hardware promotion also
   // compares p95/p99 target-relative boundary errors to the frozen c91 corpus.
-  for (size_t measuredStem = 0;
-       measuredStem < kMeasuredStemIndices.size(); ++measuredStem) {
+  for (size_t measuredStem = 0; measuredStem < kMeasuredStemIndices.size();
+       ++measuredStem) {
     ASSERT_GT(boundaryCounts[measuredStem], 0U);
     ASSERT_GT(internalCounts[measuredStem], 0U);
-    const double boundaryRms = std::sqrt(
-        boundarySumSquares[measuredStem] /
-        static_cast<double>(boundaryCounts[measuredStem]));
+    const double boundaryRms =
+        std::sqrt(boundarySumSquares[measuredStem] /
+                  static_cast<double>(boundaryCounts[measuredStem]));
     const double internalRms =
         std::sqrt(internalSumSquares[measuredStem] /
                   static_cast<double>(internalCounts[measuredStem]));
@@ -780,8 +777,7 @@ TEST(OrtStreamingRuntimeTest,
         referenceInput, referenceSeparated, referenceAligned, referenceValid));
     ASSERT_TRUE(quietRuntime.runInference(quietInput, quietSeparated,
                                           quietAligned, quietValid));
-    verifyResult(previousReferenceInput, previousQuietInput,
-                 havePreviousInput);
+    verifyResult(previousReferenceInput, previousQuietInput, havePreviousInput);
     previousReferenceInput = referenceInput;
     previousQuietInput = quietInput;
     havePreviousInput = true;
@@ -835,8 +831,8 @@ TEST(OrtStreamingRuntimeTest,
   ASSERT_FLOAT_EQ(maxChunkDifference(baselineAligned, first), 0.0f);
   const SeparatedChunk baselineFirstSeparated = baselineSeparated;
   const AudioChunk zero = makeZeroAudioChunk();
-  ASSERT_TRUE(baselineRuntime.runInference(
-      zero, baselineSeparated, baselineAligned, baselineValid));
+  ASSERT_TRUE(baselineRuntime.runInference(zero, baselineSeparated,
+                                           baselineAligned, baselineValid));
   ASSERT_TRUE(baselineValid);
   ASSERT_FLOAT_EQ(maxChunkDifference(baselineAligned, second), 0.0f);
   const SeparatedChunk baselineSecondSeparated = baselineSeparated;

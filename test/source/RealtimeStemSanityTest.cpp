@@ -144,8 +144,8 @@ bool configureAndVerifyCallbackThreadPriority() noexcept {
 
   qos_class_t observedClass{};
   int relativePriority = 0;
-  const int getResult = pthread_get_qos_class_np(
-      pthread_self(), &observedClass, &relativePriority);
+  const int getResult = pthread_get_qos_class_np(pthread_self(), &observedClass,
+                                                 &relativePriority);
   return getResult == 0 && observedClass == QOS_CLASS_USER_INTERACTIVE;
 #else
   return false;
@@ -155,7 +155,7 @@ bool configureAndVerifyCallbackThreadPriority() noexcept {
 }  // namespace
 
 // Explicit production-style asynchronous qualification soak. This remains
-// disabled by default because 10,000 paced callbacks take almost two minutes
+// disabled by default because 10,000 paced callbacks take about 29 seconds
 // at 44.1 kHz. Complete fallback routes the mixture only to Other, so every
 // retained model source must become observably nonzero and distinct.
 TEST(RealtimeStemSanityTest,
@@ -175,8 +175,8 @@ TEST(RealtimeStemSanityTest,
   ASSERT_GT(processor.getLatencySamples(), 0)
       << "Qualified model/runtime failed to load: "
       << processor.getOrtStatusString().toStdString();
-  ASSERT_EQ(processor.getLatencySamples(), 512)
-      << "The c91 candidate must expose graph delay 1 + queue delay 1";
+  ASSERT_EQ(processor.getLatencySamples(), 256)
+      << "The hop128 candidate must expose graph delay 1 + queue delay 1";
   ASSERT_EQ(processor.getLatencySamples(), audio_plugin::kPluginLatencySamples);
 
   juce::MidiBuffer midiBuffer;
@@ -193,8 +193,7 @@ TEST(RealtimeStemSanityTest,
   callbackStartInterarrivalMicroseconds.reserve(
       static_cast<size_t>(measureBlocks));
   std::vector<double> callbackStartLatenessMicroseconds;
-  callbackStartLatenessMicroseconds.reserve(
-      static_cast<size_t>(measureBlocks));
+  callbackStartLatenessMicroseconds.reserve(static_cast<size_t>(measureBlocks));
   uint64_t completeCallbackDeadlineMisses = 0U;
   uint64_t callbackStartDeadlineMisses = 0U;
   uint64_t callbackStartCatchupIntervals = 0U;
@@ -234,7 +233,7 @@ TEST(RealtimeStemSanityTest,
     if (b >= kWarmupBlocks) {
       const double startLatenessMicroseconds =
           std::chrono::duration<double, std::micro>(processStarted -
-                                                   scheduledCallbackStart)
+                                                    scheduledCallbackStart)
               .count();
       callbackStartLatenessMicroseconds.push_back(startLatenessMicroseconds);
       if (processStarted - scheduledCallbackStart > blockDuration) {
@@ -244,7 +243,7 @@ TEST(RealtimeStemSanityTest,
       if (havePreviousCallbackStart) {
         const double interarrivalMicroseconds =
             std::chrono::duration<double, std::micro>(processStarted -
-                                                     previousCallbackStart)
+                                                      previousCallbackStart)
                 .count();
         callbackStartInterarrivalMicroseconds.push_back(
             interarrivalMicroseconds);
@@ -254,8 +253,8 @@ TEST(RealtimeStemSanityTest,
       }
 
       const double processMicroseconds =
-          std::chrono::duration<double, std::micro>(
-              processFinished - processStarted)
+          std::chrono::duration<double, std::micro>(processFinished -
+                                                    processStarted)
               .count();
       completeCallbackMicroseconds.push_back(processMicroseconds);
       if (processFinished - processStarted > blockDuration) {
@@ -280,10 +279,9 @@ TEST(RealtimeStemSanityTest,
           const float v = vocalsBus.getSample(ch, i);
           const float main = mainBus.getSample(ch, i);
 
-          allOutputSamplesFinite =
-              allOutputSamplesFinite && std::isfinite(d) &&
-              std::isfinite(b0) && std::isfinite(o) && std::isfinite(v) &&
-              std::isfinite(main);
+          allOutputSamplesFinite = allOutputSamplesFinite && std::isfinite(d) &&
+                                   std::isfinite(b0) && std::isfinite(o) &&
+                                   std::isfinite(v) && std::isfinite(main);
 
           maxAbsRetainedStems[0] =
               std::max(maxAbsRetainedStems[0], std::abs(d));
@@ -291,15 +289,14 @@ TEST(RealtimeStemSanityTest,
               std::max(maxAbsRetainedStems[1], std::abs(b0));
           maxAbsRetainedStems[2] =
               std::max(maxAbsRetainedStems[2], std::abs(v));
-          maxAbsRetainedPairDifferences[0] = std::max(
-              maxAbsRetainedPairDifferences[0], std::abs(d - b0));
+          maxAbsRetainedPairDifferences[0] =
+              std::max(maxAbsRetainedPairDifferences[0], std::abs(d - b0));
           maxAbsRetainedPairDifferences[1] =
               std::max(maxAbsRetainedPairDifferences[1], std::abs(d - v));
           maxAbsRetainedPairDifferences[2] =
               std::max(maxAbsRetainedPairDifferences[2], std::abs(b0 - v));
-          maxAbsReconstructionError =
-              std::max(maxAbsReconstructionError,
-                       std::abs(main - (d + b0 + o + v)));
+          maxAbsReconstructionError = std::max(
+              maxAbsReconstructionError, std::abs(main - (d + b0 + o + v)));
         }
       }
     }
@@ -308,7 +305,7 @@ TEST(RealtimeStemSanityTest,
 
     sampleIndex += buffer.getNumSamples();
 
-    // Pace at the real 512-sample callback interval. The worker has one full
+    // Pace at the real 128-sample callback interval. The worker has one full
     // callback period to publish each request for the following boundary;
     // processBlock itself must never wait for inference.
     scheduledCallbackStart += blockDurationTicks;
@@ -342,8 +339,7 @@ TEST(RealtimeStemSanityTest,
       processor.isRealtimeCallbackTimingUnsafe();
   const uint64_t unsafeRealtimeCallbacks =
       processor.getUnsafeRealtimeCallbackCount();
-  const uint64_t dueBoundaryMisses =
-      processor.getSameCallbackTimeoutCount();
+  const uint64_t dueBoundaryMisses = processor.getSameCallbackTimeoutCount();
   const int lastWaitMicroseconds =
       processor.getLastSameCallbackWaitMicroseconds();
   const int maximumWaitMicroseconds =
@@ -356,10 +352,10 @@ TEST(RealtimeStemSanityTest,
   const bool retainedSourcesPresent =
       std::all_of(maxAbsRetainedStems.begin(), maxAbsRetainedStems.end(),
                   [](float peak) { return peak > 1.0e-3f; });
-  const bool retainedSourcesDistinct = std::all_of(
-      maxAbsRetainedPairDifferences.begin(),
-      maxAbsRetainedPairDifferences.end(),
-      [](float difference) { return difference > 1.0e-5f; });
+  const bool retainedSourcesDistinct =
+      std::all_of(maxAbsRetainedPairDifferences.begin(),
+                  maxAbsRetainedPairDifferences.end(),
+                  [](float difference) { return difference > 1.0e-5f; });
   const bool qualificationPassed =
       completeCallbackDeadlineMisses == 0U &&
       callbackStartDeadlineMisses == 0U &&
@@ -375,8 +371,7 @@ TEST(RealtimeStemSanityTest,
       !unsafeRealtimeCallback && unsafeRealtimeCallbacks == 0U &&
       callbackPriorityApplied && workerPriorityApplied &&
       allOutputSamplesFinite && retainedSourcesPresent &&
-      retainedSourcesDistinct &&
-      maxAbsReconstructionError <= 1.0e-6f;
+      retainedSourcesDistinct && maxAbsReconstructionError <= 1.0e-6f;
 
   std::cerr << std::fixed << std::setprecision(3)
             << "STEMGENRT_QUALIFICATION_SUMMARY status="
@@ -395,17 +390,13 @@ TEST(RealtimeStemSanityTest,
             << " p99.9_us=" << callbackTiming.p999
             << " max_us=" << callbackTiming.maximum
             << " deadline_misses=" << completeCallbackDeadlineMisses
-            << " start_interarrival_min_us="
-            << startInterarrivalTiming.minimum
-            << " start_interarrival_mean_us="
-            << startInterarrivalTiming.mean
+            << " start_interarrival_min_us=" << startInterarrivalTiming.minimum
+            << " start_interarrival_mean_us=" << startInterarrivalTiming.mean
             << " start_interarrival_p50_us=" << startInterarrivalTiming.p50
             << " start_interarrival_p95_us=" << startInterarrivalTiming.p95
             << " start_interarrival_p99_us=" << startInterarrivalTiming.p99
-            << " start_interarrival_p99.9_us="
-            << startInterarrivalTiming.p999
-            << " start_interarrival_max_us="
-            << startInterarrivalTiming.maximum
+            << " start_interarrival_p99.9_us=" << startInterarrivalTiming.p999
+            << " start_interarrival_max_us=" << startInterarrivalTiming.maximum
             << " start_lateness_min_us=" << startLatenessTiming.minimum
             << " start_lateness_mean_us=" << startLatenessTiming.mean
             << " start_lateness_p50_us=" << startLatenessTiming.p50
@@ -414,23 +405,19 @@ TEST(RealtimeStemSanityTest,
             << " start_lateness_p99.9_us=" << startLatenessTiming.p999
             << " start_lateness_max_us=" << startLatenessTiming.maximum
             << " start_deadline_misses=" << callbackStartDeadlineMisses
-            << " start_catchup_intervals="
-            << callbackStartCatchupIntervals
+            << " start_catchup_intervals=" << callbackStartCatchupIntervals
             << " due_boundary_misses=" << dueBoundaryMisses
             << " last_wait_us=" << lastWaitMicroseconds
-            << " max_wait_us=" << maximumWaitMicroseconds
-            << " wait_budget_us="
+            << " max_wait_us=" << maximumWaitMicroseconds << " wait_budget_us="
             << audio_plugin::kAudioThreadWaitBudgetMicroseconds
-            << " underrun_samples_last_block="
-            << underrunSamplesInLastBlock
+            << " underrun_samples_last_block=" << underrunSamplesInLastBlock
             << " underrun_samples=" << underrunSamples
             << " underrun_blocks=" << underrunBlocks
             << " underrun_active=" << (underrunActive ? 1 : 0)
             << " queue_full_drops=" << queueFullDrops
             << " ring_overflow_events=" << ringOverflowEvents
             << " ring_overflow_samples=" << ringOverflowSamples
-            << " unsafe_realtime_current="
-            << (unsafeRealtimeCallback ? 1 : 0)
+            << " unsafe_realtime_current=" << (unsafeRealtimeCallback ? 1 : 0)
             << " unsafe_realtime_callbacks=" << unsafeRealtimeCallbacks
             << " callback_priority="
             << (callbackPriorityApplied ? "applied" : "failed")
@@ -442,12 +429,10 @@ TEST(RealtimeStemSanityTest,
             << " drums_max_abs=" << maxAbsRetainedStems[0]
             << " bass_max_abs=" << maxAbsRetainedStems[1]
             << " vocals_max_abs=" << maxAbsRetainedStems[2]
-            << " drums_bass_max_abs_diff="
-            << maxAbsRetainedPairDifferences[0]
-            << " drums_vocals_max_abs_diff="
-            << maxAbsRetainedPairDifferences[1]
-            << " bass_vocals_max_abs_diff="
-            << maxAbsRetainedPairDifferences[2] << '\n';
+            << " drums_bass_max_abs_diff=" << maxAbsRetainedPairDifferences[0]
+            << " drums_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[1]
+            << " bass_vocals_max_abs_diff=" << maxAbsRetainedPairDifferences[2]
+            << '\n';
 
   EXPECT_TRUE(allOutputSamplesFinite);
   EXPECT_GT(maxAbsRetainedStems[0], 1.0e-3f)

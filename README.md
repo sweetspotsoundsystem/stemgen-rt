@@ -2,13 +2,13 @@
 
 Separate a stereo mix into Drums, Bass, Other and Vocals in your DAW. Main carries the complete latency-aligned mix; the four stem outputs reconstruct it.
 
-This version bundles the accepted **Raw L1 +250 cropped1024 HS-TasNet** model. With a **44.1 kHz session and a 256-sample host buffer**, it reports **512 samples / 11.61 ms** of delay, half the previous c91 integration. The real-time audio callback never waits for inference.
+This experimental branch bundles the **hop128 asymmetric-window teacher** model. With a **44.1 kHz session and a 128-sample host buffer**, it reports **256 samples / 5.80 ms** of delay. The real-time audio callback never waits for inference.
 
-The model passed the research listening comparison and CPU numerical checks. Performance in the intended DAW on the user's Apple M4 still needs measurement. See [model provenance and validation](model/README.md) for the measured quality tradeoff and target-platform limits.
+The model passes short export and long native waveform checks. It remains below the accepted 11.6 ms model on the fixed quality panel, and its bass probes are mixed. Listening acceptance and performance in the intended DAW on Apple M4 are pending. See [model provenance and validation](model/README.md) for the measurements.
 
 ## Use
 
-1. Set the session sample rate to **44.1 kHz** and the audio buffer to **256 samples** for the lowest latency.
+1. Set the session sample rate to **44.1 kHz** and the audio buffer to **128 samples** for the lowest latency.
 2. Insert StemgenRT on a stereo track and enable its additional stereo outputs in your host.
 3. Route the outputs in this order: **Main, Drums, Bass, Other, Vocals**. Avoid summing Main with the stems unless that is intentional.
 
@@ -22,11 +22,11 @@ Other prepared block sizes are supported at 44.1 kHz. The plugin includes accumu
 
 | Prepared buffer | Reported delay | Delay at 44.1 kHz |
 | --- | --- | --- |
-| 64 | 704 samples | 15.96 ms |
-| 128 | 640 samples | 14.51 ms |
-| **256** | **512 samples** | **11.61 ms** |
-| 512 | 768 samples | 17.41 ms |
-| 1024 | 1280 samples | 29.02 ms |
+| 64 | 320 samples | 7.26 ms |
+| **128** | **256 samples** | **5.80 ms** |
+| 256 | 384 samples | 8.71 ms |
+| 512 | 640 samples | 14.51 ms |
+| 1024 | 1152 samples | 26.12 ms |
 
 A smaller host buffer leaves less time after a complete model hop arrives, so additional delay preserves the worker's scheduling reserve. The host must reprepare the plugin when it changes its buffer configuration. An actual real-time callback that needs more delay than prepared uses aligned fallback without changing PDC inside the audio callback.
 
@@ -45,7 +45,7 @@ ctest --preset release
 ./scripts/install-plugins.sh --release
 ```
 
-On Windows, use `scripts/install-plugins.ps1`. On macOS, the installer replaces complete AU/VST3 bundles and verifies signing; use it instead of manually copying over old bundles. Restart the DAW after installing. The existing plugin identifier is preserved so sessions retain their routing.
+On Windows, use `scripts/install-plugins.ps1`. On macOS, the installer replaces complete AU/VST3 bundles and verifies signing; use it instead of manually copying over old bundles. Restart the DAW after installing. The existing plugin identifier is preserved so sessions retain their routing. Installing this experimental branch replaces the installed StemgenRT version; keep the accepted installer available for rollback.
 
 For Linux development, install JUCE's ALSA, FreeType, Fontconfig and X11 development dependencies and place the ORT CPU SDK in `libs/onnxruntime`, then configure a Release Ninja build. Linux is useful for correctness checks; this PR does not qualify a Linux DAW release.
 
@@ -65,9 +65,9 @@ That gate builds and verifies the AU/VST3 bundles, requires the model parity tes
 
 ## Audio contract
 
-The model consumes raw finite stereo samples without gain normalization, filters or external context padding. It uses a 1024-sample analysis window, a 256-sample hop, a 512-sample synthesis frame and four persistent state tensors. Only the inference worker advances those states. Starts, seeks, loop wraps, input gaps and invalid input reset the stream; stale outputs from the old generation are invalidated.
+The model consumes raw finite stereo samples without gain normalization, filters or external context padding. It uses a 1024-sample analysis window, a 128-sample hop, a 256-sample synthesis frame and four persistent state tensors. Only the inference worker advances those states. Starts, seeks, loop wraps, input gaps and invalid input reset the stream; stale outputs from the old generation are invalidated.
 
-The graph returns **Drums, Bass, Vocals, Other**. The bus order swaps the last two for compatibility. The runtime preserves all four graph estimates. The output writer applies the existing low-level confidence and recovery fade to Drums/Bass/Vocals, then calculates `Other = Main - Drums - Bass - Vocals`. At ordinary listening levels with output available, this reproduces the accepted deployed stems within floating-point rounding.
+The graph returns **Drums, Bass, Vocals, Other**. The bus order swaps the last two for compatibility. The runtime preserves all four graph estimates. The output writer applies the existing low-level confidence and recovery fade to Drums/Bass/Vocals, then calculates `Other = Main - Drums - Bass - Vocals`. At ordinary listening levels with output available, this reproduces the candidate deployed stems within floating-point rounding.
 
 Main stays at its native input level. The confidence envelope holds peaks for 50 ms, releases by 60 dB per 100 ms, and smoothly opens between -96 and -72 dBFS peak. It suppresses unreliable near-silence model output while preserving the complete mix in Other.
 

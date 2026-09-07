@@ -149,10 +149,10 @@ TEST(CroppedModelParityTest,
   ASSERT_EQ(references.size(), 8U);
   AudioPluginAudioProcessor processor;
   processor.setNonRealtime(true);
-  processor.prepareToPlay(44100.0, 256);
-  ASSERT_EQ(processor.getLatencySamples(), 512)
+  processor.prepareToPlay(44100.0, 128);
+  ASSERT_EQ(processor.getLatencySamples(), 256)
       << processor.getOrtStatusString().toStdString();
-  EXPECT_NEAR(processor.getTailLengthSeconds(), 512.0 / 44100.0, 1.0e-12);
+  EXPECT_NEAR(processor.getTailLengthSeconds(), 256.0 / 44100.0, 1.0e-12);
   PlayHead playHead;
   processor.setPlayHead(&playHead);
   juce::MidiBuffer midi;
@@ -167,7 +167,7 @@ TEST(CroppedModelParityTest,
       std::array<Audio, 5> rendered;
       for (auto& bus : rendered)
         for (auto& channel : bus)
-          channel.reserve(reference.frames + 512U);
+          channel.reserve(reference.frames + 256U);
       const auto render = [&](size_t offset, size_t count, bool playing) {
         playHead.position(playing, playing ? offset : reference.frames);
         juce::AudioBuffer<float> buffer(12, static_cast<int>(count));
@@ -195,19 +195,19 @@ TEST(CroppedModelParityTest,
       while (offset < reference.frames) {
         const size_t count = std::min(
             reference.frames - offset,
-            variable ? variableBlocks[block++ % variableBlocks.size()] : 256U);
+            variable ? variableBlocks[block++ % variableBlocks.size()] : 128U);
         render(offset, count, true);
         offset += count;
       }
       // Short stopped callbacks exercise partial padding and queue-only drain.
-      for (const size_t count : {31U, 97U, 384U})
+      for (const size_t count : {31U, 97U, 128U})
         render(reference.frames, count, false);
-      ASSERT_EQ(rendered[0][0].size(), reference.frames + 512U);
+      ASSERT_EQ(rendered[0][0].size(), reference.frames + 256U);
       float maxMainError = 0.0f, maxStemError = 0.0f, maxClosureError = 0.0f;
       for (size_t ch = 0; ch < 2U; ++ch) {
-        for (size_t i = 0; i < reference.frames + 512U; ++i) {
-          const bool preroll = i < 512U;
-          const size_t sample = preroll ? 0U : i - 512U;
+        for (size_t i = 0; i < reference.frames + 256U; ++i) {
+          const bool preroll = i < 256U;
+          const size_t sample = preroll ? 0U : i - 256U;
           const float expectedMain =
               preroll ? 0.0f : reference.input[ch][sample];
           const float gain =

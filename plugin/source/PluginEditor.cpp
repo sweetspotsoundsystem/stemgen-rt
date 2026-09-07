@@ -63,7 +63,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setFont(juce::FontOptions(12.5f));
   const juce::String detail =
       !ready ? processorRef.getOrtStatusString()
-             : "44.1 kHz | 256-sample buffer for lowest latency";
+             : "44.1 kHz | 128-sample buffer for lowest latency";
   g.drawFittedText(detail, area.removeFromTop(40),
                    juce::Justification::centredLeft, 2);
   area.removeFromTop(10);
@@ -187,8 +187,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   const uint64_t ringOverflowEvents = processorRef.getRingOverflowEventCount();
   const uint64_t ringOverflowSamples =
       processorRef.getRingOverflowSampleDropCount();
-  const uint64_t dueBoundaryMisses =
-      processorRef.getSameCallbackTimeoutCount();
+  const uint64_t dueBoundaryMisses = processorRef.getSameCallbackTimeoutCount();
 
   g.setColour(fallbackBlendActive ? juce::Colours::orange
                                   : juce::Colours::white);
@@ -217,7 +216,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           " events)",
       area.removeFromTop(24), juce::Justification::centred, 1);
   g.setColour(dueBoundaryMisses > 0U ? juce::Colours::orange
-                                    : juce::Colours::white);
+                                     : juce::Colours::white);
   g.drawFittedText(
       "Due-boundary misses: " +
           juce::String(static_cast<juce::int64>(dueBoundaryMisses)) +

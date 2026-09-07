@@ -168,22 +168,40 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORTER_SHA256@)meta"},
     {"hs_tasnet.model_source_sha256",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_MODEL_SOURCE_SHA256@)meta"},
-    {"hs_tasnet.base_model_source_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_BASE_MODEL_SOURCE_SHA256@)meta"},
-    {"hs_tasnet.reusable_exporter_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_REUSABLE_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.export_copy_source_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORT_COPY_SOURCE_SHA256@)meta"},
     {"hs_tasnet.export_helpers_sha256",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORT_HELPERS_SHA256@)meta"},
     {"hs_tasnet.fft_implementation",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_FFT_IMPLEMENTATION@)meta"},
     {"hs_tasnet.external_data",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXTERNAL_DATA@)meta"},
+    {"hs_tasnet.analysis_window",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ANALYSIS_WINDOW@)meta"},
+    {"hs_tasnet.spectral_synthesis_window",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SPECTRAL_SYNTHESIS_WINDOW@)meta"},
+    {"hs_tasnet.waveform_synthesis_window",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_WAVEFORM_SYNTHESIS_WINDOW@)meta"},
+    {"hs_tasnet.analysis_synthesis_product",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ANALYSIS_SYNTHESIS_PRODUCT@)meta"},
+    {"hs_tasnet.asymmetric_training_updates",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ASYMMETRIC_TRAINING_UPDATES@)meta"},
+    {"hs_tasnet.training_objective",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_OBJECTIVE@)meta"},
+    {"hs_tasnet.teacher_weight",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_WEIGHT@)meta"},
+    {"hs_tasnet.teacher_model_state_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_MODEL_STATE_SHA256@)meta"},
+    {"hs_tasnet.teacher_used_in_inference",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_USED_IN_INFERENCE@)meta"},
+    {"hs_tasnet.checkpoint_loader_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_LOADER_SHA256@)meta"},
 });
 
-static_assert(kInputAudioShape == std::array<std::int64_t, 3>{1, 2, 256});
-static_assert(kInputHistoryShape == std::array<std::int64_t, 3>{1, 2, 768});
+static_assert(kInputAudioShape == std::array<std::int64_t, 3>{1, 2, 128});
+static_assert(kInputHistoryShape == std::array<std::int64_t, 3>{1, 2, 896});
 static_assert(kInputHiddenShape == std::array<std::int64_t, 3>{2, 1, 1000});
-static_assert(kInputSpectralTailShape == std::array<std::int64_t, 4>{1, 4, 2, 256});
+static_assert(kInputSpectralTailShape == std::array<std::int64_t, 4>{1, 4, 2, 128});
 static_assert(kInputWaveformTailShape == kInputSpectralTailShape);
 static_assert(kOutputSeparatedShape == kInputSpectralTailShape);
 static_assert(kOutputHistoryShape == kInputHistoryShape);
@@ -194,11 +212,11 @@ static_assert(kAnalysisWindowSamples == kAnalysisHistorySamples + kHopSamples);
 static_assert(kSynthesisFrameSamples == 2 * kHopSamples);
 static_assert(kInputNames.size() == 5 && kOutputNames.size() == 5);
 static_assert(kNumChannels == 2 && kNumStems == 4);
-static_assert(kSampleRate == 44100 && kHopSamples == 256);
+static_assert(kSampleRate == 44100 && kHopSamples == 128);
 static_assert(kModelOutputDelayChunks == 1 && kAsyncQueueDelayChunks == 1);
 static_assert(kPluginLatencyChunks == kModelOutputDelayChunks + kAsyncQueueDelayChunks);
 static_assert(kPluginLatencySamples == kPluginLatencyChunks * kHopSamples);
-static_assert(kPluginLatencySamples == 512);
+static_assert(kPluginLatencySamples == 256);
 static_assert(kSourceOrder == std::array<int, 4>{0, 1, 2, 3});
 static_assert(kOtherSourceIndex == kResidualSourceIndex);
 static_assert(kOutputAlignment == "previous_input_chunk");
