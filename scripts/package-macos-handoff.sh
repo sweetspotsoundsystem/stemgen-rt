@@ -64,7 +64,7 @@ cleanup() {
     rm -rf "$STAGING_DIR"
 }
 trap cleanup EXIT
-SOURCE_ROOT="$STAGING_DIR/cropped1024-11ms"
+SOURCE_ROOT="$STAGING_DIR/hop128-5ms"
 mkdir "$SOURCE_ROOT"
 FILE_LIST="$STAGING_DIR/source-files.txt"
 git ls-files -co --exclude-standard | LC_ALL=C sort > "$FILE_LIST"
@@ -112,7 +112,7 @@ cp "$FILE_LIST" "$SOURCE_ROOT/SOURCE_FILES.txt"
 ) > "$SOURCE_ROOT/SOURCE_MANIFEST.sha256"
 
 cat > "$SOURCE_ROOT/HANDOFF_README.md" <<'EOF'
-# Cropped1024 11.6 ms target-Mac handoff
+# Hop128 5.8 ms experimental target-Mac handoff
 
 This is an exact source snapshot, not a promoted release.
 
@@ -144,7 +144,7 @@ EOF
     shasum -a 256 -c HANDOFF_CONTENTS.sha256 >/dev/null
 )
 
-ARCHIVE_NAME="cropped1024-11ms-source.tar.gz"
+ARCHIVE_NAME="hop128-5ms-source.tar.gz"
 ARCHIVE_TMP="$OUTPUT_DIR/.${ARCHIVE_NAME}.tmp"
 tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
     -C "$SOURCE_ROOT" -cf - . | gzip -n > "$ARCHIVE_TMP"

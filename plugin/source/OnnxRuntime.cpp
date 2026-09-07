@@ -405,33 +405,34 @@ void OnnxRuntime::OrtSessionDeleter::operator()(OrtSession* p) const noexcept {
     api->ReleaseSession(p);
 }
 
-OnnxRuntime::OnnxRuntime() {
-    const OrtApi* api = getSafeOrtApi();
-    if (api != nullptr) {
-        const OrtApiBase* apiBase = getSafeOrtApiBase();
-        const std::string runtimeVersion =
-            (apiBase != nullptr) ? apiBase->GetVersionString() : "unknown";
-        {
-          std::lock_guard<std::mutex> lock(statusMutex_);
-          runtimeVersion_ = runtimeVersion;
-        }
-
-        OrtEnv* rawEnv = nullptr;
-        OrtStatus* status = api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "StemgenRT", &rawEnv);
-        if (status == nullptr) {
-            ortEnv_.reset(rawEnv);
-            {
-              std::lock_guard<std::mutex> lock(statusMutex_);
-              ortInitialized_.store(true, std::memory_order_release);
-            }
-            DBG("[ORT] Initialized. Version: " << juce::String(runtimeVersion));
-        } else {
-            DBG("[ORT] Failed to create OrtEnv: " << api->GetErrorMessage(status));
-            api->ReleaseStatus(status);
-        }
-    } else {
-        DBG("[ORT] getSafeOrtApi() returned null");
+OnnxRuntime::OnnxRuntime() : api_(getSafeOrtApi()) {
+  const OrtApi* api = api_;
+  if (api != nullptr) {
+    const OrtApiBase* apiBase = getSafeOrtApiBase();
+    const std::string runtimeVersion =
+        (apiBase != nullptr) ? apiBase->GetVersionString() : "unknown";
+    {
+      std::lock_guard<std::mutex> lock(statusMutex_);
+      runtimeVersion_ = runtimeVersion;
     }
+
+    OrtEnv* rawEnv = nullptr;
+    OrtStatus* status =
+        api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "StemgenRT", &rawEnv);
+    if (status == nullptr) {
+      ortEnv_.reset(rawEnv);
+      {
+        std::lock_guard<std::mutex> lock(statusMutex_);
+        ortInitialized_.store(true, std::memory_order_release);
+      }
+      DBG("[ORT] Initialized. Version: " << juce::String(runtimeVersion));
+    } else {
+      DBG("[ORT] Failed to create OrtEnv: " << api->GetErrorMessage(status));
+      api->ReleaseStatus(status);
+    }
+  } else {
+    DBG("[ORT] getSafeOrtApi() returned null");
+  }
 }
 
 OnnxRuntime::~OnnxRuntime() {
@@ -452,6 +453,7 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
   // preceding session, even if this attempt later fails.
   inferenceReady_.store(false, std::memory_order_release);
   modelLoaded_.store(false, std::memory_order_release);
+  configuredIntraOpThreads_.store(0, std::memory_order_release);
   {
     std::lock_guard<std::mutex> lock(statusMutex_);
     inferencePreparationError_.clear();
@@ -526,9 +528,8 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
     return false;
   }
 
-  // Apply the platform-qualified production policy when no override is
-  // supplied. A positive override creates a distinct immutable ORT thread pool
-  // for that session, allowing an apples-to-apples benchmark.
+  // One calling worker, no ORT helper pool in production. Positive overrides
+  // remain available only for controlled comparisons in fresh sessions.
   const int numHardwareThreads =
       std::max(static_cast<int>(std::thread::hardware_concurrency()), 1);
   const int automaticIntraOpThreads =
@@ -536,6 +537,11 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
   const int numIntraOpThreads =
       intraOpThreadCount.value_or(automaticIntraOpThreads);
 
+  if (!applySessionOption(
+          api->SetSessionExecutionMode(sessionOptions, ORT_SEQUENTIAL),
+          "SetSessionExecutionMode")) {
+    return false;
+  }
   if (!applySessionOption(
           api->SetIntraOpNumThreads(sessionOptions, numIntraOpThreads),
           "SetIntraOpNumThreads")) {
@@ -606,6 +612,8 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
     std::lock_guard<std::mutex> lock(statusMutex_);
     modelLoadError_.clear();
     executionProvider_ = "CPU";
+    configuredIntraOpThreads_.store(numIntraOpThreads,
+                                    std::memory_order_release);
     modelLoaded_.store(true, std::memory_order_release);
   }
 
@@ -723,7 +731,6 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     return failPreparation("Cannot prepare inference: ORT API is unavailable");
   }
 
-  std::lock_guard<std::mutex> lock(streamingStateMutex_);
   releasePreallocatedTensorValues();
 
   // Pre-allocate memory info.
@@ -773,7 +780,7 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     return failPreparation("Failed to allocate streaming buffers");
   }
 
-  resetStreamingStateUnlocked();
+  clearStreamingState();
   if (!createPreallocatedTensorValues(errorMessage)) {
     const juce::String message =
         errorMessage.isNotEmpty()
@@ -790,7 +797,7 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
   return true;
 }
 
-void OnnxRuntime::resetStreamingStateUnlocked() {
+void OnnxRuntime::clearStreamingState() {
   std::fill(audioHistory_.begin(), audioHistory_.end(), 0.0f);
   std::fill(spectralNumeratorTail_.begin(), spectralNumeratorTail_.end(), 0.0f);
   std::fill(waveformTail_.begin(), waveformTail_.end(), 0.0f);
@@ -800,8 +807,7 @@ void OnnxRuntime::resetStreamingStateUnlocked() {
 }
 
 void OnnxRuntime::resetStreamingState() {
-    std::lock_guard<std::mutex> lock(streamingStateMutex_);
-    resetStreamingStateUnlocked();
+  clearStreamingState();
 }
 
 bool OnnxRuntime::runInference(
@@ -816,43 +822,39 @@ bool OnnxRuntime::runInference(
     return false;
   }
 
-    const OrtApi* api = getSafeOrtApi();
-    if (api == nullptr) return false;
+  const OrtApi* api = api_;
+  if (api == nullptr)
+    return false;
 
-    std::lock_guard<std::mutex> lock(streamingStateMutex_);
-    if (!inferenceReady_.load(std::memory_order_acquire)) {
-      return false;
-    }
+  const size_t audioElements =
+      static_cast<size_t>(kNumChannels * kOutputChunkSize);
+  const size_t separatedElements =
+      static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
+  const size_t tailElements =
+      static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
+  const size_t historyElements =
+      static_cast<size_t>(kNumChannels * kAnalysisHistorySize);
+  const size_t hiddenElements =
+      static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
 
-    const size_t audioElements =
-        static_cast<size_t>(kNumChannels * kOutputChunkSize);
-    const size_t separatedElements =
-        static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-    const size_t tailElements =
-        static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-    const size_t historyElements =
-        static_cast<size_t>(kNumChannels * kAnalysisHistorySize);
-    const size_t hiddenElements =
-        static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
-
-    if (audioChunkBuffer_.size() != audioElements ||
-        audioHistory_.size() != historyElements ||
-        spectralNumeratorTail_.size() != tailElements ||
-        waveformTail_.size() != tailElements ||
-        fusionHidden_.size() != hiddenElements ||
-        previousAlignedInput_.size() != audioElements ||
-        separatedOutputBuffer_.size() != separatedElements ||
-        nextAudioHistoryBuffer_.size() != historyElements ||
-        nextSpectralNumeratorTail_.size() != tailElements ||
-        nextWaveformTail_.size() != tailElements ||
-        nextFusionHiddenBuffer_.size() != hiddenElements ||
-        std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
-                    [](const OrtValue* value) { return value == nullptr; }) ||
-        std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
-                    [](const OrtValue* value) { return value == nullptr; })) {
-      DBG("[ORT] Streaming buffers were not prepared");
-      return false;
-    }
+  if (audioChunkBuffer_.size() != audioElements ||
+      audioHistory_.size() != historyElements ||
+      spectralNumeratorTail_.size() != tailElements ||
+      waveformTail_.size() != tailElements ||
+      fusionHidden_.size() != hiddenElements ||
+      previousAlignedInput_.size() != audioElements ||
+      separatedOutputBuffer_.size() != separatedElements ||
+      nextAudioHistoryBuffer_.size() != historyElements ||
+      nextSpectralNumeratorTail_.size() != tailElements ||
+      nextWaveformTail_.size() != tailElements ||
+      nextFusionHiddenBuffer_.size() != hiddenElements ||
+      std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
+                  [](const OrtValue* value) { return value == nullptr; }) ||
+      std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
+                  [](const OrtValue* value) { return value == nullptr; })) {
+    DBG("[ORT] Streaming buffers were not prepared");
+    return false;
+  }
 
     // Feed the graph at the exact native input level used by its frozen
     // quality evaluation. The graph emits the preceding input hop, so retain
@@ -862,7 +864,7 @@ bool OnnxRuntime::runInference(
       if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
           alignedInput[ch].size() != static_cast<size_t>(kOutputChunkSize)) {
         DBG("[ORT] Invalid streaming input or aligned-output shape");
-        resetStreamingStateUnlocked();
+        clearStreamingState();
         return false;
       }
       const size_t channelOffset =
@@ -871,7 +873,7 @@ bool OnnxRuntime::runInference(
         const float sample = inputChunk[ch][i];
         if (!std::isfinite(sample)) {
           DBG("[ORT] Non-finite streaming input");
-          resetStreamingStateUnlocked();
+          clearStreamingState();
           return false;
         }
         audioChunkBuffer_[channelOffset + i] = sample;
@@ -925,12 +927,12 @@ bool OnnxRuntime::runInference(
     if (runStatus != nullptr) {
       DBG("[ORT] Inference failed: " << api->GetErrorMessage(runStatus));
       api->ReleaseStatus(runStatus);
-      resetStreamingStateUnlocked();
+      clearStreamingState();
       return false;
     }
     if (outputBindingChanged) {
       DBG("[ORT] Run replaced a preallocated streaming output binding");
-      resetStreamingStateUnlocked();
+      clearStreamingState();
       return false;
     }
 
@@ -944,7 +946,7 @@ bool OnnxRuntime::runInference(
         !allFinite(nextWaveformTail_.data(), tailElements) ||
         !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements)) {
       DBG("[ORT] Non-finite streaming output; resetting recurrent state");
-      resetStreamingStateUnlocked();
+      clearStreamingState();
       return false;
     }
 
@@ -953,7 +955,7 @@ bool OnnxRuntime::runInference(
       for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
         auto& destination = outputChunks[stem][ch];
         if (destination.size() != static_cast<size_t>(kOutputChunkSize)) {
-          resetStreamingStateUnlocked();
+          clearStreamingState();
           outputValid = false;
           return false;
         }
@@ -991,7 +993,7 @@ bool OnnxRuntime::runInference(
           if (!std::isfinite(mixture) ||
               std::abs(mixture - static_cast<double>(alignedInput[ch][i])) >
                   tolerance) {
-            resetStreamingStateUnlocked();
+            clearStreamingState();
             outputValid = false;
             return false;
           }
@@ -1024,7 +1026,7 @@ bool OnnxRuntime::runInference(
           std::fill(channel.begin(), channel.end(), 0.0f);
         }
       }
-      resetStreamingStateUnlocked();
+      clearStreamingState();
       return false;
     }
 

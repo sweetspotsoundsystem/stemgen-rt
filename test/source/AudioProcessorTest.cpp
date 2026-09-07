@@ -698,7 +698,7 @@ TEST_F(AudioProcessorTest,
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
-  ASSERT_EQ(processor->getLatencySamples(), 1280)
+  ASSERT_EQ(processor->getLatencySamples(), 1152)
       << processor->getOrtStatusString().toStdString();
   processor->releaseResources();
 }
@@ -779,12 +779,12 @@ TEST(ConstantsTest, ChannelCountIsStereo) {
   EXPECT_EQ(audio_plugin::kNumChannels, 2);
 }
 
-TEST(ConstantsTest, CroppedAnalysisUsesFourHopsAndSynthesisUsesTwo) {
-  EXPECT_EQ(audio_plugin::kOutputChunkSize, 256);
+TEST(ConstantsTest, CroppedAnalysisUsesEightHopsAndSynthesisUsesTwo) {
+  EXPECT_EQ(audio_plugin::kOutputChunkSize, 128);
   EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
-            4 * audio_plugin::kOutputChunkSize);
-  EXPECT_EQ(audio_plugin::kAnalysisHistorySize, 768);
-  EXPECT_EQ(audio_plugin::kSynthesisFrameSize, 512);
+            8 * audio_plugin::kOutputChunkSize);
+  EXPECT_EQ(audio_plugin::kAnalysisHistorySize, 896);
+  EXPECT_EQ(audio_plugin::kSynthesisFrameSize, 256);
 }
 
 TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
@@ -796,20 +796,20 @@ TEST(ConstantsTest, PluginLatencyIsOneGraphHopPlusOneAsyncQueueHop) {
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 2);
-  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 512);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 256);
   EXPECT_EQ(audio_plugin::kAudioThreadWaitBudgetMicroseconds, 0);
   EXPECT_EQ(audio_plugin::kSameCallbackWaitBudgetMicroseconds, 0);
 }
 
 TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 736);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 704);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 640);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 512);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 768);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1024);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1280);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2304);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 352);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 320);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 256);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 384);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 640);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 896);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1152);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2176);
 }
 
 TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
@@ -820,21 +820,19 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(192000));
   EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
 
-  EXPECT_TRUE(
-      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
-  EXPECT_FALSE(
-      audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
+  EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
+  EXPECT_FALSE(audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
   EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
-            1070);
+            791);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(88200, 1024),
-            1536);
+            1280);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(96000, 512),
-            2139);
+            1070);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(192000, 512),
-            3766);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 1207);
+            2139);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 928);
 }
 
 TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
@@ -845,16 +843,13 @@ TEST(ConstantsTest, InferenceBufferCountIsPositive) {
   EXPECT_GT(audio_plugin::kNumInferenceBuffers, 0);
 }
 
-TEST(ConstantsTest, AutomaticOrtThreadCountUsesQualifiedPlatformCap) {
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(0), 2);
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(4), 2);
-#if defined(__APPLE__)
-  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 2);
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 2);
-#else
-  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 4);
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 4);
-#endif
+TEST(ConstantsTest, AutomaticOrtThreadCountUsesOneCallingWorker) {
+  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 1);
+  for (const int hardwareThreads : {-1, 0, 1, 4, 14, 128}) {
+    EXPECT_EQ(
+        audio_plugin::calculateAutomaticOrtIntraOpThreadCount(hardwareThreads),
+        1);
+  }
 }
 
 // ============================================================================

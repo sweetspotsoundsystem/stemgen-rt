@@ -1,0 +1,1683 @@
+{
+  "schema": "latency58-teacher-paired-comparison-result-v1",
+  "status": "pass",
+  "comparisons": {
+    "half_minus_parent": {
+      "full14": {
+        "reference": {
+          "kind": "audited_resume",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-raw4-b4-lr3e-5/resume.pt",
+          "sha256": "55b737c7573132381a0d9b0197d7fdc1d5b0c9faaa246b3df3195d00816ef4e5",
+          "audit": {
+            "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-prep/asymmetric-to-000500-001/checkpoint-audit.json",
+            "sha256": "ae8edf67ccf2d2f0f2d31ce224dd7ae46b64384cbceb40bc29aee6eb2bbe96dc"
+          },
+          "audit_execution": {
+            "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-prep/asymmetric-to-000500-001/audit-execution.json",
+            "sha256": "4b31ab9f4b27c6523a2cff712b2801462107eef6ce79f0af4826235181e0b6b2"
+          }
+        },
+        "candidate": {
+          "kind": "inference",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-half-b4-lr3e-5/endpoint/model.pt",
+          "sha256": "a74543ad26fe7f393e7ef269e10373af46b5faa76b2a7bcec74b718cbd5a9ca0"
+        },
+        "tracks": 14,
+        "bootstrap_samples": 20000,
+        "bootstrap_seed": 91,
+        "uncertainty_scope": "Track sampling on this validation panel only; not training-seed uncertainty or correction for checkpoint selection.",
+        "metrics": {
+          "full_sdr_db": {
+            "reference": 3.8078525024796326,
+            "candidate": 3.846588797019452,
+            "delta": 0.038736294539819346,
+            "paired_track_bootstrap_95_percent": [
+              0.02071487675492261,
+              0.055888444912762014
+            ],
+            "per_stem_delta": {
+              "drums": 0.0539270318041486,
+              "bass": 0.013498976930788307,
+              "vocals": 0.0547540542685336,
+              "other": 0.032765115155806865
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.047731489929917756,
+              "Actions - One Minute Smile": 0.06199619380541166,
+              "Alexander Ross - Goodbye Bolero": 0.08807685907032897,
+              "Clara Berry And Wooldog - Waltz For My Victims": -0.017384170153595793,
+              "Fergessen - Nos Palpitants": 0.07771378781901339,
+              "James May - On The Line": -0.0016192480079856297,
+              "Johnny Lokke - Promises & Lies": -0.026330258186793354,
+              "Leaf - Summerghost": 0.04697893305827511,
+              "Meaxic - Take A Step": 0.02580909753673921,
+              "Patrick Talbot - A Reason To Leave": 0.06566557852244824,
+              "Skelpolu - Human Mistakes": 0.07575579914641332,
+              "Traffic Experiment - Sirens": 0.02772235655404487,
+              "Triviul - Angelsaint": 0.04398283662321023,
+              "Young Griffo - Pennies": 0.026208867840042838
+            }
+          },
+          "low_sdr_db": {
+            "reference": 2.720204454251267,
+            "candidate": 2.7721563878579176,
+            "delta": 0.051951933606650694,
+            "paired_track_bootstrap_95_percent": [
+              0.030444036630742667,
+              0.07482591693586696
+            ],
+            "per_stem_delta": {
+              "drums": 0.06182171844504911,
+              "bass": -0.0003827432093160039,
+              "vocals": 0.14169919240556786,
+              "other": 0.004669566785301805
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.024066876938030557,
+              "Actions - One Minute Smile": 0.13529172215023394,
+              "Alexander Ross - Goodbye Bolero": 0.13201809472743503,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.01486329575508527,
+              "Fergessen - Nos Palpitants": 0.06801593440173781,
+              "James May - On The Line": -0.0011041738095106668,
+              "Johnny Lokke - Promises & Lies": 0.06067706803460138,
+              "Leaf - Summerghost": 0.031361374491060356,
+              "Meaxic - Take A Step": 0.054715006373660294,
+              "Patrick Talbot - A Reason To Leave": 0.08163631709514543,
+              "Skelpolu - Human Mistakes": 0.07802288341893515,
+              "Traffic Experiment - Sirens": -0.006233291132440526,
+              "Triviul - Angelsaint": 0.0063884468304618025,
+              "Young Griffo - Pennies": 0.0476075152186739
+            }
+          },
+          "bleed_sir_db": {
+            "reference": 6.571951945920625,
+            "candidate": 6.700406192055947,
+            "delta": 0.12845424613532275,
+            "paired_track_bootstrap_95_percent": [
+              0.06920922340956702,
+              0.1893331431463945
+            ],
+            "per_stem_delta": {
+              "drums": 0.1506571412633561,
+              "bass": 0.05866859692097507,
+              "vocals": 0.19054543413630792,
+              "other": 0.11394581222065188
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.06507560099459175,
+              "Actions - One Minute Smile": 0.03063850206993407,
+              "Alexander Ross - Goodbye Bolero": 0.3543192966719164,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.18614557865017473,
+              "Fergessen - Nos Palpitants": -0.0807439128277565,
+              "James May - On The Line": 0.17655938127754012,
+              "Johnny Lokke - Promises & Lies": 0.0077775145426528525,
+              "Leaf - Summerghost": 0.22576213226592562,
+              "Meaxic - Take A Step": 0.14127291414811843,
+              "Patrick Talbot - A Reason To Leave": 0.12707058170787822,
+              "Skelpolu - Human Mistakes": 0.0995228477220986,
+              "Traffic Experiment - Sirens": 0.04315778980984586,
+              "Triviul - Angelsaint": 0.31806514425291077,
+              "Young Griffo - Pennies": 0.10373607460868756
+            }
+          }
+        },
+        "absence_dbfs_delta": {
+          "drums": -0.305108547005851,
+          "bass": -0.5574914585887001,
+          "vocals": 0.1282351828711512,
+          "other": -0.28401047328579665
+        }
+      },
+      "actions60": {
+        "drums": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.42185009479926,
+            "candidate": 3.429743832258053,
+            "delta": 0.007893737458792849
+          },
+          "rms_dbfs": {
+            "reference": -25.92099101047928,
+            "candidate": -25.599490721708094,
+            "delta": 0.32150028877118686
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.015055475128681486,
+            "candidate": 0.010958020454845003,
+            "delta": -0.0040974546738364835
+          }
+        },
+        "bass": {
+          "raw_waveform_sdr_db": {
+            "reference": -2.0996312060013063,
+            "candidate": -1.959782518916203,
+            "delta": 0.13984868708510323
+          },
+          "rms_dbfs": {
+            "reference": -25.739085993049926,
+            "candidate": -25.865701187442962,
+            "delta": -0.12661519439303603
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.04380574458548343,
+            "candidate": 0.019705437320915713,
+            "delta": -0.02410030726456772
+          }
+        },
+        "vocals": {
+          "raw_waveform_sdr_db": {
+            "reference": 4.754591880962065,
+            "candidate": 4.822292600426863,
+            "delta": 0.06770071946479828
+          },
+          "rms_dbfs": {
+            "reference": -23.22821181627053,
+            "candidate": -23.06003011369087,
+            "delta": 0.16818170257965903
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.015171032755140626,
+            "candidate": 0.011681782079397717,
+            "delta": -0.003489250675742909
+          }
+        },
+        "other": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.526016620533567,
+            "candidate": 3.5876612904550376,
+            "delta": 0.06164466992147055
+          },
+          "rms_dbfs": {
+            "reference": -23.759868890190567,
+            "candidate": -23.924267590392397,
+            "delta": -0.16439870020182923
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.02005449651819894,
+            "candidate": 0.025037003158086817,
+            "delta": 0.0049825066398878765
+          }
+        }
+      },
+      "probes": {
+        "silence": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -98.4685695099528,
+              "candidate": -98.41406579510644,
+              "delta": 0.05450371484636207
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -99.26689189754846,
+              "candidate": -99.59203092880934,
+              "delta": -0.32513903126087484
+            },
+            "unexplained_to_output_db": {
+              "reference": -0.7983223875956611,
+              "candidate": -1.1779651337029087,
+              "delta": -0.3796427461072476
+            },
+            "dc_offset_rms": {
+              "reference": 4.873908817851401e-06,
+              "candidate": 5.843127486229393e-06,
+              "delta": 9.692186683779913e-07
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -94.23893438359599,
+              "candidate": -95.63190931971538,
+              "delta": -1.392974936119387
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -98.25191761478354,
+              "candidate": -98.52723159438608,
+              "delta": -0.27531397960254367
+            },
+            "unexplained_to_output_db": {
+              "reference": -4.01298323118754,
+              "candidate": -2.8953222746707077,
+              "delta": 1.1176609565168327
+            },
+            "dc_offset_rms": {
+              "reference": 1.5220921487496083e-05,
+              "candidate": 1.1534472033517568e-05,
+              "delta": -3.686449453978516e-06
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -104.35067928283611,
+              "candidate": -109.4378761138658,
+              "delta": -5.0871968310296865
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -109.99790858618098,
+              "candidate": -111.59282334375527,
+              "delta": -1.594914757574287
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.647229303344876,
+              "candidate": -2.1549472298894834,
+              "delta": 3.4922820734553923
+            },
+            "dc_offset_rms": {
+              "reference": 5.168229124220575e-06,
+              "candidate": 2.0029304740025484e-06,
+              "delta": -3.1652986502180267e-06
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -89.32413056839556,
+              "candidate": -91.05997640255413,
+              "delta": -1.7358458341585674
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -91.853026452057,
+              "candidate": -92.11417425879725,
+              "delta": -0.2611478067402544
+            },
+            "unexplained_to_output_db": {
+              "reference": -2.528895883661427,
+              "candidate": -1.0541978562431211,
+              "delta": 1.474698027418306
+            },
+            "dc_offset_rms": {
+              "reference": 2.2793987768110337e-05,
+              "candidate": 1.2929272566399734e-05,
+              "delta": -9.864715201710603e-06
+            }
+          }
+        },
+        "bass_notes": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -46.755119353814976,
+              "candidate": -46.77979212545229,
+              "delta": -0.024672771637312962
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.70200316277492,
+              "candidate": -53.035320370847984,
+              "delta": -0.333317208073062
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.9468838089599405,
+              "candidate": -6.2555282453956895,
+              "delta": -0.308644436435749
+            },
+            "dc_offset_rms": {
+              "reference": 0.0009120375512005759,
+              "candidate": 0.0009962055949948299,
+              "delta": 8.416804379425395e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -16.952051945169615,
+              "candidate": -17.03030313941203,
+              "delta": -0.07825119424241578
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -49.97484270326517,
+              "candidate": -50.306927445044735,
+              "delta": -0.3320847417795676
+            },
+            "unexplained_to_output_db": {
+              "reference": -33.02279075809555,
+              "candidate": -33.27662430563271,
+              "delta": -0.25383354753715537
+            },
+            "dc_offset_rms": {
+              "reference": 0.0014466620649266897,
+              "candidate": 0.0014434869702104123,
+              "delta": -3.1750947162773654e-06
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -57.25094543541618,
+              "candidate": -56.51466594925902,
+              "delta": 0.7362794861571587
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.17643068431858,
+              "candidate": -61.2783438533628,
+              "delta": -0.10191316904421654
+            },
+            "unexplained_to_output_db": {
+              "reference": -3.9254852489024046,
+              "candidate": -4.763677904103783,
+              "delta": -0.8381926552013788
+            },
+            "dc_offset_rms": {
+              "reference": 0.00047585612039191305,
+              "candidate": 0.00025523942141844163,
+              "delta": -0.00022061669897347142
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -44.57388667492217,
+              "candidate": -45.15208361929228,
+              "delta": -0.5781969443701058
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -50.56370163557858,
+              "candidate": -51.04109491722478,
+              "delta": -0.47739328164620076
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.98981496065641,
+              "candidate": -5.8890112979325036,
+              "delta": 0.10080366272390684
+            },
+            "dc_offset_rms": {
+              "reference": 0.0012375945965699543,
+              "candidate": 0.0012855261097593123,
+              "delta": 4.793151318935795e-05
+            }
+          }
+        },
+        "hop_tones": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -59.53023688079804,
+              "candidate": -61.072265256398055,
+              "delta": -1.5420283756000117
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -68.47330475242825,
+              "candidate": -68.85243161375539,
+              "delta": -0.379126861327137
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.943067871630209,
+              "candidate": -7.780166357357338,
+              "delta": 1.1629015142728711
+            },
+            "dc_offset_rms": {
+              "reference": 0.00020412455560954912,
+              "candidate": 0.00024166211661645105,
+              "delta": 3.7537561006901934e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -26.95012683353725,
+              "candidate": -27.014087214273943,
+              "delta": -0.06396038073669175
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -65.71590323736609,
+              "candidate": -64.65597994906554,
+              "delta": 1.0599232883005527
+            },
+            "unexplained_to_output_db": {
+              "reference": -38.76577640382884,
+              "candidate": -37.6418927347916,
+              "delta": 1.123883669037241
+            },
+            "dc_offset_rms": {
+              "reference": 0.00040922067886460723,
+              "candidate": 0.0004955572569035398,
+              "delta": 8.633657803893254e-05
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -66.54943292337815,
+              "candidate": -67.84626650940794,
+              "delta": -1.2968335860297913
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -72.01317188964161,
+              "candidate": -72.36886469328807,
+              "delta": -0.3556928036464626
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.463738966263465,
+              "candidate": -4.522598183880138,
+              "delta": 0.9411407823833269
+            },
+            "dc_offset_rms": {
+              "reference": 8.888232020725438e-05,
+              "candidate": 8.05022390614425e-05,
+              "delta": -8.380081145811883e-06
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -57.51027207481977,
+              "candidate": -56.43714080763665,
+              "delta": 1.0731312671831148
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -66.91921661996747,
+              "candidate": -67.07710980817778,
+              "delta": -0.15789318821030918
+            },
+            "unexplained_to_output_db": {
+              "reference": -9.408944545147701,
+              "candidate": -10.63996900054113,
+              "delta": -1.2310244553934293
+            },
+            "dc_offset_rms": {
+              "reference": 0.00040299502651577836,
+              "candidate": 0.0005548886675551715,
+              "delta": 0.00015189364103939318
+            }
+          }
+        },
+        "harmonic_bass": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -44.98471296177728,
+              "candidate": -44.88868627430031,
+              "delta": 0.09602668747696441
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.9849553287838,
+              "candidate": -53.52268547417807,
+              "delta": -0.5377301453942707
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.000242367006516,
+              "candidate": -8.633999199877762,
+              "delta": -0.6337568328712457
+            },
+            "dc_offset_rms": {
+              "reference": 0.0012161551767612643,
+              "candidate": 0.001267680463482928,
+              "delta": 5.152528672166374e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -16.348490819029276,
+              "candidate": -16.452868956323844,
+              "delta": -0.10437813729456735
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -51.59700015082174,
+              "candidate": -51.44593917483,
+              "delta": 0.15106097599174007
+            },
+            "unexplained_to_output_db": {
+              "reference": -35.24850933179247,
+              "candidate": -34.99307021850616,
+              "delta": 0.2554391132863074
+            },
+            "dc_offset_rms": {
+              "reference": 0.0014623587374148026,
+              "candidate": 0.0013230098948667467,
+              "delta": -0.00013934884254805592
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -56.461294461502995,
+              "candidate": -55.65620224353157,
+              "delta": 0.8050922179714277
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.502562149553015,
+              "candidate": -61.96010020815248,
+              "delta": -0.45753805859946794
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.041267688050025,
+              "candidate": -6.3038979646209174,
+              "delta": -1.262630276570892
+            },
+            "dc_offset_rms": {
+              "reference": 0.00033292813982314007,
+              "candidate": 0.0003380149638804315,
+              "delta": 5.0868240572914374e-06
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -43.861759229881656,
+              "candidate": -45.43532426128931,
+              "delta": -1.5735650314076537
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.53397355103395,
+              "candidate": -52.243477120142565,
+              "delta": 0.29049643089138755
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.6722143211523,
+              "candidate": -6.808152858853257,
+              "delta": 1.864061462299043
+            },
+            "dc_offset_rms": {
+              "reference": 0.0016151686449299523,
+              "candidate": 0.0019100912837726287,
+              "delta": 0.00029492263884267644
+            }
+          }
+        }
+      }
+    },
+    "control_minus_parent": {
+      "full14": {
+        "reference": {
+          "kind": "audited_resume",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-raw4-b4-lr3e-5/resume.pt",
+          "sha256": "55b737c7573132381a0d9b0197d7fdc1d5b0c9faaa246b3df3195d00816ef4e5",
+          "audit": {
+            "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-prep/asymmetric-to-000500-001/checkpoint-audit.json",
+            "sha256": "ae8edf67ccf2d2f0f2d31ce224dd7ae46b64384cbceb40bc29aee6eb2bbe96dc"
+          },
+          "audit_execution": {
+            "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-prep/asymmetric-to-000500-001/audit-execution.json",
+            "sha256": "4b31ab9f4b27c6523a2cff712b2801462107eef6ce79f0af4826235181e0b6b2"
+          }
+        },
+        "candidate": {
+          "kind": "inference",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-control-b4-lr3e-5/endpoint/model.pt",
+          "sha256": "ba5667a77db3fea7fc24667b599c7994538b4b09993d3315d01162db55dd48f9"
+        },
+        "tracks": 14,
+        "bootstrap_samples": 20000,
+        "bootstrap_seed": 91,
+        "uncertainty_scope": "Track sampling on this validation panel only; not training-seed uncertainty or correction for checkpoint selection.",
+        "metrics": {
+          "full_sdr_db": {
+            "reference": 3.8078525024796326,
+            "candidate": 3.812986781883164,
+            "delta": 0.005134279403531594,
+            "paired_track_bootstrap_95_percent": [
+              -0.027826606869290622,
+              0.03796863156207554
+            ],
+            "per_stem_delta": {
+              "drums": 0.004423314275919505,
+              "bass": -0.005625652483660489,
+              "vocals": 0.05111316527680613,
+              "other": -0.029373709454938772
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": -0.06729889316895735,
+              "Actions - One Minute Smile": 0.12230816942245482,
+              "Alexander Ross - Goodbye Bolero": 0.05849057511280881,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.01321700468426254,
+              "Fergessen - Nos Palpitants": 0.011673754348199505,
+              "James May - On The Line": -0.10566101082957824,
+              "Johnny Lokke - Promises & Lies": -0.056340625677561484,
+              "Leaf - Summerghost": 0.0394515828260687,
+              "Meaxic - Take A Step": 0.004313141879404903,
+              "Patrick Talbot - A Reason To Leave": -0.014065923421764284,
+              "Skelpolu - Human Mistakes": 0.08445452727579768,
+              "Traffic Experiment - Sirens": 0.03928024015825249,
+              "Triviul - Angelsaint": -0.08102858670816404,
+              "Young Griffo - Pennies": 0.023085955748218256
+            }
+          },
+          "low_sdr_db": {
+            "reference": 2.720204454251267,
+            "candidate": 2.7245514071170547,
+            "delta": 0.004346952865787908,
+            "paired_track_bootstrap_95_percent": [
+              -0.039144932122156875,
+              0.04886699537270111
+            ],
+            "per_stem_delta": {
+              "drums": 0.0010697538825630748,
+              "bass": -0.033637131427148824,
+              "vocals": 0.12020620072890338,
+              "other": -0.070251011721166
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": -0.10332051922871743,
+              "Actions - One Minute Smile": 0.19820352592201923,
+              "Alexander Ross - Goodbye Bolero": 0.07604711285246696,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.016051411672824978,
+              "Fergessen - Nos Palpitants": -0.005317805577691681,
+              "James May - On The Line": -0.12950253239247034,
+              "Johnny Lokke - Promises & Lies": -0.0020291608911265913,
+              "Leaf - Summerghost": 0.006414872127557619,
+              "Meaxic - Take A Step": 0.03332916219290405,
+              "Patrick Talbot - A Reason To Leave": 0.015242244511734337,
+              "Skelpolu - Human Mistakes": 0.09272850788506834,
+              "Traffic Experiment - Sirens": -0.016301158142794737,
+              "Triviul - Angelsaint": -0.12913234856816713,
+              "Young Griffo - Pennies": 0.00844402775742309
+            }
+          },
+          "bleed_sir_db": {
+            "reference": 6.571951945920625,
+            "candidate": 6.654889742522861,
+            "delta": 0.08293779660223648,
+            "paired_track_bootstrap_95_percent": [
+              0.02422074069621174,
+              0.14140972413472958
+            ],
+            "per_stem_delta": {
+              "drums": -0.08299897511215529,
+              "bass": 0.250846836251411,
+              "vocals": 0.20984399791075908,
+              "other": -0.0459406726410689
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": -0.07900253516097494,
+              "Actions - One Minute Smile": 0.1760193727276012,
+              "Alexander Ross - Goodbye Bolero": 0.2027206561229154,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.09230757474894641,
+              "Fergessen - Nos Palpitants": -0.006118674402382229,
+              "James May - On The Line": 0.111907554905462,
+              "Johnny Lokke - Promises & Lies": -0.0840095759627334,
+              "Leaf - Summerghost": 0.24547792441377547,
+              "Meaxic - Take A Step": 0.146957919380801,
+              "Patrick Talbot - A Reason To Leave": 0.03990535876204235,
+              "Skelpolu - Human Mistakes": -0.026765882230105842,
+              "Traffic Experiment - Sirens": -0.02284246472397755,
+              "Triviul - Angelsaint": 0.10847018836917899,
+              "Young Griffo - Pennies": 0.25610173548076176
+            }
+          }
+        },
+        "absence_dbfs_delta": {
+          "drums": 0.06576596299688475,
+          "bass": -0.6761543015070544,
+          "vocals": -0.002827135823771698,
+          "other": 0.0007942006801329171
+        }
+      },
+      "actions60": {
+        "drums": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.42185009479926,
+            "candidate": 3.4905134182856044,
+            "delta": 0.0686633234863443
+          },
+          "rms_dbfs": {
+            "reference": -25.92099101047928,
+            "candidate": -25.500658852821164,
+            "delta": 0.42033215765811605
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.015055475128681486,
+            "candidate": 0.012363782352436374,
+            "delta": -0.0026916927762451123
+          }
+        },
+        "bass": {
+          "raw_waveform_sdr_db": {
+            "reference": -2.0996312060013063,
+            "candidate": -1.3177833855877106,
+            "delta": 0.7818478204135957
+          },
+          "rms_dbfs": {
+            "reference": -25.739085993049926,
+            "candidate": -26.58361904734761,
+            "delta": -0.8445330542976848
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.04380574458548343,
+            "candidate": 0.02565674739554826,
+            "delta": -0.018148997189935172
+          }
+        },
+        "vocals": {
+          "raw_waveform_sdr_db": {
+            "reference": 4.754591880962065,
+            "candidate": 4.782289957642833,
+            "delta": 0.027698076680768402
+          },
+          "rms_dbfs": {
+            "reference": -23.22821181627053,
+            "candidate": -23.151144262195604,
+            "delta": 0.07706755407492594
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.015171032755140626,
+            "candidate": 0.013456036658896806,
+            "delta": -0.00171499609624382
+          }
+        },
+        "other": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.526016620533567,
+            "candidate": 3.734489763128617,
+            "delta": 0.20847314259505012
+          },
+          "rms_dbfs": {
+            "reference": -23.759868890190567,
+            "candidate": -23.45870373549712,
+            "delta": 0.3011651546934466
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.02005449651819894,
+            "candidate": 0.024874998580070657,
+            "delta": 0.004820502061871717
+          }
+        }
+      },
+      "probes": {
+        "silence": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -98.4685695099528,
+              "candidate": -97.94118531506186,
+              "delta": 0.5273841948909421
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -99.26689189754846,
+              "candidate": -99.50797455332926,
+              "delta": -0.2410826557808008
+            },
+            "unexplained_to_output_db": {
+              "reference": -0.7983223875956611,
+              "candidate": -1.566789238267397,
+              "delta": -0.7684668506717358
+            },
+            "dc_offset_rms": {
+              "reference": 4.873908817851401e-06,
+              "candidate": 6.948810748318999e-06,
+              "delta": 2.074901930467598e-06
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -94.23893438359599,
+              "candidate": -95.36524291929433,
+              "delta": -1.1263085356983424
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -98.25191761478354,
+              "candidate": -98.50146725111571,
+              "delta": -0.2495496363321763
+            },
+            "unexplained_to_output_db": {
+              "reference": -4.01298323118754,
+              "candidate": -3.1362243318213743,
+              "delta": 0.8767588993661661
+            },
+            "dc_offset_rms": {
+              "reference": 1.5220921487496083e-05,
+              "candidate": 1.2214886137473079e-05,
+              "delta": -3.006035350023005e-06
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -104.35067928283611,
+              "candidate": -108.15830210459215,
+              "delta": -3.8076228217560413
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -109.99790858618098,
+              "candidate": -110.26213146192558,
+              "delta": -0.26422287574459347
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.647229303344876,
+              "candidate": -2.103829357333421,
+              "delta": 3.543399946011455
+            },
+            "dc_offset_rms": {
+              "reference": 5.168229124220575e-06,
+              "candidate": 2.3882001742297825e-06,
+              "delta": -2.7800289499907926e-06
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -89.32413056839556,
+              "candidate": -91.10150950282997,
+              "delta": -1.7773789344344095
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -91.853026452057,
+              "candidate": -91.89801116763792,
+              "delta": -0.04498471558092376
+            },
+            "unexplained_to_output_db": {
+              "reference": -2.528895883661427,
+              "candidate": -0.7965016648079448,
+              "delta": 1.7323942188534822
+            },
+            "dc_offset_rms": {
+              "reference": 2.2793987768110337e-05,
+              "candidate": 1.134164695110589e-05,
+              "delta": -1.1452340817004447e-05
+            }
+          }
+        },
+        "bass_notes": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -46.755119353814976,
+              "candidate": -47.080256061754355,
+              "delta": -0.32513670793937877
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.70200316277492,
+              "candidate": -52.92873147365478,
+              "delta": -0.22672831087985656
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.9468838089599405,
+              "candidate": -5.848475411900431,
+              "delta": 0.09840839705950977
+            },
+            "dc_offset_rms": {
+              "reference": 0.0009120375512005759,
+              "candidate": 0.0010081864013421376,
+              "delta": 9.614885014156164e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -16.952051945169615,
+              "candidate": -17.016328248567767,
+              "delta": -0.06427630339815238
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -49.97484270326517,
+              "candidate": -50.52801856191997,
+              "delta": -0.5531758586548037
+            },
+            "unexplained_to_output_db": {
+              "reference": -33.02279075809555,
+              "candidate": -33.511690313352204,
+              "delta": -0.4888995552566513
+            },
+            "dc_offset_rms": {
+              "reference": 0.0014466620649266897,
+              "candidate": 0.0015951962107741272,
+              "delta": 0.0001485341458474375
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -57.25094543541618,
+              "candidate": -58.09798322385086,
+              "delta": -0.8470377884346831
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.17643068431858,
+              "candidate": -61.274705993749855,
+              "delta": -0.09827530943127272
+            },
+            "unexplained_to_output_db": {
+              "reference": -3.9254852489024046,
+              "candidate": -3.1767227698989977,
+              "delta": 0.7487624790034069
+            },
+            "dc_offset_rms": {
+              "reference": 0.00047585612039191305,
+              "candidate": 0.00030206044922894776,
+              "delta": -0.0001737956711629653
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -44.57388667492217,
+              "candidate": -45.40316349047973,
+              "delta": -0.8292768155575558
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -50.56370163557858,
+              "candidate": -51.07029068352522,
+              "delta": -0.5065890479466404
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.98981496065641,
+              "candidate": -5.667127193045493,
+              "delta": 0.3226877676109172
+            },
+            "dc_offset_rms": {
+              "reference": 0.0012375945965699543,
+              "candidate": 0.0013333467871018251,
+              "delta": 9.575219053187083e-05
+            }
+          }
+        },
+        "hop_tones": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -59.53023688079804,
+              "candidate": -60.434024707344705,
+              "delta": -0.9037878265466617
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -68.47330475242825,
+              "candidate": -69.05049862281396,
+              "delta": -0.5771938703857131
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.943067871630209,
+              "candidate": -8.616473915469248,
+              "delta": 0.326593956160961
+            },
+            "dc_offset_rms": {
+              "reference": 0.00020412455560954912,
+              "candidate": 0.0002170045898703758,
+              "delta": 1.2880034260826678e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -26.95012683353725,
+              "candidate": -27.063476572285296,
+              "delta": -0.11334973874804533
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -65.71590323736609,
+              "candidate": -65.27798420478582,
+              "delta": 0.4379190325802682
+            },
+            "unexplained_to_output_db": {
+              "reference": -38.76577640382884,
+              "candidate": -38.21450763250053,
+              "delta": 0.55126877132831
+            },
+            "dc_offset_rms": {
+              "reference": 0.00040922067886460723,
+              "candidate": 0.00047428306902322695,
+              "delta": 6.506239015861972e-05
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -66.54943292337815,
+              "candidate": -67.37360928148627,
+              "delta": -0.8241763581081187
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -72.01317188964161,
+              "candidate": -72.63462693665429,
+              "delta": -0.6214550470126738
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.463738966263465,
+              "candidate": -5.261017655168031,
+              "delta": 0.20272131109543423
+            },
+            "dc_offset_rms": {
+              "reference": 8.888232020725438e-05,
+              "candidate": 5.1419722070973906e-05,
+              "delta": -3.7462598136280477e-05
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -57.51027207481977,
+              "candidate": -56.549228250561804,
+              "delta": 0.9610438242579633
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -66.91921661996747,
+              "candidate": -67.36441090407408,
+              "delta": -0.44519428410660566
+            },
+            "unexplained_to_output_db": {
+              "reference": -9.408944545147701,
+              "candidate": -10.815182653512268,
+              "delta": -1.4062381083645672
+            },
+            "dc_offset_rms": {
+              "reference": 0.00040299502651577836,
+              "candidate": 0.0005437477936103538,
+              "delta": 0.00014075276709457542
+            }
+          }
+        },
+        "harmonic_bass": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -44.98471296177728,
+              "candidate": -45.22568835445399,
+              "delta": -0.24097539267671664
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.9849553287838,
+              "candidate": -53.466276367120116,
+              "delta": -0.48132103833631845
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.000242367006516,
+              "candidate": -8.24058801266612,
+              "delta": -0.2403456456596036
+            },
+            "dc_offset_rms": {
+              "reference": 0.0012161551767612643,
+              "candidate": 0.0013467005144668688,
+              "delta": 0.0001305453377056045
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -16.348490819029276,
+              "candidate": -16.42197243220507,
+              "delta": -0.07348161317579383
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -51.59700015082174,
+              "candidate": -51.54924786823892,
+              "delta": 0.04775228258282027
+            },
+            "unexplained_to_output_db": {
+              "reference": -35.24850933179247,
+              "candidate": -35.127275436033855,
+              "delta": 0.1212338957586141
+            },
+            "dc_offset_rms": {
+              "reference": 0.0014623587374148026,
+              "candidate": 0.0013001270568753706,
+              "delta": -0.00016223168053943198
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -56.461294461502995,
+              "candidate": -57.25220132059558,
+              "delta": -0.790906859092587
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.502562149553015,
+              "candidate": -61.94248372889942,
+              "delta": -0.43992157934640375
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.041267688050025,
+              "candidate": -4.690282408303839,
+              "delta": 0.35098527974618676
+            },
+            "dc_offset_rms": {
+              "reference": 0.00033292813982314007,
+              "candidate": 0.0002995653372291496,
+              "delta": -3.336280259399045e-05
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -43.861759229881656,
+              "candidate": -45.17081063254907,
+              "delta": -1.3090514026674143
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.53397355103395,
+              "candidate": -52.5331399724947,
+              "delta": 0.0008335785392503681
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.6722143211523,
+              "candidate": -7.3623293399456315,
+              "delta": 1.3098849812066682
+            },
+            "dc_offset_rms": {
+              "reference": 0.0016151686449299523,
+              "candidate": 0.0016446771542574787,
+              "delta": 2.9508509327526473e-05
+            }
+          }
+        }
+      }
+    },
+    "half_minus_control": {
+      "full14": {
+        "reference": {
+          "kind": "inference",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-control-b4-lr3e-5/endpoint/model.pt",
+          "sha256": "ba5667a77db3fea7fc24667b599c7994538b4b09993d3315d01162db55dd48f9"
+        },
+        "candidate": {
+          "kind": "inference",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-half-b4-lr3e-5/endpoint/model.pt",
+          "sha256": "a74543ad26fe7f393e7ef269e10373af46b5faa76b2a7bcec74b718cbd5a9ca0"
+        },
+        "tracks": 14,
+        "bootstrap_samples": 20000,
+        "bootstrap_seed": 91,
+        "uncertainty_scope": "Track sampling on this validation panel only; not training-seed uncertainty or correction for checkpoint selection.",
+        "metrics": {
+          "full_sdr_db": {
+            "reference": 3.812986781883164,
+            "candidate": 3.846588797019452,
+            "delta": 0.03360201513628775,
+            "paired_track_bootstrap_95_percent": [
+              0.005419477638919193,
+              0.062446868837450945
+            ],
+            "per_stem_delta": {
+              "drums": 0.049503717528229095,
+              "bass": 0.019124629414448795,
+              "vocals": 0.003640888991727483,
+              "other": 0.06213882461074562
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.1150303830988751,
+              "Actions - One Minute Smile": -0.060311975617043156,
+              "Alexander Ross - Goodbye Bolero": 0.029586283957520165,
+              "Clara Berry And Wooldog - Waltz For My Victims": -0.030601174837858333,
+              "Fergessen - Nos Palpitants": 0.06604003347081389,
+              "James May - On The Line": 0.10404176282159261,
+              "Johnny Lokke - Promises & Lies": 0.03001036749076813,
+              "Leaf - Summerghost": 0.007527350232206409,
+              "Meaxic - Take A Step": 0.02149595565733431,
+              "Patrick Talbot - A Reason To Leave": 0.07973150194421252,
+              "Skelpolu - Human Mistakes": -0.008698728129384353,
+              "Traffic Experiment - Sirens": -0.01155788360420762,
+              "Triviul - Angelsaint": 0.12501142333137427,
+              "Young Griffo - Pennies": 0.003122912091824581
+            }
+          },
+          "low_sdr_db": {
+            "reference": 2.7245514071170547,
+            "candidate": 2.7721563878579176,
+            "delta": 0.04760498074086279,
+            "paired_track_bootstrap_95_percent": [
+              0.018561487781834498,
+              0.07650796525838664
+            ],
+            "per_stem_delta": {
+              "drums": 0.060751964562486035,
+              "bass": 0.033254388217832824,
+              "vocals": 0.021492991676664488,
+              "other": 0.07492057850646781
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.127387396166748,
+              "Actions - One Minute Smile": -0.06291180377178529,
+              "Alexander Ross - Goodbye Bolero": 0.05597098187496807,
+              "Clara Berry And Wooldog - Waltz For My Victims": -0.0011881159177397072,
+              "Fergessen - Nos Palpitants": 0.07333373997942949,
+              "James May - On The Line": 0.12839835858295967,
+              "Johnny Lokke - Promises & Lies": 0.06270622892572797,
+              "Leaf - Summerghost": 0.024946502363502737,
+              "Meaxic - Take A Step": 0.021385844180756244,
+              "Patrick Talbot - A Reason To Leave": 0.0663940725834111,
+              "Skelpolu - Human Mistakes": -0.014705624466133167,
+              "Traffic Experiment - Sirens": 0.010067867010354212,
+              "Triviul - Angelsaint": 0.13552079539862893,
+              "Young Griffo - Pennies": 0.03916348746125081
+            }
+          },
+          "bleed_sir_db": {
+            "reference": 6.654889742522861,
+            "candidate": 6.700406192055947,
+            "delta": 0.04551644953308628,
+            "paired_track_bootstrap_95_percent": [
+              -0.01170013731883072,
+              0.09948832468903232
+            ],
+            "per_stem_delta": {
+              "drums": 0.2336561163755114,
+              "bass": -0.19217823933043596,
+              "vocals": -0.019298563774451123,
+              "other": 0.1598864848617208
+            },
+            "per_track_macro_delta": {
+              "ANiMAL - Rockshow": 0.14407813615556667,
+              "Actions - One Minute Smile": -0.14538087065766714,
+              "Alexander Ross - Goodbye Bolero": 0.15159864054900107,
+              "Clara Berry And Wooldog - Waltz For My Victims": 0.09383800390122832,
+              "Fergessen - Nos Palpitants": -0.07462523842537427,
+              "James May - On The Line": 0.06465182637207811,
+              "Johnny Lokke - Promises & Lies": 0.09178709050538625,
+              "Leaf - Summerghost": -0.019715792147849853,
+              "Meaxic - Take A Step": -0.005685005232682561,
+              "Patrick Talbot - A Reason To Leave": 0.08716522294583587,
+              "Skelpolu - Human Mistakes": 0.12628872995220444,
+              "Traffic Experiment - Sirens": 0.06600025453382341,
+              "Triviul - Angelsaint": 0.20959495588373178,
+              "Young Griffo - Pennies": -0.1523656608720742
+            }
+          }
+        },
+        "absence_dbfs_delta": {
+          "drums": -0.37087451000273575,
+          "bass": 0.11866284291835427,
+          "vocals": 0.1310623186949229,
+          "other": -0.28480467396592957
+        }
+      },
+      "actions60": {
+        "drums": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.4905134182856044,
+            "candidate": 3.429743832258053,
+            "delta": -0.06076958602755145
+          },
+          "rms_dbfs": {
+            "reference": -25.500658852821164,
+            "candidate": -25.599490721708094,
+            "delta": -0.09883186888692919
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.012363782352436374,
+            "candidate": 0.010958020454845003,
+            "delta": -0.0014057618975913712
+          }
+        },
+        "bass": {
+          "raw_waveform_sdr_db": {
+            "reference": -1.3177833855877106,
+            "candidate": -1.959782518916203,
+            "delta": -0.6419991333284925
+          },
+          "rms_dbfs": {
+            "reference": -26.58361904734761,
+            "candidate": -25.865701187442962,
+            "delta": 0.7179178599046487
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.02565674739554826,
+            "candidate": 0.019705437320915713,
+            "delta": -0.005951310074632548
+          }
+        },
+        "vocals": {
+          "raw_waveform_sdr_db": {
+            "reference": 4.782289957642833,
+            "candidate": 4.822292600426863,
+            "delta": 0.040002642784029874
+          },
+          "rms_dbfs": {
+            "reference": -23.151144262195604,
+            "candidate": -23.06003011369087,
+            "delta": 0.0911141485047331
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.013456036658896806,
+            "candidate": 0.011681782079397717,
+            "delta": -0.0017742545794990888
+          }
+        },
+        "other": {
+          "raw_waveform_sdr_db": {
+            "reference": 3.734489763128617,
+            "candidate": 3.5876612904550376,
+            "delta": -0.14682847267357957
+          },
+          "rms_dbfs": {
+            "reference": -23.45870373549712,
+            "candidate": -23.924267590392397,
+            "delta": -0.46556385489527585
+          },
+          "error_phase128_first_harmonic_fraction": {
+            "reference": 0.024874998580070657,
+            "candidate": 0.025037003158086817,
+            "delta": 0.00016200457801615956
+          }
+        }
+      },
+      "probes": {
+        "silence": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -97.94118531506186,
+              "candidate": -98.41406579510644,
+              "delta": -0.47288048004458005
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -99.50797455332926,
+              "candidate": -99.59203092880934,
+              "delta": -0.08405637548007405
+            },
+            "unexplained_to_output_db": {
+              "reference": -1.566789238267397,
+              "candidate": -1.1779651337029087,
+              "delta": 0.38882410456448824
+            },
+            "dc_offset_rms": {
+              "reference": 6.948810748318999e-06,
+              "candidate": 5.843127486229393e-06,
+              "delta": -1.1056832620896067e-06
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -95.36524291929433,
+              "candidate": -95.63190931971538,
+              "delta": -0.2666664004210446
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -98.50146725111571,
+              "candidate": -98.52723159438608,
+              "delta": -0.025764343270367362
+            },
+            "unexplained_to_output_db": {
+              "reference": -3.1362243318213743,
+              "candidate": -2.8953222746707077,
+              "delta": 0.2409020571506666
+            },
+            "dc_offset_rms": {
+              "reference": 1.2214886137473079e-05,
+              "candidate": 1.1534472033517568e-05,
+              "delta": -6.804141039555111e-07
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -108.15830210459215,
+              "candidate": -109.4378761138658,
+              "delta": -1.2795740092736452
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -110.26213146192558,
+              "candidate": -111.59282334375527,
+              "delta": -1.3306918818296936
+            },
+            "unexplained_to_output_db": {
+              "reference": -2.103829357333421,
+              "candidate": -2.1549472298894834,
+              "delta": -0.051117872556062594
+            },
+            "dc_offset_rms": {
+              "reference": 2.3882001742297825e-06,
+              "candidate": 2.0029304740025484e-06,
+              "delta": -3.852697002272341e-07
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -91.10150950282997,
+              "candidate": -91.05997640255413,
+              "delta": 0.041533100275842116
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -91.89801116763792,
+              "candidate": -92.11417425879725,
+              "delta": -0.21616309115933063
+            },
+            "unexplained_to_output_db": {
+              "reference": -0.7965016648079448,
+              "candidate": -1.0541978562431211,
+              "delta": -0.2576961914351763
+            },
+            "dc_offset_rms": {
+              "reference": 1.134164695110589e-05,
+              "candidate": 1.2929272566399734e-05,
+              "delta": 1.5876256152938435e-06
+            }
+          }
+        },
+        "bass_notes": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -47.080256061754355,
+              "candidate": -46.77979212545229,
+              "delta": 0.3004639363020658
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.92873147365478,
+              "candidate": -53.035320370847984,
+              "delta": -0.10658889719320541
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.848475411900431,
+              "candidate": -6.2555282453956895,
+              "delta": -0.4070528334952588
+            },
+            "dc_offset_rms": {
+              "reference": 0.0010081864013421376,
+              "candidate": 0.0009962055949948299,
+              "delta": -1.1980806347307695e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -17.016328248567767,
+              "candidate": -17.03030313941203,
+              "delta": -0.013974890844263399
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -50.52801856191997,
+              "candidate": -50.306927445044735,
+              "delta": 0.22109111687523608
+            },
+            "unexplained_to_output_db": {
+              "reference": -33.511690313352204,
+              "candidate": -33.27662430563271,
+              "delta": 0.23506600771949593
+            },
+            "dc_offset_rms": {
+              "reference": 0.0015951962107741272,
+              "candidate": 0.0014434869702104123,
+              "delta": -0.00015170924056371487
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -58.09798322385086,
+              "candidate": -56.51466594925902,
+              "delta": 1.5833172745918418
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.274705993749855,
+              "candidate": -61.2783438533628,
+              "delta": -0.003637859612943828
+            },
+            "unexplained_to_output_db": {
+              "reference": -3.1767227698989977,
+              "candidate": -4.763677904103783,
+              "delta": -1.5869551342047856
+            },
+            "dc_offset_rms": {
+              "reference": 0.00030206044922894776,
+              "candidate": 0.00025523942141844163,
+              "delta": -4.682102781050613e-05
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -45.40316349047973,
+              "candidate": -45.15208361929228,
+              "delta": 0.25107987118745
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -51.07029068352522,
+              "candidate": -51.04109491722478,
+              "delta": 0.02919576630043963
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.667127193045493,
+              "candidate": -5.8890112979325036,
+              "delta": -0.22188410488701038
+            },
+            "dc_offset_rms": {
+              "reference": 0.0013333467871018251,
+              "candidate": 0.0012855261097593123,
+              "delta": -4.7820677342512875e-05
+            }
+          }
+        },
+        "hop_tones": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -60.434024707344705,
+              "candidate": -61.072265256398055,
+              "delta": -0.63824054905335
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -69.05049862281396,
+              "candidate": -68.85243161375539,
+              "delta": 0.1980670090585761
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.616473915469248,
+              "candidate": -7.780166357357338,
+              "delta": 0.8363075581119102
+            },
+            "dc_offset_rms": {
+              "reference": 0.0002170045898703758,
+              "candidate": 0.00024166211661645105,
+              "delta": 2.4657526746075256e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -27.063476572285296,
+              "candidate": -27.014087214273943,
+              "delta": 0.04938935801135358
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -65.27798420478582,
+              "candidate": -64.65597994906554,
+              "delta": 0.6220042557202845
+            },
+            "unexplained_to_output_db": {
+              "reference": -38.21450763250053,
+              "candidate": -37.6418927347916,
+              "delta": 0.5726148977089309
+            },
+            "dc_offset_rms": {
+              "reference": 0.00047428306902322695,
+              "candidate": 0.0004955572569035398,
+              "delta": 2.1274187880312816e-05
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -67.37360928148627,
+              "candidate": -67.84626650940794,
+              "delta": -0.47265722792167253
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -72.63462693665429,
+              "candidate": -72.36886469328807,
+              "delta": 0.26576224336621124
+            },
+            "unexplained_to_output_db": {
+              "reference": -5.261017655168031,
+              "candidate": -4.522598183880138,
+              "delta": 0.7384194712878926
+            },
+            "dc_offset_rms": {
+              "reference": 5.1419722070973906e-05,
+              "candidate": 8.05022390614425e-05,
+              "delta": 2.9082516990468594e-05
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -56.549228250561804,
+              "candidate": -56.43714080763665,
+              "delta": 0.11208744292515149
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -67.36441090407408,
+              "candidate": -67.07710980817778,
+              "delta": 0.2873010958962965
+            },
+            "unexplained_to_output_db": {
+              "reference": -10.815182653512268,
+              "candidate": -10.63996900054113,
+              "delta": 0.1752136529711379
+            },
+            "dc_offset_rms": {
+              "reference": 0.0005437477936103538,
+              "candidate": 0.0005548886675551715,
+              "delta": 1.1140873944817751e-05
+            }
+          }
+        },
+        "harmonic_bass": {
+          "drums": {
+            "output_rms_dbfs": {
+              "reference": -45.22568835445399,
+              "candidate": -44.88868627430031,
+              "delta": 0.33700208015368105
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -53.466276367120116,
+              "candidate": -53.52268547417807,
+              "delta": -0.05640910705795221
+            },
+            "unexplained_to_output_db": {
+              "reference": -8.24058801266612,
+              "candidate": -8.633999199877762,
+              "delta": -0.39341118721164214
+            },
+            "dc_offset_rms": {
+              "reference": 0.0013467005144668688,
+              "candidate": 0.001267680463482928,
+              "delta": -7.902005098394077e-05
+            }
+          },
+          "bass": {
+            "output_rms_dbfs": {
+              "reference": -16.42197243220507,
+              "candidate": -16.452868956323844,
+              "delta": -0.030896524118773527
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -51.54924786823892,
+              "candidate": -51.44593917483,
+              "delta": 0.1033086934089198
+            },
+            "unexplained_to_output_db": {
+              "reference": -35.127275436033855,
+              "candidate": -34.99307021850616,
+              "delta": 0.13420521752769332
+            },
+            "dc_offset_rms": {
+              "reference": 0.0013001270568753706,
+              "candidate": 0.0013230098948667467,
+              "delta": 2.2882837991376054e-05
+            }
+          },
+          "vocals": {
+            "output_rms_dbfs": {
+              "reference": -57.25220132059558,
+              "candidate": -55.65620224353157,
+              "delta": 1.5959990770640147
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -61.94248372889942,
+              "candidate": -61.96010020815248,
+              "delta": -0.0176164792530642
+            },
+            "unexplained_to_output_db": {
+              "reference": -4.690282408303839,
+              "candidate": -6.3038979646209174,
+              "delta": -1.6136155563170789
+            },
+            "dc_offset_rms": {
+              "reference": 0.0002995653372291496,
+              "candidate": 0.0003380149638804315,
+              "delta": 3.844962665128189e-05
+            }
+          },
+          "other": {
+            "output_rms_dbfs": {
+              "reference": -45.17081063254907,
+              "candidate": -45.43532426128931,
+              "delta": -0.2645136287402394
+            },
+            "unexplained_rms_dbfs": {
+              "reference": -52.5331399724947,
+              "candidate": -52.243477120142565,
+              "delta": 0.2896628523521372
+            },
+            "unexplained_to_output_db": {
+              "reference": -7.3623293399456315,
+              "candidate": -6.808152858853257,
+              "delta": 0.5541764810923748
+            },
+            "dc_offset_rms": {
+              "reference": 0.0016446771542574787,
+              "candidate": 0.0019100912837726287,
+              "delta": 0.00026541412951514996
+            }
+          }
+        }
+      }
+    }
+  },
+  "source_bindings_unchanged": true,
+  "plan_sha256": "69fcfffb1b02d14aff4084ad9a4277aa00f16935f97f41dc5adde5b43d0ca635",
+  "matched_training_proof": {
+    "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-prep/matched-training-result.json",
+    "sha256": "8f30595405051e58937e1b0d6aa9ea02ee804e5779c2dc1bc25177610c358ed1"
+  },
+  "quality_selected": false,
+  "interpretation": "Differences are at native levels on the fixed protocol. Bootstrap scope is track sampling only, not training-seed or model-selection uncertainty. Probes do not prescribe stem routing or establish listening acceptance."
+}

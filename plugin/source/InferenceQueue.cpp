@@ -9,6 +9,7 @@
 #include <cmath>
 #include <limits>
 
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
 #if defined(_WIN32)
@@ -21,6 +22,15 @@
 namespace audio_plugin {
 
 namespace {
+
+std::clock_t processCpuClock() noexcept {
+#if defined(__APPLE__) || defined(__linux__)
+  return std::clock();
+#else
+  // MSVC's clock() measures elapsed wall time, so do not label it CPU time.
+  return static_cast<std::clock_t>(-1);
+#endif
+}
 
 InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
 #if defined(__APPLE__)
@@ -71,6 +81,7 @@ void InferenceRequest::allocate(size_t hostOutputCapacity) {
     }
   }
   outputValid = false;
+  inferenceSucceeded = false;
   hostOutputValid = false;
   hostOutputStartSample = 0U;
   hostOutputSampleCount = 0U;
@@ -205,7 +216,7 @@ bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
   return true;
 }
 
-void InferenceQueue::startThread(OnnxRuntime* runtime) {
+bool InferenceQueue::startThread(OnnxRuntime* runtime) {
   WorkerCallbacks callbacks;
   callbacks.context = runtime;
   if (runtime != nullptr) {
@@ -219,20 +230,27 @@ void InferenceQueue::startThread(OnnxRuntime* runtime) {
       static_cast<OnnxRuntime*>(context)->resetStreamingState();
     };
   }
-  startThreadWithCallbacks(callbacks);
+  return startThreadWithCallbacks(callbacks);
 }
 
-void InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
+bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
   if (thread_ && thread_->joinable()) {
-    return;  // Already running
+    return true;  // Already running
   }
 
   shouldStop_.store(false, std::memory_order_release);
   workerPriorityStatus_.store(WorkerPriorityStatus::NotAttempted,
                               std::memory_order_release);
-  thread_ = std::make_unique<std::thread>(&InferenceQueue::inferenceThreadFunc,
-                                          this, callbacks);
+  try {
+    thread_ = std::make_unique<std::thread>(
+        &InferenceQueue::inferenceThreadFunc, this, callbacks);
+  } catch (...) {
+    shouldStop_.store(true, std::memory_order_release);
+    threadRunning_.store(false, std::memory_order_release);
+    return false;
+  }
   threadRunning_.store(true, std::memory_order_release);
+  return true;
 }
 
 void InferenceQueue::stopThread() {
@@ -245,6 +263,14 @@ void InferenceQueue::stopThread() {
   threadRunning_.store(false, std::memory_order_release);
 }
 
+bool InferenceQueue::setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept {
+  if (isThreadRunning()) {
+    return false;
+  }
+  workerTimingTrace_ = trace;
+  return true;
+}
+
 InferenceRequest* InferenceQueue::getWriteSlot() {
   const size_t idx = writeIdx_.load(std::memory_order_acquire);
   auto& slot = queue_[idx];
@@ -255,7 +281,9 @@ InferenceRequest* InferenceQueue::getWriteSlot() {
 
   const uint32_t currentEpoch = getEpoch();
   uint64_t observed = slot->control_.load(std::memory_order_acquire);
-  while (true) {
+  // One retry accommodates the worker reclaiming a stale slot. The audio
+  // thread must never retry indefinitely, including after a spurious weak CAS.
+  for (int attempt = 0; attempt < 2; ++attempt) {
     const auto state = InferenceRequest::stateFromControl(observed);
     const uint32_t slotEpoch = InferenceRequest::epochFromControl(observed);
 
@@ -272,12 +300,13 @@ InferenceRequest* InferenceQueue::getWriteSlot() {
 
     const uint64_t desired = InferenceRequest::makeControl(
         currentEpoch, InferenceRequest::SlotState::Writing);
-    if (slot->control_.compare_exchange_weak(observed, desired,
-                                             std::memory_order_acquire,
-                                             std::memory_order_acquire)) {
+    if (slot->control_.compare_exchange_strong(observed, desired,
+                                               std::memory_order_acquire,
+                                               std::memory_order_acquire)) {
       return slot.get();
     }
   }
+  return nullptr;
 }
 
 void InferenceQueue::submitWriteSlot(uint32_t epoch) {
@@ -382,7 +411,8 @@ InferenceRequest* InferenceQueue::getOutputSlot(uint32_t currentEpoch) {
     return nullptr;
   }
 
-  while (true) {
+  // Bound stale cleanup and ownership retries by the physical ring capacity.
+  for (size_t inspected = 0; inspected < queue_.size(); ++inspected) {
     size_t idx = consumeIdx_.load(std::memory_order_acquire);
     auto& slot = queue_[idx];
 
@@ -418,6 +448,7 @@ InferenceRequest* InferenceQueue::getOutputSlot(uint32_t currentEpoch) {
       return slot.get();
     }
   }
+  return nullptr;
 }
 
 InferenceRequest* InferenceQueue::getCurrentOutputSlot() {
@@ -490,17 +521,11 @@ uint32_t InferenceQueue::reset() {
   // Skip old-epoch output consumption immediately.
   consumeIdx_.store(startIdx, std::memory_order_release);
 
-  uint64_t observed = epochControl_.load(std::memory_order_acquire);
-  uint32_t newEpoch = 0;
-  while (true) {
-    newEpoch = epochFromControl(observed) + 1U;
-    const uint64_t desired = makeEpochControl(newEpoch, startIdx);
-    if (epochControl_.compare_exchange_weak(observed, desired,
-                                            std::memory_order_acq_rel,
-                                            std::memory_order_acquire)) {
-      break;
-    }
-  }
+  // reset() is serialized with audio-thread publication. The worker only
+  // reads this snapshot, so a single release store publishes the new epoch.
+  const uint32_t newEpoch = getEpoch() + 1U;
+  epochControl_.store(makeEpochControl(newEpoch, startIdx),
+                      std::memory_order_release);
 
   // A full old ring can leave the producer's next slot owned by an in-flight
   // old-epoch run. Invalidate the epoch first, then select an unowned slot in
@@ -600,6 +625,10 @@ bool InferenceQueue::reclaimStaleSlots(uint64_t observedEpochControl) {
 }
 
 void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
+  // The host callback's floating-point mode does not transfer to this thread.
+  // Keep subnormal arithmetic from imposing unpredictable per-hop CPU cost.
+  const juce::ScopedNoDenormals noDenormals;
+  auto* const timingTrace = workerTimingTrace_;
   const WorkerPriorityStatus priorityStatus = configureCurrentThreadPriority();
   workerPriorityStatus_.store(priorityStatus, std::memory_order_release);
   if (priorityStatus == WorkerPriorityStatus::Failed) {
@@ -730,6 +759,12 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       }
 
       const uint64_t inputSequence = request->chunkSequence;
+      WorkerTimingSample timing;
+      if (timingTrace != nullptr) {
+        timing.epoch = requestEpoch;
+        timing.inputSequence = inputSequence;
+        timing.acquired = WorkerTimingSample::Clock::now();
+      }
       if (callbacks.reset != nullptr && hasPreviousInputSequence &&
           inputSequence != previousInputSequence + 1) {
         DBG("[InferenceQueue] Input sequence gap; resetting model state");
@@ -752,10 +787,18 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // This is the final epoch check immediately before invoking the
       // graph. An in-flight old-epoch run is discarded below if reset()
       // arrives concurrently.
+      if (timingTrace != nullptr) {
+        timing.processCpuStarted = processCpuClock();
+        timing.runStarted = WorkerTimingSample::Clock::now();
+      }
       if (epochControl_.load(std::memory_order_acquire) ==
               currentEpochControl &&
           callbacks.run != nullptr) {
         inferenceOk = callbacks.run(callbacks.context, *request);
+      }
+      if (timingTrace != nullptr) {
+        timing.runFinished = WorkerTimingSample::Clock::now();
+        timing.processCpuFinished = processCpuClock();
       }
 
       if (inferenceOk && request->outputValid &&
@@ -780,7 +823,10 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // Publish an invalid marker so the consumer can advance past a
       // failed slot instead of deadlocking behind it. Reset runtime state
       // first so the next successful run starts with exactly one pre-roll.
+      request->inferenceSucceeded = inferenceOk;
       if (!inferenceOk) {
+        request->outputValid = false;
+        request->hostOutputValid = false;
         uint64_t nextModelSample = 0U;
         const bool haveNextModelSample =
             inputSequence != std::numeric_limits<uint64_t>::max() &&
@@ -803,12 +849,20 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = true;
       }
 
+      if (timingTrace != nullptr) {
+        timing.publishStarted = WorkerTimingSample::Clock::now();
+        timing.inferenceOk = inferenceOk;
+      }
       uint64_t expected = processingControl;
       if (request->control_.compare_exchange_strong(
               expected,
               InferenceRequest::makeControl(
                   requestEpoch, InferenceRequest::SlotState::Processed),
               std::memory_order_release, std::memory_order_relaxed)) {
+        if (timingTrace != nullptr) {
+          timing.publishFinished = WorkerTimingSample::Clock::now();
+          timingTrace->record(timing);
+        }
         readIdx_.store((idx + 1) % kNumInferenceBuffers,
                        std::memory_order_release);
       }

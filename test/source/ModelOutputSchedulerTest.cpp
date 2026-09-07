@@ -9,8 +9,8 @@ namespace audio_plugin_test {
 namespace {
 
 using audio_plugin::AsyncDueResultAction;
-using audio_plugin::ModelOutputScheduleAction;
 using audio_plugin::isCompleteModelOutputHopAtBoundary;
+using audio_plugin::ModelOutputScheduleAction;
 using audio_plugin::planAsyncDueResult;
 using audio_plugin::planModelOutputRange;
 using audio_plugin::planModelOutputSchedule;
@@ -31,7 +31,8 @@ TEST(ModelOutputSchedulerTest, FullyElapsedResultIsDiscarded) {
 }
 
 TEST(ModelOutputSchedulerTest, PartiallyLateResultKeepsItsSourceOffset) {
-  constexpr size_t kElapsedPrefix = 137;
+  constexpr size_t kElapsedPrefix = 73;
+  static_assert(kElapsedPrefix > 0 && kElapsedPrefix < kChunkSize);
   const uint64_t outputTimeline =
       kLatency + static_cast<uint64_t>(kElapsedPrefix);
   const auto plan =
@@ -50,10 +51,9 @@ TEST(ModelOutputSchedulerTest,
      FutureResultRetainsAbsoluteTimelineAndExpiresWithoutReplay) {
   constexpr uint64_t kChunkSequence = 6;
   constexpr uint64_t kFirstTimeline =
-      kLatency +
-      (kChunkSequence -
-       static_cast<uint64_t>(audio_plugin::kModelOutputDelayChunks)) *
-          static_cast<uint64_t>(kChunkSize);
+      kLatency + (kChunkSequence - static_cast<uint64_t>(
+                                       audio_plugin::kModelOutputDelayChunks)) *
+                     static_cast<uint64_t>(kChunkSize);
   constexpr size_t kCapacity = 2 * kChunkSize;
 
   const auto beyondHorizon =
@@ -85,8 +85,7 @@ TEST(ModelOutputSchedulerTest,
   const auto preroll =
       planModelOutputSchedule(0U, kLatency, 0U, 4U * kChunkSize);
 
-  EXPECT_EQ(preroll.action,
-            ModelOutputScheduleAction::kDiscardInvalidRange);
+  EXPECT_EQ(preroll.action, ModelOutputScheduleAction::kDiscardInvalidRange);
 
   const auto firstReal =
       planModelOutputSchedule(1U, kLatency, kLatency, 4U * kChunkSize);
@@ -95,7 +94,7 @@ TEST(ModelOutputSchedulerTest,
   EXPECT_EQ(firstReal.scheduleTimelineSample, kLatency);
   EXPECT_EQ(firstReal.sourceOffset, 0U);
   EXPECT_EQ(firstReal.sampleCount, kChunkSize);
-  EXPECT_EQ(firstReal.firstTimelineSample, 512U);
+  EXPECT_EQ(firstReal.firstTimelineSample, 256U);
   EXPECT_TRUE(
       isCompleteModelOutputHopAtBoundary(firstReal, kLatency, kChunkSize));
 }
@@ -117,8 +116,6 @@ TEST(ModelOutputSchedulerTest,
   EXPECT_EQ(planAsyncDueResult(4U, 5U, true).action,
             AsyncDueResultAction::kHoldFuture);
 }
-
-
 
 TEST(ModelOutputSchedulerTest,
      RationalHostRangePreservesVariableLengthAndLatePrefix) {

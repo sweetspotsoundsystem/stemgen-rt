@@ -1,0 +1,88 @@
+{
+  "status": "pass",
+  "schema": "latency58-teacher-lineage-canonicalization-result-v1",
+  "input": {
+    "kind": "inference",
+    "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-half-b4-lr3e-5/endpoint/model.pt",
+    "sha256": "a74543ad26fe7f393e7ef269e10373af46b5faa76b2a7bcec74b718cbd5a9ca0"
+  },
+  "parent_checkpoint": {
+    "kind": "inference",
+    "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/asymmetric-raw4-b4-lr3e-5/model-step-000500.pt",
+    "sha256": "889f24e482328601bd70d84e0fc16c7b94776ac91e604e2782539bec153108aa"
+  },
+  "output": {
+    "kind": "inference",
+    "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/teacher-half-canonical-001/model.pt",
+    "sha256": "05a973af6efa3482e759f63cb3d268646a80f547a3bdc13679f0e228efba6222"
+  },
+  "model_state_sha256": "1daa6edb7be90eb641817b788b5540c89de57b125e454bdf463469ffcd3366ea",
+  "every_model_tensor_bit_exact": true,
+  "metadata_changes": {
+    "initialization": {
+      "before": "hann_hop128_encoder_transfer_asymmetric_pair",
+      "after": "matched_trial_from_authenticated_asymmetric500"
+    },
+    "parent_provenance": {
+      "before": {
+        "version": "cropped1024-hann256-hop128-v1",
+        "initialization": "accepted_raw4_2250_last256_decoder",
+        "parent_checkpoint": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
+        "parent_checkpoint_sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65",
+        "parent_model_state_sha256": "a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4",
+        "parent_training_updates": 2250,
+        "pilot_updates": 2000,
+        "equivalence_claimed": false,
+        "training_updates": 4250,
+        "training_plan_sha256": "f9d432aa3fc4bf534447b227468c35dd2c6c4611619c5f93260bb72a78b46520",
+        "training_precision": "latency58-bf16-learned-fp32-synthesis-state-v1"
+      },
+      "after": {
+        "version": "cropped1024-asymmetric256-hop128-v1",
+        "initialization": "hann_hop128_encoder_transfer_asymmetric_pair",
+        "parent_provenance": {
+          "version": "cropped1024-hann256-hop128-v1",
+          "initialization": "accepted_raw4_2250_last256_decoder",
+          "parent_checkpoint": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
+          "parent_checkpoint_sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65",
+          "parent_model_state_sha256": "a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4",
+          "parent_training_updates": 2250,
+          "pilot_updates": 2000,
+          "equivalence_claimed": false,
+          "training_updates": 4250,
+          "training_plan_sha256": "f9d432aa3fc4bf534447b227468c35dd2c6c4611619c5f93260bb72a78b46520",
+          "training_precision": "latency58-bf16-learned-fp32-synthesis-state-v1"
+        },
+        "asymmetric_training_updates": 500,
+        "equivalence_claimed": false,
+        "pilot_updates": 2500,
+        "training_updates": 4750,
+        "tail_updates": 500,
+        "parent_checkpoint": {
+          "kind": "inference",
+          "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/raw4-b4-lr3e-5-pilot/model-step-002000.pt",
+          "sha256": "6b0feba723b8252f59061ae0a93c5d365419444507cabd55f3c1748fcf3eed15"
+        },
+        "parent_model_state_sha256": "f4780716a20a79e515a5bb6e8433136dd7e635071a8b3ace5d46579c9f2c9e84",
+        "initialized_model_state_sha256": "dbd693d8398d989d356b630c73876ab3813469f4ec0c1f5903c5679b2089a7c1",
+        "parent_training_updates": 4250,
+        "training_objective": "raw4_l1",
+        "training_plan_sha256": "ccb8a42ad98851a31c82cdea07818b93e745c0ffeaa3c8955706b2c6093aec59",
+        "training_precision": "latency58-asymmetric-bf16-learned-fp32-synthesis-state-v1"
+      }
+    },
+    "parent_training_updates": {
+      "before": 4250,
+      "after": 4750
+    },
+    "initialized_model_state_sha256": {
+      "before": "dbd693d8398d989d356b630c73876ab3813469f4ec0c1f5903c5679b2089a7c1",
+      "after": "fa6bffecde6c426b014d1c9e833e0b2aa1846e884387ffdf6424899c9094cff2"
+    }
+  },
+  "source_bindings_unchanged": true,
+  "plan_sha256": "68f4fd4fb68d908e2a68b64706b7c6d9297ccaeab501c08e6f2f35fee3045ede",
+  "training_updates_executed": 0,
+  "cuda_initialized": false,
+  "elapsed_seconds": 1.2029935219907202
+}

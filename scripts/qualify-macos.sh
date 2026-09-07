@@ -133,7 +133,7 @@ if [[ -f HANDOFF_CONTENTS.sha256 && ! -L HANDOFF_CONTENTS.sha256 ]]; then
     fi
     cp HANDOFF_CONTENTS.sha256 "$EVIDENCE_DIR/input-handoff-contents.sha256"
     cp SOURCE_PROVENANCE.txt "$EVIDENCE_DIR/input-source-provenance.txt"
-    printf '%s  cropped1024-11ms-source.tar.gz\n' "$HANDOFF_ARCHIVE_SHA256" \
+    printf '%s  hop128-5ms-source.tar.gz\n' "$HANDOFF_ARCHIVE_SHA256" \
         > "$EVIDENCE_DIR/input-handoff-archive.sha256"
     HANDOFF_MANIFEST_SHA256="$(shasum -a 256 HANDOFF_CONTENTS.sha256 | awk '{print $1}')"
     printf '%s\n' "sealed_archive_manifest" > "$EVIDENCE_DIR/source-provenance.txt"
@@ -309,8 +309,9 @@ capture_power_state pre-soak
 PACED_LOG="$EVIDENCE_DIR/logs/paced-async-10000.log"
 RSS_LOG="$EVIDENCE_DIR/paced-rss-kib.tsv"
 : > "$RSS_LOG"
-printf '%s\n' "Running paced-async-10000 (about 117 seconds)..."
+printf '%s\n' "Running paced-async-10000 (10,000 measured callbacks plus warmup)..."
 env STEMGENRT_QUALIFICATION_CALLBACKS="$EXPECTED_CALLBACKS" \
+    STEMGENRT_TRACE_WORKER=0 STEMGENRT_PACED_ORT_THREADS=0 \
     "$TEST_BINARY" --gtest_also_run_disabled_tests \
     --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
     > "$PACED_LOG" 2>&1 &
@@ -345,6 +346,12 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
     fail "paced summary measured callback count changed"
 [[ "$PACED_SUMMARY" == *" warmup_callbacks=${EXPECTED_WARMUP_CALLBACKS} "* ]] ||
     fail "paced summary warmup callback count changed"
+[[ "$PACED_SUMMARY" == *" worker_trace=disabled "* ]] ||
+    fail "qualification must use an uninstrumented worker"
+[[ "$PACED_SUMMARY" == *" ort_intra_op_threads_override=0 "* ]] ||
+    fail "qualification must use the production automatic thread policy"
+[[ "$PACED_SUMMARY" == *" ort_intra_op_threads=1 "* ]] ||
+    fail "qualification requires exactly one ORT inference thread"
 [[ "$PACED_SUMMARY" == *" callback_samples=${EXPECTED_CALLBACK_SAMPLES} "* ]] ||
     fail "paced summary callback size changed"
 [[ "$PACED_SUMMARY" == *" sample_rate=${EXPECTED_SAMPLE_RATE} "* ]] ||
@@ -443,11 +450,11 @@ Machine qualification passed, but this candidate is still unpromoted.
        killall AudioComponentRegistrar || true
        auval -v aufx Stem Swee
 
-2. Fully restart the DAW. At 44.1 kHz / 256 samples, confirm the loaded plug-in
-   reports 512 samples of PDC, worker priority Applied, zero due-boundary
+2. Fully restart the DAW. At $EXPECTED_SAMPLE_RATE Hz / $EXPECTED_CALLBACK_SAMPLES samples, confirm the loaded plug-in
+   reports $EXPECTED_PDC_SAMPLES samples of PDC, worker priority Applied, zero due-boundary
    misses, zero dry fallback, and no timing warning during representative load.
 
-3. Listen specifically for low-frequency continuity and 172.27 Hz hop buzz,
+3. Listen specifically for low-frequency continuity and periodic hop buzz,
    hop seams, reset/seek behavior, the two-callback stop tail, and fallback
    transitions. Record pass/fail notes without changing this evidence directory.
 

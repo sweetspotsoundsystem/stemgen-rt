@@ -21,6 +21,9 @@ struct OrtApiBase;
 namespace audio_plugin {
 
 // RAII wrapper for the qualified CPU ONNX Runtime session and stateful graph.
+// Execution has one owner: load/prepare/destruction require a stopped worker;
+// run/reset belong exclusively to the worker while it is running. The audio
+// callback invalidates queue epochs and never calls this mutable API.
 class OnnxRuntime {
 public:
   OnnxRuntime();
@@ -39,7 +42,7 @@ public:
   }
 
   // Load a model from file path. An omitted intra-op override preserves the
-  // qualified production heuristic; explicit values are intended for
+  // single-thread production policy; explicit values are intended for
   // controlled CPU qualification and must be positive. ORT thread-pool size
   // is immutable after session creation, so each benchmark candidate needs a
   // fresh runtime/session.
@@ -51,6 +54,11 @@ public:
   // Check if model is loaded and ready for inference
   bool isModelLoaded() const noexcept {
     return modelLoaded_.load(std::memory_order_acquire);
+  }
+
+  // Zero until a model has successfully loaded; includes the calling worker.
+  int getConfiguredIntraOpThreadCount() const noexcept {
+    return configuredIntraOpThreads_.load(std::memory_order_acquire);
   }
 
   // Get the active execution provider name (the qualified build uses "CPU").
@@ -74,7 +82,7 @@ public:
 
   // Reset every persistent model state to zero. The inference queue calls this
   // from its worker thread on transport epochs and sequence gaps. It is also
-  // safe to call from a stopped/non-real-time control path.
+  // safe to call from a non-real-time control path after the worker is joined.
   void resetStreamingState();
 
   // Run one stateful graph hop. The returned samples and alignedInput belong
@@ -106,7 +114,7 @@ private:
   bool validateModelContract(juce::String& errorMessage) const;
   bool createPreallocatedTensorValues(juce::String& errorMessage);
   void releasePreallocatedTensorValues() noexcept;
-  void resetStreamingStateUnlocked();
+  void clearStreamingState();
 
 #ifdef _WIN32
   // Load the exact DLL beside this module and return its native handle.
@@ -115,6 +123,7 @@ private:
 #endif
 
   // ORT handles
+  const OrtApi* api_{nullptr};  // Resolved once, before worker startup.
   std::unique_ptr<OrtEnv, OrtEnvDeleter> ortEnv_;
   std::unique_ptr<OrtSession, OrtSessionDeleter> ortSession_;
   OrtMemoryInfo* ortMemoryInfo_{nullptr};
@@ -123,7 +132,7 @@ private:
   // native floating-point level. previousAlignedInput_ remains in that raw
   // domain so Main/residual alignment never depends on provider copies of
   // recurrent state. Only the inference worker mutates these during normal
-  // operation; the mutex protects non-RT control-path resets.
+  // operation; control paths must join the worker before touching them.
   std::vector<float> audioChunkBuffer_;
   std::vector<float> audioHistory_;
   std::vector<float> spectralNumeratorTail_;
@@ -138,12 +147,12 @@ private:
   std::array<OrtValue*, 5> inputTensorValues_{};
   std::array<OrtValue*, 5> outputTensorValues_{};
   bool hasPreviousAlignedInput_{false};
-  std::mutex streamingStateMutex_;
 
   // State
   std::atomic<bool> ortInitialized_{false};
   std::atomic<bool> modelLoaded_{false};
   std::atomic<bool> inferenceReady_{false};
+  std::atomic<int> configuredIntraOpThreads_{0};
   mutable std::mutex statusMutex_;
   std::string runtimeVersion_;
   std::string executionProvider_;

@@ -4,6 +4,7 @@
 #include <thread>
 
 #include <gtest/gtest.h>
+#include <juce_audio_basics/juce_audio_basics.h>
 
 #include "StemgenRT/InferenceQueue.h"
 
@@ -86,6 +87,8 @@ public:
   }
 
   bool process(InferenceRequest& request) {
+    denormalsDisabled.store(juce::FloatVectorOperations::areDenormalsDisabled(),
+                            std::memory_order_release);
     runCalls.fetch_add(1, std::memory_order_relaxed);
     if (blockFirstRun.exchange(false, std::memory_order_acq_rel)) {
       firstRunEntered.store(true, std::memory_order_release);
@@ -105,6 +108,7 @@ public:
     resetCalls.fetch_add(1, std::memory_order_release);
   }
 
+  std::atomic<bool> denormalsDisabled{false};
   std::atomic<uint32_t> resetCalls{0};
   std::atomic<uint32_t> runCalls{0};
   std::atomic<uint32_t> runsSinceReset{0};
@@ -152,6 +156,57 @@ TEST(InferenceQueueTest, ReservationIsExclusiveAndResetReclaimsStaleReadyRing) {
   InferenceRequest* replacement = queue.getWriteSlot();
   ASSERT_EQ(replacement, abandonedWrite);
   EXPECT_EQ(replacement->getEpoch(), epochAfterAbandonedWrite);
+}
+
+TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
+  FakeRuntime runtime;
+  audio_plugin::WorkerTimingTrace trace(1U);
+  InferenceQueue queue;
+  queue.allocate();
+  ASSERT_TRUE(queue.setWorkerTimingTrace(&trace));
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  EXPECT_FALSE(queue.setWorkerTimingTrace(nullptr));
+  const auto epoch = queue.getEpoch();
+  const auto beforeSubmit = std::chrono::steady_clock::now();
+  for (uint64_t sequence = 0U; sequence < 2U; ++sequence) {
+    submit(queue, epoch, sequence);
+    const auto* output = waitForOutput(queue, epoch);
+    ASSERT_NE(output, nullptr);
+    EXPECT_EQ(output->chunkSequence, sequence);
+    queue.releaseOutputSlot();
+  }
+  queue.stopThread();
+  ASSERT_EQ(trace.samples().size(), 1U);
+  EXPECT_EQ(trace.omitted(), 1U);
+  const auto& sample = trace.samples().front();
+  EXPECT_EQ(sample.epoch, epoch);
+  EXPECT_EQ(sample.inputSequence, 0U);
+  EXPECT_TRUE(sample.inferenceOk);
+  EXPECT_GE(sample.acquired, beforeSubmit);
+  EXPECT_LE(sample.acquired, sample.runStarted);
+  EXPECT_LE(sample.runStarted, sample.runFinished);
+  EXPECT_LE(sample.runFinished, sample.publishStarted);
+  EXPECT_LE(sample.publishStarted, sample.publishFinished);
+  EXPECT_LE(sample.publishFinished, std::chrono::steady_clock::now());
+#if defined(__APPLE__) || defined(__linux__)
+  EXPECT_GE(sample.processCpuMicroseconds(), 0.0);
+#else
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+#endif
+  EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
+}
+
+TEST(InferenceQueueTest, CpuClockDeltasRejectUnavailableOrRegressingSamples) {
+  audio_plugin::WorkerTimingSample sample;
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+  sample.processCpuStarted = CLOCKS_PER_SEC;
+  sample.processCpuFinished = 2 * CLOCKS_PER_SEC;
+  EXPECT_DOUBLE_EQ(sample.processCpuMicroseconds(), 1.0e6);
+  sample.processCpuFinished = CLOCKS_PER_SEC - 1;
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+  sample.processCpuFinished = static_cast<std::clock_t>(-1);
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
 }
 
 TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
@@ -253,8 +308,10 @@ TEST(InferenceQueueTest,
 TEST(InferenceQueueTest,
      ResetDuringInFlightRunDiscardsStaleOutputAndKeepsOnePreroll) {
   FakeRuntime runtime;
+  audio_plugin::WorkerTimingTrace trace(3U);
   InferenceQueue queue;
   queue.allocate();
+  ASSERT_TRUE(queue.setWorkerTimingTrace(&trace));
   struct FirstRunReleaseGuard {
     ~FirstRunReleaseGuard() {
       runtime.releaseFirstRun.store(true, std::memory_order_release);
@@ -297,6 +354,12 @@ TEST(InferenceQueueTest,
   }));
   EXPECT_EQ(runtime.runCalls.load(std::memory_order_acquire), 3U);
   queue.stopThread();
+  ASSERT_EQ(trace.samples().size(), 2U);
+  EXPECT_EQ(trace.omitted(), 0U);
+  for (size_t index = 0U; index < trace.samples().size(); ++index) {
+    EXPECT_EQ(trace.samples()[index].epoch, currentEpoch);
+    EXPECT_EQ(trace.samples()[index].inputSequence, index);
+  }
 }
 
 TEST(InferenceQueueTest,
@@ -418,18 +481,18 @@ TEST(InferenceQueueTest,
   EXPECT_TRUE(second->outputValid);
   EXPECT_TRUE(second->hostOutputValid);
   EXPECT_EQ(second->hostOutputStartSample, 0U);
-  EXPECT_EQ(second->hostOutputSampleCount, 279U);
+  EXPECT_EQ(second->hostOutputSampleCount, 140U);
   queue.releaseOutputSlot();
 
   InferenceRequest* third = waitForOutput(queue, epoch);
   ASSERT_NE(third, nullptr);
   EXPECT_TRUE(third->hostOutputValid);
-  EXPECT_EQ(third->hostOutputStartSample, 279U);
+  EXPECT_EQ(third->hostOutputStartSample, 140U);
   queue.releaseOutputSlot();
 
   // A sequence gap resets state and converter phase before processing the new
   // sequence. Sequence five is the new invalid pre-roll; sequence six emits
-  // frame five at absolute model sample 5 * 256 instead of reusing the prior
+  // frame five at absolute model sample 5 * 128 instead of reusing the prior
   // local converter phase.
   submit(queue, epoch, 5U);
   submit(queue, epoch, 6U);
@@ -445,9 +508,48 @@ TEST(InferenceQueueTest,
   EXPECT_EQ(next->chunkSequence, 6U);
   EXPECT_TRUE(next->outputValid);
   EXPECT_TRUE(next->hostOutputValid);
-  EXPECT_EQ(next->hostOutputStartSample, 1394U);
+  EXPECT_EQ(next->hostOutputStartSample, 697U);
   queue.releaseOutputSlot();
   queue.stopThread();
 }
 
 }  // namespace
+
+TEST(InferenceQueueTest, WorkerDisablesDenormalsAndReportsSuccessfulPreroll) {
+  InferenceQueue queue;
+  queue.allocate();
+  FakeRuntime runtime;
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0U);
+  auto* result = waitForOutput(queue, epoch);
+  ASSERT_NE(result, nullptr);
+  EXPECT_TRUE(runtime.denormalsDisabled.load(std::memory_order_acquire));
+  EXPECT_TRUE(result->inferenceSucceeded);
+  EXPECT_FALSE(result->outputValid);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+}
+
+TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
+  InferenceQueue queue;
+  queue.allocate();
+  InferenceQueueTestPeer::startThread(
+      queue, nullptr,
+      [](void*, InferenceRequest& request) {
+        request.outputValid = true;
+        request.hostOutputValid = true;
+        return false;
+      },
+      nullptr);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0U);
+  auto* result = waitForOutput(queue, epoch);
+  ASSERT_NE(result, nullptr);
+  EXPECT_FALSE(result->inferenceSucceeded);
+  EXPECT_FALSE(result->outputValid);
+  EXPECT_FALSE(result->hostOutputValid);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+}

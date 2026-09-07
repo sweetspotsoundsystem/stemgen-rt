@@ -8,7 +8,6 @@ The checked-in fixture allows ordinary plugin CI to validate without PyTorch.
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -31,36 +30,45 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     root = args.research_root.resolve()
-    bindings = {
-        "checkpoint": (
-            "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
-            "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65"),
-        "family": (
-            "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py",
-            "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27"),
-        "base": (
-            "research/direct/latency_ola512.py",
-            "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368"),
-    }
-    for name, (relative, expected) in bindings.items():
+    export_plan = root / "research/direct/runs/latency58/teacher-half250-onnx-001/plan.json"
+    expected_plan_sha = "b06b2ca26b12338b3fdd7ff74330acb51eb3768549fca41d4edfbc1fd0bf96bd"
+    if digest(export_plan) != expected_plan_sha:
+        raise ValueError("Authenticated export plan differs")
+    plan = json.loads(export_plan.read_text())
+    # The original plan binds every research source used to construct/load the
+    # native model, including its parent initialization and checkpoint bytes.
+    bindings = {}
+    for absolute, expected in plan["source_bindings"].items():
+        original = Path(absolute)
+        if original.suffix not in (".py", ".pt"):
+            continue
+        original_root = Path("/home/axel/autoresearch/codex/HS-TasNet")
+        relative = original.relative_to(original_root) if original.is_relative_to(original_root) else original
         if digest(root / relative) != expected:
-            raise ValueError(f"Authenticated {name} differs")
+            raise ValueError(f"Authenticated input differs: {relative}")
+        bindings[str(relative)] = (str(relative), expected)
     sys.path.insert(0, str(root))
     import numpy as np
     import torch
 
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    spec = importlib.util.spec_from_file_location("fixture_family", root / bindings["family"][0])
-    family = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(family)
-    payload = torch.load(root / bindings["checkpoint"][0], map_location="cpu", weights_only=True)
-    model = family.Cropped1024OLAModel().eval().requires_grad_(False)
-    model.load_state_dict(payload["model"], strict=True)
-    if payload["architecture"] != model.architecture_metadata:
-        raise ValueError("Saved architecture differs")
+    from research.direct.latency58_teacher_checkpoint_v2 import make_model, load_model_state
+    from research.direct.train_latency58 import state_sha256
 
-    lengths = (1, 255, 256, 257, 511, 512, 513, 16521)
+    def relocated(binding):
+        result = dict(binding)
+        result["path"] = str(root / Path(binding["path"]).relative_to(
+            "/home/axel/autoresearch/codex/HS-TasNet"))
+        return result
+
+    model = make_model(relocated(plan["parent_checkpoint"]))
+    load_model_state(model, relocated(plan["checkpoint"]))
+    model_state_sha = state_sha256(model.state_dict())
+    if model_state_sha != plan["model_state_sha256"]:
+        raise ValueError("Loaded model fingerprint differs")
+
+    lengths = (1, 127, 128, 129, 255, 256, 257, 16521)
     t = np.arange(max(lengths), dtype=np.float64) / 44100.0
     # Distinct channels, low bass, higher partials, chirp and short transients.
     # The initial peak opens the existing writer confidence envelope fully.
@@ -75,10 +83,10 @@ def main():
         for length in lengths:
             state = model.initial_state(1)
             hops = []
-            padded = torch.zeros(1, 2, ((length + 255) // 256) * 256)
+            padded = torch.zeros(1, 2, ((length + 127) // 128) * 128)
             padded[..., :length] = torch.from_numpy(audio[:, :length].copy())
-            for offset in range(0, padded.shape[-1], 256):
-                deployed, state = model.forward_chunk(padded[..., offset:offset+256], state)
+            for offset in range(0, padded.shape[-1], 128):
+                deployed, state = model.forward_chunk(padded[..., offset:offset+128], state)
                 if offset:
                     hops.append(deployed)
             deployed, state = model.flush(state)
@@ -91,10 +99,11 @@ def main():
         "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
         "fixture_sha256": digest(args.output),
         "generator_sha256": digest(Path(__file__)),
+        "export_plan_sha256": expected_plan_sha,
         "sources": {name: {"research_path": rel, "sha256": sha} for name, (rel, sha) in bindings.items()},
-        "model_state_sha256": payload["model_state_sha256"],
+        "model_state_sha256": model_state_sha,
         "torch": torch.__version__, "numpy": np.__version__,
-        "sample_rate": 44100, "hop": 256, "frames": lengths,
+        "sample_rate": 44100, "hop": 128, "frames": lengths,
         "source_order": ["drums", "bass", "vocals", "other"],
         "reference": "Original CPU FP32 PyTorch deployed outputs, zero state, one zero flush, cropped to real length. No ONNX execution.",
     }

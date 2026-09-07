@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // The graph emits the previous hop. With 256-sample host blocks, the worker
-  // has one additional hop to publish, for 512-sample (11.61 ms) PDC.
+  // The graph emits the previous hop. With 128-sample host blocks, the worker
+  // has one additional hop to publish, for 256-sample (5.80 ms) PDC.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -68,6 +68,12 @@ public:
   int getLastSameCallbackWaitMicroseconds() const;
   int getMaximumSameCallbackWaitMicroseconds() const;
   InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
+  // Diagnostic only: attach before prepareToPlay, read after releaseResources.
+  bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
+  // Measurement only; call before the first prepareToPlay. Zero retains the
+  // production policy, 1..4 select a fresh session's immutable thread count.
+  bool setDiagnosticOrtIntraOpThreads(int count) noexcept;
+  int getConfiguredOrtIntraOpThreads() const noexcept;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -100,9 +106,11 @@ public:
   void resetStreamingBuffers();
 
 private:
+  friend class AudioPluginProcessorTestPeer;
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   // ONNX Runtime wrapper (handles the CPU session and persistent graph state)
   std::unique_ptr<OnnxRuntime> onnxRuntime_;
+  int diagnosticOrtIntraOpThreads_{0};
   juce::String
       modelLoadError_;  // Stores the last model loading error for display
   mutable std::mutex statusMutex_;

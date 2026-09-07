@@ -9,6 +9,7 @@
 #include <vector>
 #include "Constants.h"
 #include "StreamingSampleRateAdapter.h"
+#include "WorkerTimingTrace.h"
 
 namespace audio_plugin {
 
@@ -43,6 +44,8 @@ struct InferenceRequest {
   // True only when the graph result aligned to the preceding input sequence is
   // safe to publish. The first successful run after reset is invalid pre-roll.
   bool outputValid{false};
+  // Successful invalid pre-roll is distinct from an inference failure.
+  bool inferenceSucceeded{false};
   bool hostOutputValid{false};
   uint64_t hostOutputStartSample{0};
   size_t hostOutputSampleCount{0};
@@ -130,7 +133,7 @@ public:
   }
 
   // Start/stop the background inference thread
-  void startThread(OnnxRuntime* runtime);
+  bool startThread(OnnxRuntime* runtime);
   void stopThread();
   bool isThreadRunning() const {
     return threadRunning_.load(std::memory_order_acquire);
@@ -138,6 +141,10 @@ public:
   WorkerPriorityStatus getWorkerPriorityStatus() const noexcept {
     return workerPriorityStatus_.load(std::memory_order_acquire);
   }
+
+  // Optional diagnostic. Configure only from the lifecycle thread while the
+  // worker is stopped; concurrent start/stop/configuration is unsupported.
+  bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
 
   // Check if a write slot is available (called from audio thread)
   // Returns pointer to the request if available, nullptr if queue is full
@@ -199,6 +206,7 @@ private:
   };
 
   friend class InferenceQueueTestPeer;
+  friend class AudioPluginProcessorTestPeer;
 
   static constexpr uint64_t makeEpochControl(uint32_t epoch,
                                              size_t startIndex) {
@@ -212,7 +220,7 @@ private:
     return static_cast<size_t>(static_cast<uint32_t>(control));
   }
 
-  void startThreadWithCallbacks(WorkerCallbacks callbacks);
+  bool startThreadWithCallbacks(WorkerCallbacks callbacks);
   void inferenceThreadFunc(WorkerCallbacks callbacks);
   bool reclaimStaleSlots(uint64_t observedEpochControl);
   bool convertOutputToHost(InferenceRequest& request) noexcept;
@@ -240,6 +248,7 @@ private:
   std::atomic<bool> threadRunning_{false};
   std::atomic<WorkerPriorityStatus> workerPriorityStatus_{
       WorkerPriorityStatus::NotAttempted};
+  WorkerTimingTrace* workerTimingTrace_{nullptr};
 };
 
 }  // namespace audio_plugin
