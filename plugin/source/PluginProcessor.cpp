@@ -439,8 +439,10 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
   if (restartInferenceThread && onnxRuntime_ &&
       onnxRuntime_->isReadyForInference()) {
     if (!inferenceQueue_.startThread(onnxRuntime_.get())) {
-      const std::lock_guard<std::mutex> lock(statusMutex_);
-      modelLoadError_ = "Inference worker could not start";
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = "Inference worker could not start";
+      }
       activeLatencySamples_.store(0, std::memory_order_release);
       setLatencySamples(0);
     }
@@ -662,8 +664,10 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       // Lifecycle only: joining a provider call may outlast the warmup timeout.
       inferenceQueue_.stopThread();
       inferenceQueue_.reset();
-      const std::lock_guard<std::mutex> lock(statusMutex_);
-      modelLoadError_ = message;
+      {
+        const std::lock_guard<std::mutex> lock(statusMutex_);
+        modelLoadError_ = message;
+      }
       activeLatencySamples_.store(0, std::memory_order_release);
       setLatencySamples(0);
     };
