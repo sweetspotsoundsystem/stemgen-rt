@@ -50,8 +50,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   const bool unsafe = processorRef.isRealtimeCallbackTimingUnsafe();
   const bool fallback = processorRef.isUnderrunActive();
   const juce::String health = !ready     ? "Separation unavailable"
-                              : unsafe   ? "Buffer changed — restart audio"
-                              : fallback ? "Catching up — mix routed to Other"
+                              : unsafe   ? "Buffer changed: restart audio"
+                              : fallback ? "Catching up: mix routed to Other"
                                          : "Ready to separate";
   g.setColour(!ready || unsafe ? juce::Colours::orangered
               : fallback       ? juce::Colours::orange
@@ -63,7 +63,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setFont(juce::FontOptions(12.5f));
   const juce::String detail =
       !ready ? processorRef.getOrtStatusString()
-             : "44.1 kHz session · 256-sample buffer for lowest latency";
+             : "44.1 kHz | 256-sample buffer for lowest latency";
   g.drawFittedText(detail, area.removeFromTop(40),
                    juce::Justification::centredLeft, 2);
   area.removeFromTop(10);
