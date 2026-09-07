@@ -1,0 +1,1094 @@
+{
+  "schema": "cropped1024-cpu-onnx-verification-v1",
+  "status": "passed_cpu_numerical_verification_only",
+  "export_plan": {
+    "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-rawcontrol250-native512-prep/export-plan-released-001.json",
+    "sha256": "9e6cc2c92300fc9798773db44570b242f0b185a37da02f8ebdc49b2a41fdfc46"
+  },
+  "identity": {
+    "family": "ola-cropped1024-hann512-hop256-v1",
+    "state_family": "ola-cropped1024-hann512-hop256-v1",
+    "checkpoint": {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
+      "sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65"
+    },
+    "model_state_sha256": "a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4",
+    "snapshot_step": 250,
+    "training_updates": 2250,
+    "training_plan": {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/training-raw4_control-plan-released-001.json",
+      "sha256": "d88ad194adcaa9ee98b9e278e646964f6c479b75b04953a216c9bc5ef022075e"
+    },
+    "native_output_source_scales": [
+      0.5,
+      0.5,
+      0.44999998807907104,
+      0.5600000023841858
+    ],
+    "architecture": {
+      "version": "ola-cropped1024-hann512-hop256-v1",
+      "source_order": [
+        "drums",
+        "bass",
+        "vocals",
+        "other"
+      ],
+      "sample_rate": 44100,
+      "feature_n_fft": 1024,
+      "carrier_n_fft": 1024,
+      "synthesis_n_fft": 1024,
+      "spectral_mask_bins": 513,
+      "spectral_output_crop": [
+        512,
+        1024
+      ],
+      "synthesis_frame_samples": 512,
+      "waveform_decoder_samples": 512,
+      "hop_samples": 256,
+      "feature_history_samples": 768,
+      "carrier_window": "authenticated stored periodic Hann1024",
+      "synthesis_window": "periodic Hann512",
+      "spectral_denominator_rule": "h1024[512+p]*h512[p]+h1024[768+p]*h512[256+p], p=0..255",
+      "graph_alignment_samples": 256,
+      "host_queue_samples": 256,
+      "intended_total_latency_samples": 512,
+      "host_queue_implemented_in_this_module": false,
+      "future_context_from_output_samples": 256,
+      "future_callbacks_beyond_received_input": 0,
+      "samplewise_latest_input_minus_output": "511-p for emitted callback sample p=0..255",
+      "flush_hops": 1,
+      "public_fusion_state_scale": 3.814697265625e-06,
+      "state_names": [
+        "audio_history",
+        "fusion_hidden",
+        "spectral_numerator_tail",
+        "waveform_tail"
+      ],
+      "state_family": "ola-cropped1024-hann512-hop256-v1",
+      "state_interchangeable_with_old_ola512": false,
+      "precision": "float32",
+      "optional_2048_analysis": false,
+      "graph_qualified": false,
+      "native_host_qualified": false
+    },
+    "provenance": {
+      "version": "ola-cropped1024-hann512-hop256-v1",
+      "initialization": "authenticated_c91_full513_right_baked512_cropped1024_ola",
+      "reference_path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/c91-refined-v1/model.pt",
+      "reference_sha256": "86ead5c164c3a49a5fb91f8d02a8db01e7c684109e485021620b33b51a51387a",
+      "copied_tensors": {
+        "analysis_window": "stft.window",
+        "output_source_scales": "output_source_scales",
+        "spec_encode.weight": "spec_encode.1.weight",
+        "spec_encode.bias": "spec_encode.1.bias",
+        "conv_encode.weight": "conv_encode.weight",
+        "conv_encode.bias": "conv_encode.bias",
+        "basis_to_embed.weight": "basis_to_embed.0.weight",
+        "basis_to_embed.bias": "basis_to_embed.0.bias",
+        "spec_norm.weight": "to_spec_masks.0.weight",
+        "to_spec_masks.weight": "to_spec_masks.1.weight",
+        "to_spec_masks.bias": "to_spec_masks.1.bias",
+        "waveform_norm.weight": "to_waveform_masks.0.weight",
+        "to_waveform_masks.weight": "to_waveform_masks.1.weight",
+        "to_waveform_masks.bias": "to_waveform_masks.1.bias",
+        "fusion_branch.weight_ih_l0": "fusion_branch.weight_ih_l0",
+        "fusion_branch.weight_hh_l0": "fusion_branch.weight_hh_l0",
+        "fusion_branch.bias_ih_l0": "fusion_branch.bias_ih_l0",
+        "fusion_branch.bias_hh_l0": "fusion_branch.bias_hh_l0",
+        "fusion_branch.weight_ih_l1": "fusion_branch.weight_ih_l1",
+        "fusion_branch.weight_hh_l1": "fusion_branch.weight_hh_l1",
+        "fusion_branch.bias_ih_l1": "fusion_branch.bias_ih_l1",
+        "fusion_branch.bias_hh_l1": "fusion_branch.bias_hh_l1"
+      },
+      "spectral_projection_rule": "Copy all513 bins in original stereo/bin/real-imaginary/source order",
+      "waveform_parameter_rule": "new[...,j] = old_baked[...,512+j]",
+      "waveform_effective_rule": "new_parameter[...,j] * periodic_Hann512[j]",
+      "spectral_denominator_from_actual_copied_window": true,
+      "unused_reference_tensors": [
+        "conv_decode.bias",
+        "conv_decode.window",
+        "stft.streaming_envelope"
+      ],
+      "unused_decoder_bias_reason": "C91 custom forward omits the stored ConvTranspose bias",
+      "training_updates": 2250,
+      "reference_model_modified": false,
+      "trained_ola_state_used": false,
+      "equivalence_claimed": false,
+      "graph_qualified": false,
+      "native_host_qualified": false,
+      "training_plan_sha256": "d88ad194adcaa9ee98b9e278e646964f6c479b75b04953a216c9bc5ef022075e",
+      "training_precision_policy": "cropped1024-bf16-learned-fp32-synthesis-state-v1",
+      "pilot_updates": 250,
+      "parent_training_updates": 2000,
+      "parent_checkpoint": {
+        "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-ola-gpu-b4-bf16-projection01-lr3e-5/checkpoints/step-002000/model.pt",
+        "sha256": "34f5a125ee9a17dd0919bb6628c7ac6b9f3aeab73597102c7e29fa285c26c093"
+      },
+      "parent_model_state_sha256": "9e466b67086363c31d225da7fb9899fb742905ba0c4a7b52da3caef23c5692c8",
+      "parent_training_plan": {
+        "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-ola-prep/training-plan-released-001.json",
+        "sha256": "364dedfaa2cf229a6490a1d82e60089c2cca6bcac3d120d768154612e9ea1e20"
+      },
+      "training_objective": "raw4_control"
+    }
+  },
+  "output": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/export-cpu-fp32-native512-001/cropped1024-rawcontrol250-hop256.onnx",
+  "metadata": {
+    "hs_tasnet.kind": "cropped1024_ola",
+    "hs_tasnet.mode": "streaming",
+    "hs_tasnet.architecture_version": "ola-cropped1024-hann512-hop256-v1",
+    "hs_tasnet.state_family": "ola-cropped1024-hann512-hop256-v1",
+    "hs_tasnet.state_interchangeable_with_old_ola512": "false",
+    "hs_tasnet.sample_rate": "44100",
+    "hs_tasnet.hop_samples": "256",
+    "hs_tasnet.analysis_fft_samples": "1024",
+    "hs_tasnet.carrier_fft_samples": "1024",
+    "hs_tasnet.synthesis_fft_samples": "1024",
+    "hs_tasnet.spectral_mask_bins": "513",
+    "hs_tasnet.spectral_output_crop": "[512,1024]",
+    "hs_tasnet.synthesis_frame_samples": "512",
+    "hs_tasnet.waveform_decoder_samples": "512",
+    "hs_tasnet.analysis_history_samples": "768",
+    "hs_tasnet.graph_output_delay_samples": "256",
+    "hs_tasnet.alignment_samples": "256",
+    "hs_tasnet.future_context_samples": "256",
+    "hs_tasnet.future_callbacks_beyond_received_input": "0",
+    "hs_tasnet.flush_required": "true",
+    "hs_tasnet.flush_hops": "1",
+    "hs_tasnet.initial_state": "all_zeros",
+    "hs_tasnet.preroll": "discard_first_output_hop_after_reset",
+    "hs_tasnet.external_host_queue_implemented": "false",
+    "hs_tasnet.intended_external_host_queue_samples": "256",
+    "hs_tasnet.intended_total_latency_samples": "512",
+    "hs_tasnet.graph_qualified": "false",
+    "hs_tasnet.native_host_timing_qualified": "false",
+    "hs_tasnet.output_policy": "complete deployed four stems; Other = previous physical mixture - sum(unchanged DBV), once",
+    "hs_tasnet.source_order": "drums,bass,vocals,other",
+    "hs_tasnet.state_names": "[\"audio_history\", \"fusion_hidden\", \"spectral_numerator_tail\", \"waveform_tail\"]",
+    "hs_tasnet.state_shapes": "[[1, 2, 768], [2, 1, 1000], [1, 4, 2, 256], [1, 4, 2, 256]]",
+    "hs_tasnet.public_fusion_state_scale": "3.814697265625e-06",
+    "hs_tasnet.output_source_scales": "[0.5, 0.5, 0.44999998807907104, 0.5600000023841858]",
+    "hs_tasnet.checkpoint_sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65",
+    "hs_tasnet.model_state_sha256": "a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4",
+    "hs_tasnet.training_plan_sha256": "d88ad194adcaa9ee98b9e278e646964f6c479b75b04953a216c9bc5ef022075e",
+    "hs_tasnet.snapshot_step": "250",
+    "hs_tasnet.training_updates": "2250",
+    "hs_tasnet.exporter_sha256": "93e6973423b6cd8cc62e3df6cadd829fb2743886a7af6698449d66c100499e62",
+    "hs_tasnet.model_source_sha256": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27",
+    "hs_tasnet.base_model_source_sha256": "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368",
+    "hs_tasnet.reusable_exporter_sha256": "1ae71047f07d143cb1513833cce124322f7a33d16301b309dc7876bd43300235",
+    "hs_tasnet.export_helpers_sha256": "6b9593f58ad85d9bf24aec82b95950dd9fc4b9165ff556eed700e279f072e9d4",
+    "hs_tasnet.fft_implementation": "DFT1024; explicit513 Hermitian endpoints/interior; inverse1024 then crop512:1024",
+    "hs_tasnet.external_data": "false"
+  },
+  "reviewed_quality_evidence": [
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-verdict-raw4-control-001.json",
+      "sha256": "fa9d170b66b18821c825fc973b1bb8604b08a5075ef4fac9c0cf6d8bbb3da3a4"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-followup-001.md",
+      "sha256": "32c03d07be8071ef66224ce15acc419dedd2932a0067dcf224f4e9f95b55de26"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-001.json",
+      "sha256": "360f121d5d6797da2fafc366b6b72e11050c270d3dbe441471b66b41089d4fd0"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-execution-002.json",
+      "sha256": "373b52c6ba89ae55ac811505aba61b752cbad16ad527a9886c67f50ab2fa7bea"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/music/result.json",
+      "sha256": "d935bdb5d904aa8586bf74dea815db0dc320da751520e40cac89669c2a6518c2"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/actions60/result.json",
+      "sha256": "5c1ed401bc820d34f2e486d54ef398e6a3849899be2ded7f3f2feb67d47381f3"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/probes/result.json",
+      "sha256": "f007a7df33994db03cc9c7b49bcfe6ffa7ed63f7cf23848d960c9bf342c57695"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/receipt.json",
+      "sha256": "755e3f606872c8abb3ce30924f47dfba97c92fb9cb9fa01d69658e7c0ec38348"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250.json",
+      "sha256": "1f21863be51d645af331d74347f16854423c7d43c9451fbd9570ca29e9cfdef4"
+    },
+    {
+      "path": "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250-execution.json",
+      "sha256": "e97ae13d9af79c8bd012e31413bec909196cf4a7baec6ff75246f6d46ea8b3dd"
+    }
+  ],
+  "source_bindings_before": {
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-rawcontrol250-native512-prep/export-plan-released-001.json": "9e6cc2c92300fc9798773db44570b242f0b185a37da02f8ebdc49b2a41fdfc46",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_cropped1024_onnx.py": "93e6973423b6cd8cc62e3df6cadd829fb2743886a7af6698449d66c100499e62",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_ola512_onnx.py": "1ae71047f07d143cb1513833cce124322f7a33d16301b309dc7876bd43300235",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_ola512.py": "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368",
+    "/home/axel/autoresearch/codex/HS-TasNet/export_onnx.py": "6b9593f58ad85d9bf24aec82b95950dd9fc4b9165ff556eed700e279f072e9d4",
+    "/home/axel/miniforge3/bin/python": "e0f49521a26c04b2c375349bab96fc19ded88896baa2d34d8ab7da9f6b862be4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/training-raw4_control-plan-released-001.json": "d88ad194adcaa9ee98b9e278e646964f6c479b75b04953a216c9bc5ef022075e",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-verdict-raw4-control-001.json": "fa9d170b66b18821c825fc973b1bb8604b08a5075ef4fac9c0cf6d8bbb3da3a4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-followup-001.md": "32c03d07be8071ef66224ce15acc419dedd2932a0067dcf224f4e9f95b55de26",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-001.json": "360f121d5d6797da2fafc366b6b72e11050c270d3dbe441471b66b41089d4fd0",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-execution-002.json": "373b52c6ba89ae55ac811505aba61b752cbad16ad527a9886c67f50ab2fa7bea",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/music/result.json": "d935bdb5d904aa8586bf74dea815db0dc320da751520e40cac89669c2a6518c2",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/actions60/result.json": "5c1ed401bc820d34f2e486d54ef398e6a3849899be2ded7f3f2feb67d47381f3",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/probes/result.json": "f007a7df33994db03cc9c7b49bcfe6ffa7ed63f7cf23848d960c9bf342c57695",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/receipt.json": "755e3f606872c8abb3ce30924f47dfba97c92fb9cb9fa01d69658e7c0ec38348",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250.json": "1f21863be51d645af331d74347f16854423c7d43c9451fbd9570ca29e9cfdef4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250-execution.json": "e97ae13d9af79c8bd012e31413bec909196cf4a7baec6ff75246f6d46ea8b3dd",
+    "/home/axel/HS-TasNet/data/musdb18hq/train/Actions - One Minute Smile/mixture.wav": "0a12fe67897976b2e2457e39102bc5e3394e4344e69e6eeb9c88e8ebeaf4b9d8"
+  },
+  "graph_qualified": false,
+  "native_host_qualified": false,
+  "native_host_timing_qualified": false,
+  "external_host_queue_implemented": false,
+  "quality_retention_decision": null,
+  "training_updates_executed": 0,
+  "completed_process_exit_not_claimed": true,
+  "onnx_sha256": "4a43cf08a088938c8d0f4be5f15ce7c6aa78d82bbd9eeec952b2fad15032598e",
+  "onnx_bytes": 114414055,
+  "verification": {
+    "passed": true,
+    "device": "cpu",
+    "torch_version": "2.8.0+cu128",
+    "onnxruntime_version": "1.27.0",
+    "intra_op_threads": 1,
+    "inter_op_threads": 1,
+    "independent_recurrent_trajectories": [
+      "native",
+      "export_copy",
+      "ort"
+    ],
+    "gru_state_comparison": "Public values decoded by multiplying by 2**18",
+    "closure_reference": "Independent incoming physical history/input timeline, delayed 256 samples",
+    "tolerances": {
+      "waveform_max_abs": 0.0001,
+      "stem_callback_rms": 1e-05,
+      "state_max_abs_decoded_units": 0.0005,
+      "reconstruction_max_abs": 1e-06
+    },
+    "cases": [
+      {
+        "input": "multitone_noise_then_silence_partial",
+        "source": null,
+        "physical_samples": 14373,
+        "decoded_input_sha256": "4bc7d4ba658ad9454c25d779db29783dfad75ad33d8c35168eb3b57748d95bbc",
+        "initial_state_sha256": [
+          "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0",
+          "668946bab9868b28489bb906205ee1026045c8bcd3ca62a1bdf733c65491351b",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        ],
+        "partial_hop_padding": 219,
+        "data_hops": 57,
+        "flush_hops": 1,
+        "callbacks": 58,
+        "physical_samples_recovered": 14373,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 1.7136335372924805e-07,
+            "stem_callback_rms": 6.737780718761617e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1734664440155029e-07,
+              "bass": 1.0244548320770264e-07,
+              "vocals": 4.563480615615845e-08,
+              "other": 1.7136335372924805e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 3.628663404626755e-08,
+              "bass": 3.8522075052338344e-08,
+              "vocals": 1.9265283282989027e-08,
+              "other": 6.737780718761617e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 2.8371810913085938e-05,
+              "spectral_numerator_tail": 8.754432201385498e-08,
+              "waveform_tail": 1.1920928955078125e-07
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.271975237466793e-08,
+              "bass": 2.5825348262962103e-08,
+              "vocals": 1.0884063820044527e-08,
+              "other": 4.4198746459555624e-08
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 1.7136335372924805e-07,
+            "stem_callback_rms": 6.737780718761617e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1734664440155029e-07,
+              "bass": 1.0244548320770264e-07,
+              "vocals": 4.563480615615845e-08,
+              "other": 1.7136335372924805e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 3.628663404626755e-08,
+              "bass": 3.8522075052338344e-08,
+              "vocals": 1.9265283282989027e-08,
+              "other": 6.737780718761617e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 2.8371810913085938e-05,
+              "spectral_numerator_tail": 8.754432201385498e-08,
+              "waveform_tail": 1.1920928955078125e-07
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.271975237466793e-08,
+              "bass": 2.5825348262962103e-08,
+              "vocals": 1.0884063820044527e-08,
+              "other": 4.4198746459555624e-08
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 1.862645149230957e-09,
+          "export_copy": 1.862645149230957e-09,
+          "ort": 1.862645149230957e-09
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "ca06d000af5cb82ab0e53cf0c4e6150e046ebfcf3b0697428f57442b336c7f6a",
+          "export_copy": "ca06d000af5cb82ab0e53cf0c4e6150e046ebfcf3b0697428f57442b336c7f6a",
+          "ort": "d659649237654f045c3f47de6e6a898a98df736003f3bfe9395619175279145e"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      },
+      {
+        "input": "silence_from_reset",
+        "source": null,
+        "physical_samples": 2065,
+        "decoded_input_sha256": "2250e5845aa56489173627ff9680a9d38ced8cb70409d0af4887142c4c87429a",
+        "initial_state_sha256": [
+          "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0",
+          "668946bab9868b28489bb906205ee1026045c8bcd3ca62a1bdf733c65491351b",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        ],
+        "partial_hop_padding": 239,
+        "data_hops": 9,
+        "flush_hops": 1,
+        "callbacks": 10,
+        "physical_samples_recovered": 2065,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 1.0959411156363785e-10,
+            "stem_callback_rms": 4.977541794890019e-11,
+            "waveform_max_abs_by_stem": {
+              "drums": 9.367795428261161e-11,
+              "bass": 1.0902567737502977e-10,
+              "vocals": 4.729372449219227e-11,
+              "other": 1.0959411156363785e-10
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 4.647280192694422e-11,
+              "bass": 4.8269440887611686e-11,
+              "vocals": 2.955725601301979e-11,
+              "other": 4.977541794890019e-11
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.066394805908203e-06,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 2.15550244320184e-10
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 3.315563027753836e-11,
+              "bass": 3.5696783898687754e-11,
+              "vocals": 1.992283656954823e-11,
+              "other": 3.2442160829088084e-11
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 1.0959411156363785e-10,
+            "stem_callback_rms": 4.977541794890019e-11,
+            "waveform_max_abs_by_stem": {
+              "drums": 9.367795428261161e-11,
+              "bass": 1.0902567737502977e-10,
+              "vocals": 4.729372449219227e-11,
+              "other": 1.0959411156363785e-10
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 4.647280192694422e-11,
+              "bass": 4.8269440887611686e-11,
+              "vocals": 2.955725601301979e-11,
+              "other": 4.977541794890019e-11
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.066394805908203e-06,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 2.15550244320184e-10
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 3.315563027753836e-11,
+              "bass": 3.5696783898687754e-11,
+              "vocals": 1.992283656954823e-11,
+              "other": 3.2442160829088084e-11
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "5a8775c476676f6a88afcd1407274cf56d3abed7f646a47e3f17135b1b6f4320",
+          "export_copy": "5a8775c476676f6a88afcd1407274cf56d3abed7f646a47e3f17135b1b6f4320",
+          "ort": "2b870aaa407c8b21f51f0da82c78fe6ca261bb4876561d3ab7e3a4f3f73a10fa"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      },
+      {
+        "input": "dc_nyquist_offgrid_partial",
+        "source": null,
+        "physical_samples": 12325,
+        "decoded_input_sha256": "bdae8ef09cb03f237ed51ec6daadeffbfffe40782b63c84a352d15d473e868bf",
+        "initial_state_sha256": [
+          "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0",
+          "668946bab9868b28489bb906205ee1026045c8bcd3ca62a1bdf733c65491351b",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        ],
+        "partial_hop_padding": 219,
+        "data_hops": 49,
+        "flush_hops": 1,
+        "callbacks": 50,
+        "physical_samples_recovered": 12325,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 2.123415470123291e-07,
+            "stem_callback_rms": 5.625751583352941e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.0989606380462646e-07,
+              "bass": 8.568167686462402e-08,
+              "vocals": 5.8673322200775146e-08,
+              "other": 2.123415470123291e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 3.194665929751587e-08,
+              "bass": 3.456169627911741e-08,
+              "vocals": 2.543992048763809e-08,
+              "other": 5.625751583352941e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 6.380677223205566e-05,
+              "spectral_numerator_tail": 8.568167686462402e-08,
+              "waveform_tail": 6.007030606269836e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.3525004697753345e-08,
+              "bass": 2.205762821568193e-08,
+              "vocals": 1.5750146966440415e-08,
+              "other": 4.041228864231063e-08
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 2.123415470123291e-07,
+            "stem_callback_rms": 5.625751583352941e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.0989606380462646e-07,
+              "bass": 8.568167686462402e-08,
+              "vocals": 5.8673322200775146e-08,
+              "other": 2.123415470123291e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 3.194665929751587e-08,
+              "bass": 3.456169627911741e-08,
+              "vocals": 2.543992048763809e-08,
+              "other": 5.625751583352941e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 6.380677223205566e-05,
+              "spectral_numerator_tail": 8.568167686462402e-08,
+              "waveform_tail": 6.007030606269836e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.3525004697753345e-08,
+              "bass": 2.205762821568193e-08,
+              "vocals": 1.5750146966440415e-08,
+              "other": 4.041228864231063e-08
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 7.450580596923828e-09,
+          "export_copy": 7.450580596923828e-09,
+          "ort": 7.450580596923828e-09
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 9.313225746154785e-10,
+          "export_copy": 9.313225746154785e-10,
+          "ort": 9.313225746154785e-10
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "c11c670981c322674312f20d2e5bdd230340602badcc96125aa55ec579669b7f",
+          "export_copy": "c11c670981c322674312f20d2e5bdd230340602badcc96125aa55ec579669b7f",
+          "ort": "98287978c1d7a3b4bdcc9d5911224d5ebb542a42db046748e0bd07afb20e288e"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      },
+      {
+        "input": "boundary_and_last_sample_impulses",
+        "source": null,
+        "physical_samples": 1829,
+        "decoded_input_sha256": "858b69fbe2f9ae9a917cab1484f301ef0b0ab42ae64e6f6cc349b7722dd0405b",
+        "initial_state_sha256": [
+          "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0",
+          "668946bab9868b28489bb906205ee1026045c8bcd3ca62a1bdf733c65491351b",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        ],
+        "partial_hop_padding": 219,
+        "data_hops": 8,
+        "flush_hops": 1,
+        "callbacks": 9,
+        "physical_samples_recovered": 1829,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 1.1734664440155029e-07,
+            "stem_callback_rms": 1.1730479439257006e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1362135410308838e-07,
+              "bass": 2.444721758365631e-08,
+              "vocals": 5.681067705154419e-08,
+              "other": 1.1734664440155029e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 1.0149682775811154e-08,
+              "bass": 3.262103334354656e-09,
+              "vocals": 5.193480479295913e-09,
+              "other": 1.1730479439257006e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.5730342864990234e-06,
+              "spectral_numerator_tail": 8.940696716308594e-08,
+              "waveform_tail": 2.7939677238464355e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.053208036230724e-09,
+              "bass": 2.037153116274947e-09,
+              "vocals": 3.2515739867293282e-09,
+              "other": 6.769913497215597e-09
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 1.1734664440155029e-07,
+            "stem_callback_rms": 1.1730479439257006e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1362135410308838e-07,
+              "bass": 2.444721758365631e-08,
+              "vocals": 5.681067705154419e-08,
+              "other": 1.1734664440155029e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 1.0149682775811154e-08,
+              "bass": 3.262103334354656e-09,
+              "vocals": 5.193480479295913e-09,
+              "other": 1.1730479439257006e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.5730342864990234e-06,
+              "spectral_numerator_tail": 8.940696716308594e-08,
+              "waveform_tail": 2.7939677238464355e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.053208036230724e-09,
+              "bass": 2.037153116274947e-09,
+              "vocals": 3.2515739867293282e-09,
+              "other": 6.769913497215597e-09
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "5700169fb882c8a8c7f7ee83fe65277c68f28fec767950300c34fc64b463df90",
+          "export_copy": "5700169fb882c8a8c7f7ee83fe65277c68f28fec767950300c34fc64b463df90",
+          "ort": "68804b71e375826e6786eb20b6c5771aa794b0b7716fc489034d3832fcc5e710"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      },
+      {
+        "input": "nonzero_history_hidden_and_both_tails",
+        "source": null,
+        "physical_samples": 2079,
+        "decoded_input_sha256": "d3a211626b36480f1fe8db57ba1c5965fb70488184fe5d4ab05560c40852e312",
+        "initial_state_sha256": [
+          "5e59146b31ee618a05e15d0a0ea5d6bc1cb9e560f89f786196714a4d1b5bd19e",
+          "100e9230371df53a212948c8d4594fb5e0cdb3d79d4b1d6b98d35fa3fec53cbb",
+          "ff1600100caaab4839b3f7450d7007601b843307158ce36da1cd3058fe6a58a8",
+          "7f6874f3125028b292565793b3ff48444c4915ac010da81c315ca27d69a105ed"
+        ],
+        "partial_hop_padding": 225,
+        "data_hops": 9,
+        "flush_hops": 1,
+        "callbacks": 10,
+        "physical_samples_recovered": 2079,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 1.5273690223693848e-07,
+            "stem_callback_rms": 6.12524139818254e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1362135410308838e-07,
+              "bass": 7.939524948596954e-08,
+              "vocals": 4.470348358154297e-08,
+              "other": 1.5273690223693848e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 4.89642626501643e-08,
+              "bass": 3.3255525014816956e-08,
+              "vocals": 1.6077142114304146e-08,
+              "other": 6.12524139818254e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.023553967475891e-06,
+              "spectral_numerator_tail": 7.264316082000732e-08,
+              "waveform_tail": 1.1175870895385742e-07
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 3.2095455296307365e-08,
+              "bass": 2.386163753550271e-08,
+              "vocals": 1.1633687533787069e-08,
+              "other": 4.414053403472895e-08
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 1.5273690223693848e-07,
+            "stem_callback_rms": 6.12524139818254e-08,
+            "waveform_max_abs_by_stem": {
+              "drums": 1.1362135410308838e-07,
+              "bass": 7.939524948596954e-08,
+              "vocals": 4.470348358154297e-08,
+              "other": 1.5273690223693848e-07
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 4.89642626501643e-08,
+              "bass": 3.3255525014816956e-08,
+              "vocals": 1.6077142114304146e-08,
+              "other": 6.12524139818254e-08
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 5.023553967475891e-06,
+              "spectral_numerator_tail": 7.264316082000732e-08,
+              "waveform_tail": 1.1175870895385742e-07
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 3.2095455296307365e-08,
+              "bass": 2.386163753550271e-08,
+              "vocals": 1.1633687533787069e-08,
+              "other": 4.414053403472895e-08
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 3.725290298461914e-09,
+          "export_copy": 3.725290298461914e-09,
+          "ort": 3.725290298461914e-09
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 4.656612873077393e-10,
+          "export_copy": 4.656612873077393e-10,
+          "ort": 4.656612873077393e-10
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "badd23bc1f68d66efa4290240ad2b2ecdf4d12d9cf75a31735ccb989f1c91398",
+          "export_copy": "badd23bc1f68d66efa4290240ad2b2ecdf4d12d9cf75a31735ccb989f1c91398",
+          "ort": "6eedf32216b140a8a46cd8bd04464d99778fca91dd4c2d2586e873fef8ac4561"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      },
+      {
+        "input": "music:/home/axel/HS-TasNet/data/musdb18hq/train/Actions - One Minute Smile/mixture.wav",
+        "source": {
+          "path": "/home/axel/HS-TasNet/data/musdb18hq/train/Actions - One Minute Smile/mixture.wav",
+          "sha256": "0a12fe67897976b2e2457e39102bc5e3394e4344e69e6eeb9c88e8ebeaf4b9d8"
+        },
+        "physical_samples": 12325,
+        "decoded_input_sha256": "579a2836e3ec7464c2e2656cc445d9ba9ecfdd4494b0f2afc799463e9a301367",
+        "initial_state_sha256": [
+          "fd9243e1ba57263ed469c3bdbd7ade6ec5254e7ed924a9f5737fa44749933cc0",
+          "668946bab9868b28489bb906205ee1026045c8bcd3ca62a1bdf733c65491351b",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47",
+          "9f1dcbc35c350d6027f98be0f5c8b43b42ca52b7604459c0c42be3aa88913d47"
+        ],
+        "partial_hop_padding": 219,
+        "data_hops": 49,
+        "flush_hops": 1,
+        "callbacks": 50,
+        "physical_samples_recovered": 12325,
+        "all_output_shapes_dtypes_finite_checked_every_callback": true,
+        "history_shift_bit_exact_every_callback": true,
+        "comparisons": {
+          "native_vs_export_copy": {
+            "waveform_max_abs": 0.0,
+            "stem_callback_rms": 0.0,
+            "waveform_max_abs_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.0,
+              "spectral_numerator_tail": 0.0,
+              "waveform_tail": 0.0
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 0.0,
+              "bass": 0.0,
+              "vocals": 0.0,
+              "other": 0.0
+            },
+            "passed": true
+          },
+          "native_vs_ort": {
+            "waveform_max_abs": 5.929905455559492e-10,
+            "stem_callback_rms": 2.889679514643433e-10,
+            "waveform_max_abs_by_stem": {
+              "drums": 3.7834979593753815e-10,
+              "bass": 3.8744474295526743e-10,
+              "vocals": 4.82032191939652e-10,
+              "other": 5.929905455559492e-10
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 1.88511179229567e-10,
+              "bass": 1.844643476350848e-10,
+              "vocals": 2.420890266664734e-10,
+              "other": 2.889679514643433e-10
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.00014674663543701172,
+              "spectral_numerator_tail": 2.964952727779746e-10,
+              "waveform_tail": 6.439222488552332e-10
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.309821423854226e-11,
+              "bass": 7.671759668045934e-11,
+              "vocals": 6.889515888992282e-11,
+              "other": 1.2345925313505958e-10
+            },
+            "passed": true
+          },
+          "export_copy_vs_ort": {
+            "waveform_max_abs": 5.929905455559492e-10,
+            "stem_callback_rms": 2.889679514643433e-10,
+            "waveform_max_abs_by_stem": {
+              "drums": 3.7834979593753815e-10,
+              "bass": 3.8744474295526743e-10,
+              "vocals": 4.82032191939652e-10,
+              "other": 5.929905455559492e-10
+            },
+            "maximum_callback_rms_error_by_stem": {
+              "drums": 1.88511179229567e-10,
+              "bass": 1.844643476350848e-10,
+              "vocals": 2.420890266664734e-10,
+              "other": 2.889679514643433e-10
+            },
+            "state_max_abs_decoded_units": {
+              "audio_history": 0.0,
+              "fusion_hidden": 0.00014674663543701172,
+              "spectral_numerator_tail": 2.964952727779746e-10,
+              "waveform_tail": 6.439222488552332e-10
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.309821423854226e-11,
+              "bass": 7.671759668045934e-11,
+              "vocals": 6.889515888992282e-11,
+              "other": 1.2345925313505958e-10
+            },
+            "passed": true
+          }
+        },
+        "reconstruction_max_abs": {
+          "native": 2.9103830456733704e-11,
+          "export_copy": 2.9103830456733704e-11,
+          "ort": 1.4551915228366852e-11
+        },
+        "flush_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 1.8189894035458565e-12
+        },
+        "last_real_sample_reconstruction_max_abs": {
+          "native": 0.0,
+          "export_copy": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "native": "35251e5271fac2e949183f74cac3b7de56e8d2a473d0808f6cd7a8de3a8dfa2b",
+          "export_copy": "35251e5271fac2e949183f74cac3b7de56e8d2a473d0808f6cd7a8de3a8dfa2b",
+          "ort": "4c94ab5c0cbc5d0062536db218954cf55c8aee6e71e242b4cfe04e69ba6f4eaa"
+        },
+        "passed": true,
+        "reset_replay_all_outputs_and_states_bit_exact": true,
+        "reset_replay_passed": true
+      }
+    ],
+    "native_host_timing_qualified": false
+  },
+  "source_bindings_after": {
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-rawcontrol250-native512-prep/export-plan-released-001.json": "9e6cc2c92300fc9798773db44570b242f0b185a37da02f8ebdc49b2a41fdfc46",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_cropped1024_onnx.py": "93e6973423b6cd8cc62e3df6cadd829fb2743886a7af6698449d66c100499e62",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_ola512_onnx.py": "1ae71047f07d143cb1513833cce124322f7a33d16301b309dc7876bd43300235",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/latency_ola512.py": "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368",
+    "/home/axel/autoresearch/codex/HS-TasNet/export_onnx.py": "6b9593f58ad85d9bf24aec82b95950dd9fc4b9165ff556eed700e279f072e9d4",
+    "/home/axel/miniforge3/bin/python": "e0f49521a26c04b2c375349bab96fc19ded88896baa2d34d8ab7da9f6b862be4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/training-raw4_control-plan-released-001.json": "d88ad194adcaa9ee98b9e278e646964f6c479b75b04953a216c9bc5ef022075e",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-verdict-raw4-control-001.json": "fa9d170b66b18821c825fc973b1bb8604b08a5075ef4fac9c0cf6d8bbb3da3a4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/listening-followup-001.md": "32c03d07be8071ef66224ce15acc419dedd2932a0067dcf224f4e9f95b55de26",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-001.json": "360f121d5d6797da2fafc366b6b72e11050c270d3dbe441471b66b41089d4fd0",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/cropped1024-relative-mse-prep/paired-quality-execution-002.json": "373b52c6ba89ae55ac811505aba61b752cbad16ad527a9886c67f50ab2fa7bea",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/music/result.json": "d935bdb5d904aa8586bf74dea815db0dc320da751520e40cac89669c2a6518c2",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/actions60/result.json": "5c1ed401bc820d34f2e486d54ef398e6a3849899be2ded7f3f2feb67d47381f3",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/evaluation-cpu-fp32-pilot000250/probes/result.json": "f007a7df33994db03cc9c7b49bcfe6ffa7ed63f7cf23848d960c9bf342c57695",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/receipt.json": "755e3f606872c8abb3ce30924f47dfba97c92fb9cb9fa01d69658e7c0ec38348",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250.json": "1f21863be51d645af331d74347f16854423c7d43c9451fbd9570ca29e9cfdef4",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/training-audit-000250-execution.json": "e97ae13d9af79c8bd012e31413bec909196cf4a7baec6ff75246f6d46ea8b3dd",
+    "/home/axel/HS-TasNet/data/musdb18hq/train/Actions - One Minute Smile/mixture.wav": "0a12fe67897976b2e2457e39102bc5e3394e4344e69e6eeb9c88e8ebeaf4b9d8"
+  },
+  "bound_inputs_verified_unchanged": true,
+  "elapsed_seconds": 10.055116768999142
+}

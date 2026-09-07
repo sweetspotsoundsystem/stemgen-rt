@@ -83,7 +83,7 @@ set(GCC_WARNINGS
     -Wduplicated-cond # warn if if / else chain has duplicated conditions
     -Wduplicated-branches # warn if if / else branches have duplicated code
     -Wlogical-op # warn about logical operations being used where bitwise were probably wanted
-    -Wuseless-cast # warn if you perform a cast to the same type
+    # Fixed-width/size_t casts are needed on Windows even when redundant on Linux.
 )
 
 message(TRACE "Warnings are treated as errors")

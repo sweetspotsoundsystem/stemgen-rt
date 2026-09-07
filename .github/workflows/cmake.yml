@@ -1,19 +1,30 @@
 name: CMake
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 jobs:
   build:
+    if: >-
+      github.event_name != 'workflow_dispatch' &&
+      (github.event_name != 'pull_request' ||
+       github.event.action != 'labeled' ||
+       github.event.label.name != 'target-mac-qualification')
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-14, windows-latest]
+        os: [macos-15, windows-latest]
         build_type: [Release]
         include:
-          - os: macos-14
+          - os: macos-15
             artifact_name: StemgenRT-macOS
           - os: windows-latest
             artifact_name: StemgenRT-Windows
@@ -25,10 +36,10 @@ jobs:
 
     steps:
     - name: List Xcode installations
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: sudo ls -1 /Applications | grep "Xcode"
     - name: Select Xcode 16.2
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: sudo xcode-select -s /Applications/Xcode_16.2.0.app/Contents/Developer
     - uses: actions/checkout@v4
       with:
@@ -39,92 +50,150 @@ jobs:
       uses: actions/cache@v4
       with:
         path: libs/onnxruntime
-        key: onnxruntime-1.22.0-${{ runner.os }}-${{ runner.arch }}
+        key: onnxruntime-1.26.0-${{ runner.os }}-${{ runner.arch }}
 
     - name: Download ONNX Runtime (macOS)
-      if: matrix.os == 'macos-14' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-15' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: ./scripts/download-onnxruntime.sh
 
     - name: Download ONNX Runtime (Windows)
       if: matrix.os == 'windows-latest' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: .\scripts\download-onnxruntime.ps1
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -S . -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+    - name: Configure CMake (macOS arm64)
+      if: matrix.os == 'macos-15'
+      run: >-
+        cmake -S . -B ${{github.workspace}}/build
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DCMAKE_OSX_ARCHITECTURES=arm64
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
+        -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      run: >-
+        cmake -S . -B ${{github.workspace}}/build
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
 
     - name: Build
-      # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }}
+
+    - name: Verify packaged macOS bundles
+      if: matrix.os == 'macos-15'
+      run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }} --target StemgenRT_VerifyMacBundles
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{ matrix.build_type }}
+      run: ctest -C ${{ matrix.build_type }} --output-on-failure
+
+    - name: Archive macOS bundles
+      if: matrix.os == 'macos-15'
+      run: |
+        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 StemgenRT-macOS-VST3.zip
+        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component StemgenRT-macOS-AU.zip
+
+    - name: Archive Windows VST3
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: Compress-Archive -LiteralPath build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: build/plugin/AudioPlugin_artefacts/Release/VST3/
+        path: StemgenRT-macOS-VST3.zip
 
     - name: Upload AU (macOS)
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-AU
-        path: build/plugin/AudioPlugin_artefacts/Release/AU/
+        path: StemgenRT-macOS-AU.zip
 
     - name: Upload VST3 (Windows)
       if: matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: build/plugin/AudioPlugin_artefacts/Release/VST3/
+        path: StemgenRT-Windows-VST3.zip
 
-  release:
-    name: Update Release
-    needs: build
-    runs-on: ubuntu-latest
-    # Only run on pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  qualify-macos:
+    name: Qualify cropped1024 on Apple Silicon
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'target-mac-qualification') &&
+       (github.event.action != 'labeled' ||
+        github.event.label.name == 'target-mac-qualification'))
+    runs-on: macos-15
+    timeout-minutes: 90
     permissions:
-      contents: write
+      contents: read
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Move latest tag to current commit
+    - name: Initialize fail-safe wrapper evidence
+      shell: bash
       run: |
-        git tag -f latest
-        git push -f origin latest
+        umask 077
+        WRAPPER_DIR="$RUNNER_TEMP/cropped1024-mac-ci-wrapper"
+        EVIDENCE_DIR="$RUNNER_TEMP/cropped1024-mac-qualification"
+        mkdir "$WRAPPER_DIR"
+        printf 'WRAPPER_DIR=%s\nEVIDENCE_DIR=%s\n' \
+          "$WRAPPER_DIR" "$EVIDENCE_DIR" >> "$GITHUB_ENV"
+        {
+          date -u '+start_utc=%Y-%m-%dT%H:%M:%SZ'
+          echo "run_id=${{ github.run_id }}"
+          echo "run_attempt=${{ github.run_attempt }}"
+          echo "candidate_sha=${{ github.event.pull_request.head.sha || github.sha }}"
+        } > "$WRAPPER_DIR/run.txt"
+        printf '%s\n' \
+          'qualifier_exit_code=not_started_or_interrupted' \
+          'tee_exit_code=not_started_or_interrupted' \
+          > "$WRAPPER_DIR/qualifier-exit.txt"
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
+    - name: Check out the exact candidate
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       with:
-        path: artifacts
+        lfs: true
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        persist-credentials: false
 
-    - name: Create release archives
+    - name: Select and authenticate Xcode 16.2
+      shell: bash
       run: |
-        cd artifacts
-        for dir in */; do
-          name="${dir%/}"
-          zip -r "../${name}.zip" "$dir"
-        done
+        sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+        xcodebuild -version | tee "$WRAPPER_DIR/xcode.txt"
+        grep -Fxq 'Xcode 16.2' "$WRAPPER_DIR/xcode.txt"
+        uname -a | tee "$WRAPPER_DIR/uname.txt"
 
-    - name: Update latest release
-      uses: softprops/action-gh-release@v2
+    - name: Run fail-closed target-machine qualification
+      timeout-minutes: 75
+      shell: bash
+      run: |
+        set -o pipefail
+        set +e
+        ./scripts/qualify-macos.sh "$EVIDENCE_DIR" 2>&1 |
+          tee "$WRAPPER_DIR/qualifier-console.log"
+        statuses=("${PIPESTATUS[@]}")
+        set -e
+        printf 'qualifier_exit_code=%s\ntee_exit_code=%s\n' \
+          "${statuses[0]}" "${statuses[1]}" \
+          > "$WRAPPER_DIR/qualifier-exit.txt"
+        if (( statuses[0] != 0 )); then
+          exit "${statuses[0]}"
+        fi
+        exit "${statuses[1]}"
+
+    - name: Upload qualification evidence
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        tag_name: latest
-        name: Plugins
-        body: |
-          Build from commit ${{ github.sha }}
-          
-          Updated: ${{ github.event.head_commit.timestamp }}
-        files: "*.zip"
-        prerelease: false
-        make_latest: true
-
+        name: cropped1024-mac-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+        path: |
+          ${{ runner.temp }}/cropped1024-mac-ci-wrapper
+          ${{ runner.temp }}/cropped1024-mac-qualification
+          ${{ runner.temp }}/cropped1024-mac-qualification.SHA256SUMS.sha256
+        if-no-files-found: error
+        retention-days: 30

@@ -1,73 +1,51 @@
-# AGENTS.md
+# Working on StemgenRT
 
-This file provides guidance to agents when working with code in this repository.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. This branch integrates the user-accepted cropped1024 Raw L1 +250 model (2250 total updates). Its 256-sample graph delay plus 256 samples of asynchronous scheduling gives 512 samples / 11.61 ms at a 44.1 kHz / 256-sample prepared host configuration. Apple M4 DAW timing is pending; the model contract's historical `QUALIFIED` variable prefix is an identity/ABI lock, not proof of platform qualification.
 
-## Project Overview
-
-StemgenRT is a real-time low-latency music source separation plugin built with JUCE and ONNX Runtime. It separates stereo audio into 4 stems (drums, bass, other, vocals) using an HS-TasNet neural network model.
-
-## Build Commands
+## Commands
 
 ```bash
-# Initial setup - download ONNX Runtime
-./scripts/download-onnxruntime.sh  # macOS
-./scripts/download-onnxruntime.ps1  # Windows
-
-# Configure and build (debug)
-cmake -S . -B build
-cmake --build build
-
-# Release build
-cmake -S . -B build-release
-cmake --build build-release
-
-# Install plugins to system directories (macOS)
-# IMPORTANT: Always use this script instead of manual cp.
-# cp -R does NOT overwrite existing .component/.vst3 bundles reliably.
-./scripts/install-plugins.sh            # debug build
-./scripts/install-plugins.sh --release  # release build
+./scripts/download-onnxruntime.sh  # macOS; .ps1 on Windows
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+./scripts/install-plugins.sh --release
+./scripts/qualify-macos.sh ../stemgenrt-m4-evidence
 ```
 
-## Architecture
+Use the installer to replace entire macOS bundles, rather than `cp -R` over existing bundles. Sign embedded dylibs before outer bundles. Apple builds use arm64/macOS 14+, with the official ORT 1.26.0 CPU SDK. Windows loads the sibling ORT DLL explicitly. Keep the macOS VST3 auto-manifest helper disabled; Windows retains its manifest.
 
-### Audio Processing Pipeline (PluginProcessor.cpp)
+## Model identity and ABI
 
-The plugin uses a dual-threaded architecture:
-- **Audio thread**: Collects fullband samples into ring buffer, applies gating, retrieves processed stems
-- **Inference thread**: Runs ONNX model inference asynchronously to avoid blocking audio
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 46 metadata entries.
 
-Key DSP components:
-- **Overlap-add streaming**: 512-sample chunks with 1024-sample context windows
-- **Chunk boundary crossfade**: Extracts overlap tail (extra samples beyond center region) from each model output and crossfades with the next chunk's start to eliminate boundary discontinuities
-- **HP/LP split with LP reinjection**: Input is split with LR4 crossover; HP is fed to the model, while LP is bypassed and reinjected after inference (currently biased toward bass vs drums)
-- **Input normalization**: Context-aware normalization that computes RMS over combined context + input buffers to -12dB target. Prevents extreme gains when levels differ between context and input (e.g., loud kick tail in context, silence in input).
-- **Vocals gate**: Dual-criteria gate (energy ratio + absolute level) with asymmetric attack/release to eliminate spurious vocals content on instrumentals. Gated content transfers to "other" stem.
-- **Soft input gating**: Eliminates noise floor artifacts when input is silent
-- **Low-band stabilizer**: Rebuilds stable low-frequency stem distribution from dry-constrained low-band energy and suppresses synthetic high-band leakage on low-only material (e.g., LPF kick buzz in other/vocals/drums)
-- **Dry signal fallback**: Crossfades to latency-aligned dry signal on inference underruns
+| Input | Shape | Output |
+| --- | --- | --- |
+| `audio_chunk` | `[1,2,256]` | `separated_chunk`: `[1,4,2,256]` |
+| `audio_history` | `[1,2,768]` | `next_audio_history`: same shape |
+| `fusion_hidden` | `[2,1,1000]` | `next_fusion_hidden`: same shape |
+| `spectral_numerator_tail` | `[1,4,2,256]` | `next_spectral_numerator_tail`: same shape |
+| `waveform_tail` | `[1,4,2,256]` | `next_waveform_tail`: same shape |
 
-Main bus is delayed dry passthrough (delayed by `kOutputChunkSize` so it is latency-aligned with the stems and matches PDC). Stem outputs are model output with LP reinjection, stabilizer, and gates applied (no residual redistribution).
+Initialize all four states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not import the old c91 three-state ABI, reuse its history, or add a second graph flush.
 
-### Output Bus Layout
+Only the inference worker advances/resets model state. Audio-thread resets invalidate epochs in bounded time; an in-flight old-epoch run must never publish into the new stream. Input sequence gaps reset state and create one invalid pre-roll result.
 
-5 output buses total: Main (delayed dry passthrough), then 4 stereo stem buses:
-Drums (model index 0), Bass (model index 1), Other (model index 3), Vocals (model index 2)
+## Real-time and routing rules
 
-### Model
+- No waits, locks, allocation or PDC changes in real-time `processBlock`. Offline rendering may wait with a bounded timeout.
+- Preserve exact sample timestamps through the queue and output ring. Discard elapsed output instead of shifting it to a newer range. Only already-published results can be claimed at a real-time callback boundary.
+- Prepared 44.1 kHz block sizes from 1 to 65536 are admitted. Report the full accumulation/scheduling reserve. Larger or unexpected callback requirements use aligned fallback. Other sample rates are disabled until the new graph is validated through the existing converters.
+- Main is the complete delayed native input. Output buses are Main, Drums, Bass, Other, Vocals; graph source order is Drums, Bass, Vocals, Other.
+- Keep raw input levels unchanged. Do not add per-hop normalization, external context/reflection padding, crossover reinjection, bass processing, input gates or output clipping.
+- Preserve all four graph outputs in `OnnxRuntime`. After the existing output confidence/recovery fade, `Other = Main - Drums - Bass - Vocals`. Complete fallback is zero Drums/Bass/Vocals and Main in Other.
+- Preserve the linked confidence envelope: instantaneous open, 50 ms hold, 60 dB/100 ms release, smoothstep from -96 to -72 dBFS peak. Changes need new numerical/listening evidence.
+- Retain the user's two-thread macOS ORT cap as the starting policy. Other platforms retain four. A previous model's timing does not qualify this one. Explicit thread overrides are for measurement.
 
-`model/model.onnx` - HS-TasNet model bundled into plugin Resources. Input: stereo audio chunks. Output: 4 separated stems.
+## Verification
 
-## Code Style
+Use C++20, Chromium clang-format and warnings as errors. Keep ONNX compile definitions PUBLIC because `PluginProcessor.h` has conditional class members and tests must exercise the same runtime layout.
 
-- C++20 standard
-- Chromium-based clang-format (run `pre-commit install` for auto-formatting)
-- Warnings treated as errors
+Streaming changes require model identity/ABI checks; all-four-stem PyTorch parity; first-call invalid pre-roll; one-flush/partial-EOF recovery; reset determinism; queue gap/epoch races; exact PDC/Main alignment; non-finite input handling; fallback reconstruction; and variable offline callback coverage. Fixtures are synthetic CPU FP32 PyTorch outputs with checkpoint/source hashes in `test/fixtures/cropped1024-pytorch.json`; the generator never uses ORT as its oracle.
 
-## Testing
-
-Tests are in `test/source/AudioProcessorTest.cpp`. Run with `ctest --preset default`.
-
-## Platform Notes
-
-- **macOS**: ONNX Runtime bundled via install_name_tool rpath fixes.
-- **Windows**: CUDA GPU support available. DLLs are delay-loaded.
+Keep timing qualification separate from correctness. The disabled paced test measures the complete plugin callback/worker path; direct `Run` timings alone cannot establish DAW readiness. Preserve failed Linux timing and measured quality deltas in `model/README.md`. Do not imply an M4 measurement was performed here.

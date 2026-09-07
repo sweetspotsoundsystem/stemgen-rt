@@ -3,6 +3,7 @@
 libs/
 build/
 build-release/
+build-*/
 xcode-build/
 release-build/
 out/
@@ -457,3 +458,6 @@ FodyWeavers.xsd
 .DS_Store
 
 StemgenRT.als
+
+# App-scoped development dependencies (no system installation)
+.local-linux-deps/

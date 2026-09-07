@@ -7,12 +7,21 @@ enable_testing()
 
 # Creates the test console application.
 set(SOURCE_FILES
+  source/CroppedModelParityTest.cpp
   source/AudioProcessorTest.cpp
+  source/InferenceQueueTest.cpp
+  source/StreamingSampleRateAdapterTest.cpp
+  source/ModelOutputSchedulerTest.cpp
   source/OverlapAddProcessorTest.cpp
+  source/OutputWriterTest.cpp
   source/OrtRunBenchmarkTest.cpp
   source/RealtimeStemSanityTest.cpp
+  source/SampleRateBridgeE2ETest.cpp
+  source/TransportUnderrunE2ETest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  STEMGENRT_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 
 # Sets the necessary include directories of googletest.
 target_include_directories(${PROJECT_NAME} PRIVATE ${GOOGLETEST_SOURCE_DIR}/googletest/include)
@@ -50,41 +59,36 @@ if(WIN32)
   endif()
 endif()
 
-# Create symlinks/copies to model files so tests can load the ONNX model.
-# The test binary looks for the model at ${CMAKE_BINARY_DIR}/Resources/model.onnx
-# (relative to the test executable's grandparent directory).
+# Create a symlink/copy to the single-file model so tests can load it. Derive
+# the destination from the executable location: multi-config generators place
+# it under test/<Config>, while single-config generators place it under test.
+# In both cases this matches the executable-grandparent lookup used by tests.
 set(MODEL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/model")
-set(MODEL_DEST_DIR "${CMAKE_BINARY_DIR}/Resources")
+set(MODEL_DEST_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources")
 
-if(EXISTS "${MODEL_SOURCE_DIR}/model.onnx")
-  # Create Resources directory and copy/symlink after build
-  # Windows doesn't support symlinks without admin privileges, so use copy there
-  if(WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MODEL_SOURCE_DIR}/model.onnx" 
-        "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MODEL_SOURCE_DIR}/model.onnx.data" 
-        "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMENT "Copying ONNX model for tests"
-    )
-  else()
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
-      COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E create_symlink 
-        "${MODEL_SOURCE_DIR}/model.onnx" 
-        "${MODEL_DEST_DIR}/model.onnx"
-      COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMAND ${CMAKE_COMMAND} -E create_symlink 
-        "${MODEL_SOURCE_DIR}/model.onnx.data" 
-        "${MODEL_DEST_DIR}/model.onnx.data"
-      COMMENT "Creating symlinks to ONNX model for tests"
-    )
-  endif()
+if(WIN32)
+  add_custom_target(${PROJECT_NAME}_BundleModel ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${MODEL_SOURCE_DIR}/model.onnx"
+      "${MODEL_DEST_DIR}/model.onnx"
+    COMMENT "Copying verified ONNX model for tests"
+    VERBATIM
+  )
+else()
+  add_custom_target(${PROJECT_NAME}_BundleModel ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
+    COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "${MODEL_SOURCE_DIR}/model.onnx"
+      "${MODEL_DEST_DIR}/model.onnx"
+    COMMENT "Linking verified ONNX model for tests"
+    VERBATIM
+  )
 endif()
+add_dependencies(${PROJECT_NAME}_BundleModel ${PROJECT_NAME})
 
 # Add all tests defined with googletest to the CMake metadata
 # so that these tests are run upon a call to ctest in the test

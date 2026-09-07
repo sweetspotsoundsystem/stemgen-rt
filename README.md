@@ -1,102 +1,74 @@
 # StemgenRT
 
-A real-time low-latency music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
+Separate a stereo mix into Drums, Bass, Other and Vocals in your DAW. Main carries the complete latency-aligned mix; the four stem outputs reconstruct it.
 
-With a latency of 11.6 milliseconds, it is made for spatializing DJ sets in real-time: split the mix into stems, place them in the room, and create an immersive experience.
+This version bundles the accepted **Raw L1 +250 cropped1024 HS-TasNet** model. With a **44.1 kHz session and a 256-sample host buffer**, it reports **512 samples / 11.61 ms** of delay, half the previous c91 integration. The real-time audio callback never waits for inference.
 
-Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
+The model passed the research listening comparison and CPU numerical checks. Performance in the intended DAW on the user's Apple M4 still needs measurement. See [model provenance and validation](model/README.md) for the measured quality tradeoff and target-platform limits.
 
-Available as VST3 and AU.
+## Use
 
-![Screenshot](./screenshots/StemgenRT.png)
+1. Set the session sample rate to **44.1 kHz** and the audio buffer to **256 samples** for the lowest latency.
+2. Insert StemgenRT on a stereo track and enable its additional stereo outputs in your host.
+3. Route the outputs in this order: **Main, Drums, Bass, Other, Vocals**. Avoid summing Main with the stems unless that is intentional.
 
-## Usage
+The editor shows the active delay and whether separation is available. If inference misses its deadline, Main remains intact and the delayed mix goes to Other for that exact interval. Late stems are discarded; they are never replayed over newer audio. Model audio fades back in over 64 samples when processing catches up.
 
-StemgenRT is a multi-output plugin with 4 stereo output buses:
+The graph runs at 44.1 kHz. Other session rates use immediate Main/Other fallback and display a setup message. The existing sample-rate converter code remains disabled for this model.
 
-1. **Drums**
-2. **Bass**
-3. **Other** (synths, guitars, etc.)
-4. **Vocals**
+### Host buffers and delay
 
-To set it up:
+Other prepared block sizes are supported at 44.1 kHz. The plugin includes accumulation and worker scheduling time in the delay reported to the host:
 
-1. Insert StemgenRT on your source track (e.g., a DJ mix or full song)
-2. Create 4 auxiliary/bus tracks to receive each stem
-3. Route each of the plugin's stem outputs to its corresponding aux track
+| Prepared buffer | Reported delay | Delay at 44.1 kHz |
+| --- | --- | --- |
+| 64 | 704 samples | 15.96 ms |
+| 128 | 640 samples | 14.51 ms |
+| **256** | **512 samples** | **11.61 ms** |
+| 512 | 768 samples | 17.41 ms |
+| 1024 | 1280 samples | 29.02 ms |
 
-Check your DAW's documentation for multi-output plugin routing.
+A smaller host buffer leaves less time after a complete model hop arrives, so additional delay preserves the worker's scheduling reserve. The host must reprepare the plugin when it changes its buffer configuration. An actual real-time callback that needs more delay than prepared uses aligned fallback without changing PDC inside the audio callback.
 
-> [!NOTE]
-> Set your DAW to 44.1 kHz, the model only works at this sample rate.
+Offline bounces wait for each model hop and support varying callback sizes. At transport stop, a partial final hop is padded, exactly one zero hop flushes the graph, and the remaining callbacks drain the delayed output. The tail length reported to the host includes the complete delay; the host must render that tail to retain the last samples.
 
-## Downloads
+## Build and install
 
-- [StemgenRT-macOS-AU.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-AU.zip)
-- [StemgenRT-macOS-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-VST3.zip)
-- [StemgenRT-Windows-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-Windows-VST3.zip)
-
-> [!NOTE]
-> The macOS plugin is not signed (yet). You need to sign it yourself: `codesign --force --deep --sign - StemgenRT.component`
-
-## Building
-
-First, grab the ONNX Runtime dependency:
+Use CMake 3.22+, a C++20 compiler, Git LFS, and the pinned ONNX Runtime 1.26.0 CPU SDK. JUCE 8.0.6 and GoogleTest 1.16.0 are fetched by CMake. macOS builds target Apple Silicon and macOS 14 or newer; Windows supports its native SDK architecture.
 
 ```bash
-# macOS
-./scripts/download-onnxruntime.sh
-
-# Windows (PowerShell)
-./scripts/download-onnxruntime.ps1
+git lfs pull
+./scripts/download-onnxruntime.sh  # macOS; use the .ps1 script on Windows
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+./scripts/install-plugins.sh --release
 ```
 
-Then build with CMake:
+On Windows, use `scripts/install-plugins.ps1`. On macOS, the installer replaces complete AU/VST3 bundles and verifies signing; use it instead of manually copying over old bundles. Restart the DAW after installing. The existing plugin identifier is preserved so sessions retain their routing.
+
+For Linux development, install JUCE's ALSA, FreeType, Fontconfig and X11 development dependencies and place the ORT CPU SDK in `libs/onnxruntime`, then configure a Release Ninja build. Linux is useful for correctness checks; this PR does not qualify a Linux DAW release.
+
+A Release configuration verifies the bundled model's size and SHA-256. Runtime loading also verifies every input/output name, float32 shape and export metadata entry. The model is a single LFS-tracked `model/model.onnx`; it needs no external weights file.
+
+## Validation
+
+The tests cover streaming state/reset behavior, queue epochs, late-output discard, sample-accurate Main and stem alignment, output reconstruction, low-frequency seams, non-finite input, low-level confidence, and variable offline buffers. The checked-in [PyTorch fixtures](test/fixtures/cropped1024-pytorch.json) independently verify all four native stems and the actual output buses through eight final clip lengths, including one sample and partial hops.
+
+Performance tests are separate from correctness tests. Run the native Mac gate from a fresh checkout with an output directory outside the repository:
 
 ```bash
-cmake -S . -B build
-cmake --build build
+./scripts/qualify-macos.sh ../stemgenrt-m4-evidence
 ```
 
-For a release build:
+That gate builds and verifies the AU/VST3 bundles, requires the model parity tests, sweeps CPU thread counts, and measures 10,000 paced plugin callbacks. A successful machine test still needs an installed-plugin check under representative DAW load. To transfer a sealed source snapshot, use `scripts/package-macos-handoff.sh`.
 
-```bash
-cmake -S . -B build-release
-cmake --build build-release
-```
+## Audio contract
 
-## How it works
+The model consumes raw finite stereo samples without gain normalization, filters or external context padding. It uses a 1024-sample analysis window, a 256-sample hop, a 512-sample synthesis frame and four persistent state tensors. Only the inference worker advances those states. Starts, seeks, loop wraps, input gaps and invalid input reset the stream; stale outputs from the old generation are invalidated.
 
-The plugin runs a neural network to separate audio, but neural networks are slow and audio callbacks are fast. To bridge the gap:
+The graph returns **Drums, Bass, Vocals, Other**. The bus order swaps the last two for compatibility. The runtime preserves all four graph estimates. The output writer applies the existing low-level confidence and recovery fade to Drums/Bass/Vocals, then calculates `Other = Main - Drums - Bass - Vocals`. At ordinary listening levels with output available, this reproduces the accepted deployed stems within floating-point rounding.
 
-1. **Audio thread** collects incoming samples and feeds them to a ring buffer
-2. **Inference thread** runs the model asynchronously in the background
-3. **Audio thread** picks up the processed stems when ready
+Main stays at its native input level. The confidence envelope holds peaks for 50 ms, releases by 60 dB per 100 ms, and smoothly opens between -96 and -72 dBFS peak. It suppresses unreliable near-silence model output while preserving the complete mix in Other.
 
-If inference can't keep up, the plugin gracefully crossfades to the dry signal rather than glitching.
-
-A few DSP tricks help the model out:
-
-- **HP/LP split + LP reinjection** — Input is split by LR4 crossover. HP goes to the model; LP bypasses inference and is reinjected after model output (currently bass-biased) to keep low end stable.
-- **Chunk boundary crossfade** — The model outputs more samples than the 512-sample center region. Extra samples from the right context are crossfaded with the next chunk's start, eliminating discontinuities at chunk boundaries.
-- **Input normalization** — Context-aware: RMS is computed over both the context window and the current input chunk, then normalized to a consistent level before inference. This avoids extreme gain swings at transients (e.g., loud kick tail in context, silence in input) and pushes the model's noise floor below the signal level.
-- **Vocals gate** — Detects spurious low-level content in the vocals stem (common on instrumentals) using both energy ratio and absolute level thresholds. Gated content is transferred to the "other" stem to preserve total energy. Asymmetric attack/release smoothing prevents pumping.
-- **Soft gating** — When input is silent, output is silent. Prevents the model from hallucinating noise.
-- **Low-band stabilizer** — Reconstructs low-band stem balance using dry-constrained low-frequency energy and suppresses synthetic high-frequency leakage on low-only inputs.
-
-The main bus is dry passthrough. The stem buses carry model output with LP reinjection, low-band stabilization, and gates applied.
-
-## A note on GPU acceleration
-
-You might expect GPU to be faster, but for this particular model it often isn't:
-
-- **1D convolutions** — GPUs are optimized for 2D (images). 1D audio convolutions don't parallelize as well.
-- **Batch size of 1** — Real-time audio processes one chunk at a time. GPUs shine with large batches.
-- **Memory-bound ops** — Reshapes and audio operations are limited by memory bandwidth, not compute. Your CPU cache is actually fast for this.
-- **Kernel launch overhead** — Each GPU operation has ~5-20μs overhead. With many small ops, it adds up.
-
-That said, GPU builds are available if you want to try.
-
-## License
-
-MIT
+Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://github.com/microsoft/onnxruntime).

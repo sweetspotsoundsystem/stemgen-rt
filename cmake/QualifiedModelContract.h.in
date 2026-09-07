@@ -1,0 +1,207 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+
+namespace audio_plugin::qualified_model {
+
+inline constexpr std::string_view kContractId =
+    "@STEMGENRT_QUALIFIED_CONTRACT_ID@";
+inline constexpr std::string_view kModelSha256 =
+    "@STEMGENRT_QUALIFIED_MODEL_SHA256@";
+inline constexpr std::string_view kCheckpointSha256 =
+    "@STEMGENRT_QUALIFIED_CHECKPOINT_SHA256@";
+inline constexpr std::string_view kModelStateSha256 =
+    "@STEMGENRT_QUALIFIED_MODEL_STATE_SHA256@";
+inline constexpr std::string_view kOutputAlignment =
+    "@STEMGENRT_QUALIFIED_OUTPUT_ALIGNMENT@";
+inline constexpr std::string_view kPreroll =
+    "@STEMGENRT_QUALIFIED_METADATA_PREROLL@";
+inline constexpr std::int64_t kModelByteSize =
+    @STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE@;
+inline constexpr int kSampleRate = @STEMGENRT_QUALIFIED_SAMPLE_RATE@;
+inline constexpr int kNumChannels = @STEMGENRT_QUALIFIED_CHANNELS@;
+inline constexpr int kNumStems = @STEMGENRT_QUALIFIED_STEMS@;
+inline constexpr int kHopSamples = @STEMGENRT_QUALIFIED_HOP_SAMPLES@;
+inline constexpr int kAnalysisWindowSamples = @STEMGENRT_QUALIFIED_ANALYSIS_WINDOW_SAMPLES@;
+inline constexpr int kAnalysisHistorySamples = @STEMGENRT_QUALIFIED_ANALYSIS_HISTORY_SAMPLES@;
+inline constexpr int kSynthesisFrameSamples = @STEMGENRT_QUALIFIED_SYNTHESIS_FRAME_SAMPLES@;
+inline constexpr int kFusionHiddenLayers = @STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS@;
+inline constexpr int kFusionHiddenSize = @STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE@;
+inline constexpr int kModelOutputDelayChunks = @STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS@;
+inline constexpr int kAsyncQueueDelayChunks = @STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS@;
+inline constexpr int kPluginLatencyChunks = @STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS@;
+inline constexpr int kPluginLatencySamples = @STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES@;
+inline constexpr int kDrumsSourceIndex = @STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX@;
+inline constexpr int kBassSourceIndex = @STEMGENRT_QUALIFIED_BASS_SOURCE_INDEX@;
+inline constexpr int kVocalsSourceIndex = @STEMGENRT_QUALIFIED_VOCALS_SOURCE_INDEX@;
+inline constexpr int kOtherSourceIndex = @STEMGENRT_QUALIFIED_OTHER_SOURCE_INDEX@;
+inline constexpr int kResidualSourceIndex = @STEMGENRT_QUALIFIED_RESIDUAL_SOURCE_INDEX@;
+
+inline constexpr auto kSourceOrder = std::to_array<int>({
+    kDrumsSourceIndex, kBassSourceIndex, kVocalsSourceIndex, kOtherSourceIndex,
+});
+
+inline constexpr auto kInputNames = std::to_array<std::string_view>({
+    "@STEMGENRT_QUALIFIED_INPUT_AUDIO_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_HISTORY_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_HIDDEN_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_NAME@",
+});
+inline constexpr auto kInputAudioShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_AUDIO_SHAPE@});
+inline constexpr auto kInputHistoryShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_HISTORY_SHAPE@});
+inline constexpr auto kInputHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_HIDDEN_SHAPE@});
+inline constexpr auto kInputSpectralTailShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_SHAPE@});
+inline constexpr auto kInputWaveformTailShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_SHAPE@});
+
+inline constexpr auto kOutputNames = std::to_array<std::string_view>({
+    "@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_HISTORY_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_NAME@",
+});
+inline constexpr auto kOutputSeparatedShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE@});
+inline constexpr auto kOutputHistoryShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_HISTORY_SHAPE@});
+inline constexpr auto kOutputHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_SHAPE@});
+inline constexpr auto kOutputSpectralTailShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_SHAPE@});
+inline constexpr auto kOutputWaveformTailShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_SHAPE@});
+
+struct MetadataEntry {
+  std::string_view key;
+  std::string_view value;
+};
+
+inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
+    {"hs_tasnet.kind",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_KIND@)meta"},
+    {"hs_tasnet.mode",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_MODE@)meta"},
+    {"hs_tasnet.architecture_version",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ARCHITECTURE_VERSION@)meta"},
+    {"hs_tasnet.state_family",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_STATE_FAMILY@)meta"},
+    {"hs_tasnet.state_interchangeable_with_old_ola512",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_STATE_INTERCHANGEABLE_WITH_OLD_OLA512@)meta"},
+    {"hs_tasnet.sample_rate",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SAMPLE_RATE@)meta"},
+    {"hs_tasnet.hop_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_HOP_SAMPLES@)meta"},
+    {"hs_tasnet.analysis_fft_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ANALYSIS_FFT_SAMPLES@)meta"},
+    {"hs_tasnet.carrier_fft_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CARRIER_FFT_SAMPLES@)meta"},
+    {"hs_tasnet.synthesis_fft_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SYNTHESIS_FFT_SAMPLES@)meta"},
+    {"hs_tasnet.spectral_mask_bins",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SPECTRAL_MASK_BINS@)meta"},
+    {"hs_tasnet.spectral_output_crop",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SPECTRAL_OUTPUT_CROP@)meta"},
+    {"hs_tasnet.synthesis_frame_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SYNTHESIS_FRAME_SAMPLES@)meta"},
+    {"hs_tasnet.waveform_decoder_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_WAVEFORM_DECODER_SAMPLES@)meta"},
+    {"hs_tasnet.analysis_history_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ANALYSIS_HISTORY_SAMPLES@)meta"},
+    {"hs_tasnet.graph_output_delay_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_GRAPH_OUTPUT_DELAY_SAMPLES@)meta"},
+    {"hs_tasnet.alignment_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ALIGNMENT_SAMPLES@)meta"},
+    {"hs_tasnet.future_context_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FUTURE_CONTEXT_SAMPLES@)meta"},
+    {"hs_tasnet.future_callbacks_beyond_received_input",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FUTURE_CALLBACKS_BEYOND_RECEIVED_INPUT@)meta"},
+    {"hs_tasnet.flush_required",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FLUSH_REQUIRED@)meta"},
+    {"hs_tasnet.flush_hops",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FLUSH_HOPS@)meta"},
+    {"hs_tasnet.initial_state",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INITIAL_STATE@)meta"},
+    {"hs_tasnet.preroll",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PREROLL@)meta"},
+    {"hs_tasnet.external_host_queue_implemented",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EXTERNAL_HOST_QUEUE_IMPLEMENTED@)meta"},
+    {"hs_tasnet.intended_external_host_queue_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INTENDED_EXTERNAL_HOST_QUEUE_SAMPLES@)meta"},
+    {"hs_tasnet.intended_total_latency_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INTENDED_TOTAL_LATENCY_SAMPLES@)meta"},
+    {"hs_tasnet.graph_qualified",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_GRAPH_QUALIFIED@)meta"},
+    {"hs_tasnet.native_host_timing_qualified",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_NATIVE_HOST_TIMING_QUALIFIED@)meta"},
+    {"hs_tasnet.output_policy",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_OUTPUT_POLICY@)meta"},
+    {"hs_tasnet.source_order",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SOURCE_ORDER@)meta"},
+    {"hs_tasnet.state_names",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_STATE_NAMES@)meta"},
+    {"hs_tasnet.state_shapes",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_STATE_SHAPES@)meta"},
+    {"hs_tasnet.public_fusion_state_scale",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PUBLIC_FUSION_STATE_SCALE@)meta"},
+    {"hs_tasnet.output_source_scales",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_OUTPUT_SOURCE_SCALES@)meta"},
+    {"hs_tasnet.checkpoint_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_SHA256@)meta"},
+    {"hs_tasnet.model_state_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_MODEL_STATE_SHA256@)meta"},
+    {"hs_tasnet.training_plan_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_PLAN_SHA256@)meta"},
+    {"hs_tasnet.snapshot_step",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SNAPSHOT_STEP@)meta"},
+    {"hs_tasnet.training_updates",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_UPDATES@)meta"},
+    {"hs_tasnet.exporter_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.model_source_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_MODEL_SOURCE_SHA256@)meta"},
+    {"hs_tasnet.base_model_source_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_BASE_MODEL_SOURCE_SHA256@)meta"},
+    {"hs_tasnet.reusable_exporter_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_REUSABLE_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.export_helpers_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORT_HELPERS_SHA256@)meta"},
+    {"hs_tasnet.fft_implementation",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FFT_IMPLEMENTATION@)meta"},
+    {"hs_tasnet.external_data",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EXTERNAL_DATA@)meta"},
+});
+
+static_assert(kInputAudioShape == std::array<std::int64_t, 3>{1, 2, 256});
+static_assert(kInputHistoryShape == std::array<std::int64_t, 3>{1, 2, 768});
+static_assert(kInputHiddenShape == std::array<std::int64_t, 3>{2, 1, 1000});
+static_assert(kInputSpectralTailShape == std::array<std::int64_t, 4>{1, 4, 2, 256});
+static_assert(kInputWaveformTailShape == kInputSpectralTailShape);
+static_assert(kOutputSeparatedShape == kInputSpectralTailShape);
+static_assert(kOutputHistoryShape == kInputHistoryShape);
+static_assert(kOutputHiddenShape == kInputHiddenShape);
+static_assert(kOutputSpectralTailShape == kInputSpectralTailShape);
+static_assert(kOutputWaveformTailShape == kInputWaveformTailShape);
+static_assert(kAnalysisWindowSamples == kAnalysisHistorySamples + kHopSamples);
+static_assert(kSynthesisFrameSamples == 2 * kHopSamples);
+static_assert(kInputNames.size() == 5 && kOutputNames.size() == 5);
+static_assert(kNumChannels == 2 && kNumStems == 4);
+static_assert(kSampleRate == 44100 && kHopSamples == 256);
+static_assert(kModelOutputDelayChunks == 1 && kAsyncQueueDelayChunks == 1);
+static_assert(kPluginLatencyChunks == kModelOutputDelayChunks + kAsyncQueueDelayChunks);
+static_assert(kPluginLatencySamples == kPluginLatencyChunks * kHopSamples);
+static_assert(kPluginLatencySamples == 512);
+static_assert(kSourceOrder == std::array<int, 4>{0, 1, 2, 3});
+static_assert(kOtherSourceIndex == kResidualSourceIndex);
+static_assert(kOutputAlignment == "previous_input_chunk");
+static_assert(kPreroll == "discard_first_output_hop_after_reset");
+
+}  // namespace audio_plugin::qualified_model
