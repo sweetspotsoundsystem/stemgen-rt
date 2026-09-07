@@ -342,8 +342,8 @@ TEST(RealtimeStemSanityTest,
       << " measured_due_boundary_misses=" << measuredFailures.dueBoundaryMisses
       << " warmup_underrun_samples=" << warmupFailures.underrunSamples
       << " measured_underrun_samples=" << measuredFailures.underrunSamples
-      << " warmup_late_discard_events=" << warmupFailures.lateDiscardEvents
-      << " measured_late_discard_events=" << measuredFailures.lateDiscardEvents
+      << " warmup_output_discard_events=" << warmupFailures.lateDiscardEvents
+      << " measured_output_discard_events=" << measuredFailures.lateDiscardEvents
       << " retained_events=" << failureTrace.size()
       << " omitted_events=" << failureTrace.omittedEvents() << '\n';
   for (size_t index = 0; index < failureTrace.size(); ++index) {
@@ -353,7 +353,7 @@ TEST(RealtimeStemSanityTest,
               << " phase=" << (event.duringWarmup ? "warmup" : "measured")
               << " due_boundary_misses=" << event.delta.dueBoundaryMisses
               << " underrun_samples=" << event.delta.underrunSamples
-              << " late_discard_events=" << event.delta.lateDiscardEvents
+              << " output_discard_events=" << event.delta.lateDiscardEvents
               << " preceding_callback_spacing_us="
               << event.callbackSpacingMicroseconds
               << " current_start_lateness_us="
