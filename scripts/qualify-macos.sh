@@ -309,7 +309,7 @@ capture_power_state pre-soak
 PACED_LOG="$EVIDENCE_DIR/logs/paced-async-10000.log"
 RSS_LOG="$EVIDENCE_DIR/paced-rss-kib.tsv"
 : > "$RSS_LOG"
-printf '%s\n' "Running paced-async-10000 (about 117 seconds)..."
+printf '%s\n' "Running paced-async-10000 (10,000 measured callbacks plus warmup)..."
 env STEMGENRT_QUALIFICATION_CALLBACKS="$EXPECTED_CALLBACKS" \
     "$TEST_BINARY" --gtest_also_run_disabled_tests \
     --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
@@ -443,11 +443,11 @@ Machine qualification passed, but this candidate is still unpromoted.
        killall AudioComponentRegistrar || true
        auval -v aufx Stem Swee
 
-2. Fully restart the DAW. At 44.1 kHz / 256 samples, confirm the loaded plug-in
-   reports 512 samples of PDC, worker priority Applied, zero due-boundary
+2. Fully restart the DAW. At $EXPECTED_SAMPLE_RATE Hz / $EXPECTED_CALLBACK_SAMPLES samples, confirm the loaded plug-in
+   reports $EXPECTED_PDC_SAMPLES samples of PDC, worker priority Applied, zero due-boundary
    misses, zero dry fallback, and no timing warning during representative load.
 
-3. Listen specifically for low-frequency continuity and 172.27 Hz hop buzz,
+3. Listen specifically for low-frequency continuity and periodic hop buzz,
    hop seams, reset/seek behavior, the two-callback stop tail, and fallback
    transitions. Record pass/fail notes without changing this evidence directory.
 
