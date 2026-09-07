@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <span>
 #include <vector>
 
@@ -17,7 +18,21 @@ struct WorkerTimingSample {
   Clock::time_point runFinished;
   Clock::time_point publishStarted;
   Clock::time_point publishFinished;
+  // Total process CPU time on supported platforms, including other ORT and
+  // synthetic-host threads. It is not the dedicated worker's CPU time alone.
+  std::clock_t processCpuStarted{static_cast<std::clock_t>(-1)};
+  std::clock_t processCpuFinished{static_cast<std::clock_t>(-1)};
   bool inferenceOk{};
+
+  double processCpuMicroseconds() const noexcept {
+    if (processCpuStarted == static_cast<std::clock_t>(-1) ||
+        processCpuFinished == static_cast<std::clock_t>(-1) ||
+        processCpuFinished < processCpuStarted) {
+      return -1.0;
+    }
+    return 1.0e6 * static_cast<double>(processCpuFinished - processCpuStarted) /
+           static_cast<double>(CLOCKS_PER_SEC);
+  }
 };
 
 // Optional diagnostic storage, allocated before the worker starts. Only the

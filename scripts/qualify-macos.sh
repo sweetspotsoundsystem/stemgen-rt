@@ -311,6 +311,7 @@ RSS_LOG="$EVIDENCE_DIR/paced-rss-kib.tsv"
 : > "$RSS_LOG"
 printf '%s\n' "Running paced-async-10000 (10,000 measured callbacks plus warmup)..."
 env STEMGENRT_QUALIFICATION_CALLBACKS="$EXPECTED_CALLBACKS" \
+    STEMGENRT_TRACE_WORKER=0 STEMGENRT_PACED_ORT_THREADS=0 \
     "$TEST_BINARY" --gtest_also_run_disabled_tests \
     --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
     > "$PACED_LOG" 2>&1 &
@@ -345,6 +346,10 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
     fail "paced summary measured callback count changed"
 [[ "$PACED_SUMMARY" == *" warmup_callbacks=${EXPECTED_WARMUP_CALLBACKS} "* ]] ||
     fail "paced summary warmup callback count changed"
+[[ "$PACED_SUMMARY" == *" worker_trace=disabled "* ]] ||
+    fail "qualification must use an uninstrumented worker"
+[[ "$PACED_SUMMARY" == *" ort_intra_op_threads_override=0 "* ]] ||
+    fail "qualification must use the production automatic thread policy"
 [[ "$PACED_SUMMARY" == *" callback_samples=${EXPECTED_CALLBACK_SAMPLES} "* ]] ||
     fail "paced summary callback size changed"
 [[ "$PACED_SUMMARY" == *" sample_rate=${EXPECTED_SAMPLE_RATE} "* ]] ||

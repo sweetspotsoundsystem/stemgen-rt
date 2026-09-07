@@ -299,6 +299,21 @@ bool AudioPluginAudioProcessor::setWorkerTimingTrace(
 #endif
 }
 
+bool AudioPluginAudioProcessor::setDiagnosticOrtIntraOpThreads(
+    int count) noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  if (count < 0 || count > 4 || inferenceQueue_.isThreadRunning() ||
+      !onnxRuntime_ || onnxRuntime_->isModelLoaded()) {
+    return false;
+  }
+  diagnosticOrtIntraOpThreads_ = count;
+  return true;
+#else
+  juce::ignoreUnused(count);
+  return false;
+#endif
+}
+
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 void AudioPluginAudioProcessor::allocateStreamingBuffers(
     int maximumHostBlockSize,
@@ -567,7 +582,12 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
 
     // Load the qualified model into the CPU ONNX Runtime session.
     juce::String loadError;
-    if (!onnxRuntime_->loadModel(modelFile.getFullPathName(), loadError)) {
+    const auto diagnosticThreads =
+        diagnosticOrtIntraOpThreads_ == 0
+            ? std::nullopt
+            : std::make_optional(diagnosticOrtIntraOpThreads_);
+    if (!onnxRuntime_->loadModel(modelFile.getFullPathName(), loadError,
+                                 diagnosticThreads)) {
       {
         const std::lock_guard<std::mutex> lock(statusMutex_);
         modelLoadError_ = loadError;

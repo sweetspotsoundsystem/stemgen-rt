@@ -36,6 +36,8 @@ constexpr int kMinimumQualificationCallbacks = 10000;
 constexpr std::string_view kQualificationCallbacksEnvironment =
     "STEMGENRT_QUALIFICATION_CALLBACKS";
 constexpr std::string_view kWorkerTimingEnvironment = "STEMGENRT_TRACE_WORKER";
+constexpr std::string_view kOrtThreadsEnvironment =
+    "STEMGENRT_PACED_ORT_THREADS";
 
 constexpr float kPi = 3.14159265358979323846f;
 
@@ -162,10 +164,12 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
   }
 
   std::vector<double> runTimes;
+  std::vector<double> processCpuTimes;
   std::vector<double> dispatchLowerBounds;
   std::vector<double> dispatchUpperBounds;
   uint64_t missingMeasuredRequests = 0U;
   uint64_t publishedAfterDueCallback = 0U;
+  uint64_t missingCpuSamples = 0U;
   for (size_t due = static_cast<size_t>(kWarmupBlocks); due < callbacks.size();
        ++due) {
     const auto* sample = bySequence[due - 1U];
@@ -175,6 +179,12 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
     }
     runTimes.push_back(
         microsecondsBetween(sample->runFinished, sample->runStarted));
+    const double cpuMicroseconds = sample->processCpuMicroseconds();
+    if (cpuMicroseconds >= 0.0) {
+      processCpuTimes.push_back(cpuMicroseconds);
+    } else {
+      ++missingCpuSamples;
+    }
     dispatchLowerBounds.push_back(std::max(
         0.0,
         microsecondsBetween(sample->acquired, callbacks[due - 1U].finished)));
@@ -185,6 +195,7 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
     }
   }
   const auto run = summarizeTiming(runTimes);
+  const auto processCpu = summarizeTiming(processCpuTimes);
   const auto dispatchLower = summarizeTiming(dispatchLowerBounds);
   const auto dispatchUpper = summarizeTiming(dispatchUpperBounds);
   std::cerr << std::fixed << std::setprecision(3)
@@ -197,6 +208,15 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
             << " published_after_due_callback=" << publishedAfterDueCallback
             << " run_mean_us=" << run.mean << " run_p99_us=" << run.p99
             << " run_max_us=" << run.maximum
+            << " process_cpu_scope=all_process_threads"
+            << " process_cpu_samples=" << processCpuTimes.size()
+            << " missing_cpu_samples=" << missingCpuSamples
+            << " process_cpu_mean_us="
+            << (processCpuTimes.empty() ? -1.0 : processCpu.mean)
+            << " process_cpu_p99_us="
+            << (processCpuTimes.empty() ? -1.0 : processCpu.p99)
+            << " process_cpu_max_us="
+            << (processCpuTimes.empty() ? -1.0 : processCpu.maximum)
             << " dispatch_lower_p99_us=" << dispatchLower.p99
             << " dispatch_upper_p99_us=" << dispatchUpper.p99
             << " dispatch_lower_max_us=" << dispatchLower.maximum
@@ -223,6 +243,7 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
           << microsecondsBetween(sample->acquired, callbacks[due - 1U].started)
           << " run_us="
           << microsecondsBetween(sample->runFinished, sample->runStarted)
+          << " process_cpu_us=" << sample->processCpuMicroseconds()
           << " post_run_to_publish_upper_us="
           << microsecondsBetween(sample->publishFinished, sample->runFinished)
           << " publish_relative_due_start_lower_us="
@@ -296,6 +317,8 @@ TEST(RealtimeStemSanityTest, WorkerTraceUsesSubmissionBoundsAndExcludesWarmup) {
   late.runFinished = callbacks[100].started + Microseconds(20);
   late.publishStarted = late.runFinished + Microseconds(5);
   late.publishFinished = late.publishStarted + Microseconds(1);
+  late.processCpuStarted = CLOCKS_PER_SEC;
+  late.processCpuFinished = CLOCKS_PER_SEC + CLOCKS_PER_SEC / 500;
   late.inferenceOk = true;
   trace.record(late);
   PacedQualificationTrace failures(kWarmupBlocks);
@@ -309,9 +332,29 @@ TEST(RealtimeStemSanityTest, WorkerTraceUsesSubmissionBoundsAndExcludesWarmup) {
        {"matched_measured_requests=1 ", "missing_measured_requests=0 ",
         "duplicate_sequences=0 ", "published_after_due_callback=1 ",
         "dispatch_lower_us=200.000 ", "dispatch_upper_us=210.000 ",
-        "run_us=2810.000 ", "publish_relative_due_finish_lower_us=15.000"}) {
+        "run_us=2810.000 ", "process_cpu_us=2000.000 ",
+        "publish_relative_due_finish_lower_us=15.000"}) {
     EXPECT_NE(text.find(expected), std::string::npos) << text;
   }
+}
+
+TEST(RealtimeStemSanityTest, ThreadOverrideMustPrecedeSessionCreation) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#else
+  audio_plugin::AudioPluginAudioProcessor processor;
+  EXPECT_FALSE(processor.setDiagnosticOrtIntraOpThreads(-1));
+  EXPECT_FALSE(processor.setDiagnosticOrtIntraOpThreads(5));
+  EXPECT_TRUE(processor.setDiagnosticOrtIntraOpThreads(0));
+  ASSERT_TRUE(processor.setDiagnosticOrtIntraOpThreads(1));
+  processor.prepareToPlay(kSampleRate, kBlockSize);
+  ASSERT_EQ(processor.getLatencySamples(), audio_plugin::kPluginLatencySamples)
+      << processor.getOrtStatusString().toStdString();
+  EXPECT_FALSE(processor.setDiagnosticOrtIntraOpThreads(2));
+  processor.releaseResources();
+  // releaseResources joins the worker but retains the immutable ORT session.
+  EXPECT_FALSE(processor.setDiagnosticOrtIntraOpThreads(2));
+#endif
 }
 
 // Explicit production-style asynchronous qualification soak. This remains
@@ -331,6 +374,9 @@ TEST(RealtimeStemSanityTest,
 
   const int traceWorker = integerEnvironment(kWorkerTimingEnvironment, 0, 0, 1);
   ASSERT_GE(traceWorker, 0) << kWorkerTimingEnvironment << " must be 0 or 1";
+  const int ortThreads = integerEnvironment(kOrtThreadsEnvironment, 0, 0, 4);
+  ASSERT_GE(ortThreads, 0) << kOrtThreadsEnvironment
+                           << " must be 0 (automatic) or 1..4";
   const auto totalCallbacks =
       static_cast<size_t>(kWarmupBlocks + measureBlocks);
   // Cap diagnostic storage even for an arbitrarily long requested soak.
@@ -340,6 +386,9 @@ TEST(RealtimeStemSanityTest,
   std::vector<CallbackTimingSample> callbackTrace(
       traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
+  if (ortThreads != 0) {
+    ASSERT_TRUE(processor.setDiagnosticOrtIntraOpThreads(ortThreads));
+  }
   if (traceWorker != 0) {
     ASSERT_TRUE(processor.setWorkerTimingTrace(&workerTrace));
   }
@@ -597,6 +646,7 @@ TEST(RealtimeStemSanityTest,
             << " warmup_callbacks=" << kWarmupBlocks
             << " measured_callbacks=" << measureBlocks
             << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")
+            << " ort_intra_op_threads_override=" << ortThreads
             << " callback_samples=" << kBlockSize
             << " sample_rate=" << static_cast<int>(kSampleRate)
             << " pdc_samples=" << processor.getLatencySamples()

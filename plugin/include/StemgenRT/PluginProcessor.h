@@ -70,6 +70,9 @@ public:
   InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
   // Diagnostic only: attach before prepareToPlay, read after releaseResources.
   bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
+  // Measurement only; call before the first prepareToPlay. Zero retains the
+  // production policy, 1..4 select a fresh session's immutable thread count.
+  bool setDiagnosticOrtIntraOpThreads(int count) noexcept;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -105,6 +108,7 @@ private:
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   // ONNX Runtime wrapper (handles the CPU session and persistent graph state)
   std::unique_ptr<OnnxRuntime> onnxRuntime_;
+  int diagnosticOrtIntraOpThreads_{0};
   juce::String
       modelLoadError_;  // Stores the last model loading error for display
   mutable std::mutex statusMutex_;

@@ -22,6 +22,15 @@ namespace audio_plugin {
 
 namespace {
 
+std::clock_t processCpuClock() noexcept {
+#if defined(__APPLE__) || defined(__linux__)
+  return std::clock();
+#else
+  // MSVC's clock() measures elapsed wall time, so do not label it CPU time.
+  return static_cast<std::clock_t>(-1);
+#endif
+}
+
 InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
 #if defined(__APPLE__)
   const int result =
@@ -768,6 +777,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // graph. An in-flight old-epoch run is discarded below if reset()
       // arrives concurrently.
       if (timingTrace != nullptr) {
+        timing.processCpuStarted = processCpuClock();
         timing.runStarted = WorkerTimingSample::Clock::now();
       }
       if (epochControl_.load(std::memory_order_acquire) ==
@@ -777,6 +787,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       }
       if (timingTrace != nullptr) {
         timing.runFinished = WorkerTimingSample::Clock::now();
+        timing.processCpuFinished = processCpuClock();
       }
 
       if (inferenceOk && request->outputValid &&

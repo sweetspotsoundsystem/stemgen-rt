@@ -185,7 +185,24 @@ TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
   EXPECT_LE(sample.runFinished, sample.publishStarted);
   EXPECT_LE(sample.publishStarted, sample.publishFinished);
   EXPECT_LE(sample.publishFinished, std::chrono::steady_clock::now());
+#if defined(__APPLE__) || defined(__linux__)
+  EXPECT_GE(sample.processCpuMicroseconds(), 0.0);
+#else
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+#endif
   EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
+}
+
+TEST(InferenceQueueTest, CpuClockDeltasRejectUnavailableOrRegressingSamples) {
+  audio_plugin::WorkerTimingSample sample;
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+  sample.processCpuStarted = CLOCKS_PER_SEC;
+  sample.processCpuFinished = 2 * CLOCKS_PER_SEC;
+  EXPECT_DOUBLE_EQ(sample.processCpuMicroseconds(), 1.0e6);
+  sample.processCpuFinished = CLOCKS_PER_SEC - 1;
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+  sample.processCpuFinished = static_cast<std::clock_t>(-1);
+  EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
 }
 
 TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
