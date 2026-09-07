@@ -1,5 +1,6 @@
 #include <StemgenRT/StreamingSampleRateAdapter.h>
 #include <gtest/gtest.h>
+#include <bit>
 
 #include <algorithm>
 #include <array>
@@ -272,7 +273,10 @@ TEST(StreamingSampleRateAdapterTest,
   EXPECT_EQ(adapter.nextInputSampleIndex(), inputBefore);
   EXPECT_EQ(adapter.nextOutputSampleIndex(), outputBefore);
   EXPECT_TRUE(std::all_of(rejectedOutput.begin(), rejectedOutput.end(),
-                          [](float value) { return value == 123.0f; }));
+                          [](float value) {
+                            return std::bit_cast<uint32_t>(value) ==
+                                   std::bit_cast<uint32_t>(123.0f);
+                          }));
 
   const auto continuation = makeSignal(1U, 500U, 48000.0);
   const std::size_t required =

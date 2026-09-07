@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The c91 deployment emits [drums, bass, vocals, other].
+// The cropped1024 deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -16,16 +16,18 @@ constexpr int kStemBass = qualified_model::kBassSourceIndex;
 constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
-// Fixed model contract. The graph consumes one 512-sample hop and emits the
-// preceding hop while carrying previous-audio, overlap-add, and fusion-GRU
-// state.
+// Fixed model contract. The graph consumes one 256-sample hop and emits the
+// preceding hop while carrying 768-sample audio history, fusion-GRU and both
+// overlap tails.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
+constexpr int kAnalysisHistorySize = qualified_model::kAnalysisHistorySamples;
+constexpr int kSynthesisFrameSize = qualified_model::kSynthesisFrameSamples;
 constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
 constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 
-// c91's graph delay is one hop. The worker then gets one complete hop to
+// The graph delay is one hop. The worker then gets one complete hop to
 // publish that result for the following callback, so total PDC is two hops.
 constexpr int kModelOutputDelayChunks =
     qualified_model::kModelOutputDelayChunks;
@@ -34,16 +36,15 @@ constexpr int kAsyncQueueDelayChunks =
 constexpr int kPluginLatencyChunks = qualified_model::kPluginLatencyChunks;
 constexpr int kPluginLatencySamples = qualified_model::kPluginLatencySamples;
 
-// This hardened asynchronous candidate is defined only for an exact model-hop
-// callback. Other callback sizes or rates fail closed instead of silently
-// adding delay.
+// The graph clock is fixed at 44.1 kHz. Host blocks are accumulated onto its
+// 256-sample clock; prepareToPlay reports their complete scheduling reserve.
 constexpr int kAsyncQualifiedHostSampleRate = kModelSampleRate;
 constexpr int kAsyncQualifiedHostBlockSize = kOutputChunkSize;
 
 constexpr bool isQualifiedAsyncHostConfiguration(int sampleRate,
                                                  int blockSize) {
-  return sampleRate == kAsyncQualifiedHostSampleRate &&
-         blockSize == kAsyncQualifiedHostBlockSize;
+  return sampleRate == kAsyncQualifiedHostSampleRate && blockSize > 0 &&
+         blockSize <= 65536;
 }
 
 // Temporary source-compatibility names for diagnostics and tests being
@@ -85,10 +86,9 @@ constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
          static_cast<std::uint64_t>(numerator % denominator != 0U);
 }
 
-// c91 emits hop N-1 while the worker processes request N, then publishes it for
-// callback N+1. The generic helpers are retained for diagnostics and future
-// bridge work; the listening path is admitted only at the exact 44.1 kHz /
-// 512-sample point where its two-hop PDC is unambiguous.
+// Include graph lookahead, host accumulation phase and a full worker reserve.
+// A matching 256-sample host hop needs 512 samples; other blocks report the
+// additional reserve rather than claiming the same latency.
 constexpr int calculatePluginLatencySamples(int hostBlockSize) {
   const int safeBlockSize = hostBlockSize > 0 ? hostBlockSize : 1;
   const int callbacksPerModelHop = 1 + (kOutputChunkSize - 1) / safeBlockSize;
@@ -96,9 +96,8 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
          std::gcd(safeBlockSize, kOutputChunkSize);
 }
 
-// Rate-aware form of the same diagnostic reserve. This remains available for
-// later requalification; the asynchronous listening build accepts only the
-// exact configuration above.
+// Rate-aware form, retained for the future sample-rate bridge. The active
+// model configuration currently admits only 44.1 kHz.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
   const std::uint64_t safeSampleRate = static_cast<std::uint64_t>(
@@ -144,42 +143,45 @@ constexpr int calculatePluginLatencySamples(int hostSampleRate,
   return schedulingLatency + safeConversionDelay;
 }
 
-static_assert(kAnalysisWindowSize == 2 * kOutputChunkSize);
+static_assert(kAnalysisWindowSize == 4 * kOutputChunkSize);
+static_assert(kAnalysisHistorySize + kOutputChunkSize == kAnalysisWindowSize);
+static_assert(kSynthesisFrameSize == 2 * kOutputChunkSize);
 static_assert(kModelSampleRate == 44100);
-static_assert(kOutputChunkSize == 512);
+static_assert(kOutputChunkSize == 256);
 static_assert(kPluginLatencyChunks ==
               kModelOutputDelayChunks + kAsyncQueueDelayChunks);
 static_assert(kPluginLatencySamples == kPluginLatencyChunks * kOutputChunkSize);
 static_assert(kPluginLatencyChunks == 2);
-static_assert(kPluginLatencySamples == 1024);
-static_assert(calculatePluginLatencySamples(32) == 1504);
-static_assert(calculatePluginLatencySamples(64) == 1472);
-static_assert(calculatePluginLatencySamples(128) == 1408);
-static_assert(calculatePluginLatencySamples(256) == 1280);
-static_assert(calculatePluginLatencySamples(512) == 1024);
-static_assert(calculatePluginLatencySamples(768) == 1536);
-static_assert(calculatePluginLatencySamples(1024) == 1536);
+static_assert(kPluginLatencySamples == 512);
+static_assert(calculatePluginLatencySamples(32) == 736);
+static_assert(calculatePluginLatencySamples(64) == 704);
+static_assert(calculatePluginLatencySamples(128) == 640);
+static_assert(calculatePluginLatencySamples(256) == 512);
+static_assert(calculatePluginLatencySamples(512) == 768);
+static_assert(calculatePluginLatencySamples(768) == 1024);
+static_assert(calculatePluginLatencySamples(1024) == 1280);
 static_assert(kModelOutputDelayChunks == 1);
 static_assert(kAsyncQueueDelayChunks == 1);
-static_assert(isQualifiedAsyncHostConfiguration(44100, 512));
+static_assert(isQualifiedAsyncHostConfiguration(44100, 256));
 static_assert(!isQualifiedAsyncHostConfiguration(48000, 512));
-static_assert(!isQualifiedAsyncHostConfiguration(44100, 256));
+static_assert(isQualifiedAsyncHostConfiguration(44100, 512));
+static_assert(!isQualifiedAsyncHostConfiguration(44100, 0));
 static_assert(kAudioThreadWaitBudgetMicroseconds == 0);
 static_assert(isQualifiedHostSampleRate(44100));
 static_assert(isQualifiedHostSampleRate(48000));
 static_assert(isQualifiedHostSampleRate(192000));
 static_assert(!isQualifiedHostSampleRate(48001));
-static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 1472);
-static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 1024);
-static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 2139);
-static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 2048);
+static_assert(calculateModelSchedulingLatencySamples(44100, 64) == 704);
+static_assert(calculateModelSchedulingLatencySamples(44100, 512) == 768);
+static_assert(calculateModelSchedulingLatencySamples(48000, 512) == 1070);
+static_assert(calculateModelSchedulingLatencySamples(88200, 1024) == 1536);
 
-// A repeated, order-balanced Apple Silicon qualification found three ORT
-// intra-op threads had lower mean/tail latency and lower aggregate CPU cost
-// than four for this small recurrent hop. Keep the unmeasured Windows policy
-// unchanged until the same sweep is run there.
+// Retain the user's existing two-thread macOS policy as the starting point.
+// The new graph still requires measurement on the actual Apple M4; a prior
+// model's thread sweep does not establish its timing. Other platforms keep
+// their existing cap. Explicit thread counts are benchmark overrides.
 #if defined(__APPLE__)
-constexpr int kOrtAutomaticIntraOpThreadCap = 3;
+constexpr int kOrtAutomaticIntraOpThreadCap = 2;
 #else
 constexpr int kOrtAutomaticIntraOpThreadCap = 4;
 #endif

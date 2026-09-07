@@ -214,23 +214,20 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     SmallPreparedHostBlocksFailClosedForAsyncListeningContract) {
+     SmallPreparedHostBlocksIncludeAccumulationAndWorkerReserve) {
   constexpr int kSmallBlockSize = 64;
 
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.prepareToPlay(kSampleRate, kSmallBlockSize);
   EXPECT_EQ(processor.getPreparedHostBlockSize(), kSmallBlockSize);
-  EXPECT_EQ(processor.getLatencySamples(), 0);
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  EXPECT_TRUE(processor.getOrtStatusString().contains(
-      "requires 44100 Hz / 512 samples"));
-#endif
+  ASSERT_EQ(processor.getLatencySamples(), 704)
+      << processor.getOrtStatusString().toStdString();
   processor.releaseResources();
 }
 
 TEST(TransportUnderrunE2ETest,
      PreparedBlockPdcMismatchFallsBackLosslesslyAndReportsUnsafeTiming) {
-  constexpr int kPreparedBlockSize = 512;
+  constexpr int kPreparedBlockSize = audio_plugin::kOutputChunkSize;
   constexpr int kActualBlockSize = 64;
   constexpr int kTotalBlocks = 48;
   constexpr int kRequiredLatency =
@@ -353,7 +350,7 @@ TEST(TransportUnderrunE2ETest,
 }
 
 TEST(TransportUnderrunE2ETest,
-     OfflineMixedCallbacksFailClosedOutsideExactHop) {
+     OfflineMixedCallbacksPreserveSeparationAndSampleTimeline) {
   constexpr std::array<int, 8> kCallbackSizes = {512, 64,   960, 128,
                                                  37,  1024, 255, 512};
   constexpr int kPatternRepeats = 8;
@@ -443,9 +440,9 @@ TEST(TransportUnderrunE2ETest,
   }
 
   EXPECT_LE(maximumMainDelayError, 1.0e-6f);
-  EXPECT_FLOAT_EQ(maximumMismatchedCallbackRetainedStemMagnitude, 0.0f)
-      << "A variable-size offline callback exposed model fragments despite "
-         "the exact-512 asynchronous listening contract";
+  EXPECT_GT(maximumMismatchedCallbackRetainedStemMagnitude, 0.01f)
+      << "Variable-size offline renders must consume actual separated audio";
+  EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_LE(maximumReconstructionError, 1.0e-6f);
   EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
   EXPECT_FALSE(processor.isRealtimeCallbackTimingUnsafe());

@@ -336,16 +336,16 @@ TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedHostRateFailClosed) {
   processor.prepareToPlay(48001.0, kBlockSize);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "Unsupported c91 asynchronous configuration"));
+      "Unsupported audio configuration"));
   processor.releaseResources();
 }
 
 TEST(SampleRateBridgeE2ETest, RejectsUnqualifiedPreparedBlockSizeFailClosed) {
   audio_plugin::AudioPluginAudioProcessor processor;
-  processor.prepareToPlay(44100.0, 256);
+  processor.prepareToPlay(44100.0, 0);
   EXPECT_EQ(processor.getLatencySamples(), 0);
   EXPECT_TRUE(processor.getOrtStatusString().containsIgnoreCase(
-      "44100 Hz / 512 samples"));
+      "44100 Hz and a buffer"));
   processor.releaseResources();
 }
 

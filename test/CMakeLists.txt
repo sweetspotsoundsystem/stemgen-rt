@@ -7,6 +7,7 @@ enable_testing()
 
 # Creates the test console application.
 set(SOURCE_FILES
+  source/CroppedModelParityTest.cpp
   source/AudioProcessorTest.cpp
   source/InferenceQueueTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
@@ -19,6 +20,8 @@ set(SOURCE_FILES
   source/TransportUnderrunE2ETest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  STEMGENRT_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 
 # Sets the necessary include directories of googletest.
 target_include_directories(${PROJECT_NAME} PRIVATE ${GOOGLETEST_SOURCE_DIR}/googletest/include)

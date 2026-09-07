@@ -327,7 +327,7 @@ TEST_F(AudioProcessorTest, OrtStatusString) {
 
 TEST_F(AudioProcessorTest, PrepareToPlayDoesNotCrash) {
   // Standard call with typical values
-  processor->prepareToPlay(44100.0, 512);
+  processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   processor->releaseResources();
 }
 
@@ -353,19 +353,19 @@ TEST_F(AudioProcessorTest, PrepareToPlayWithVariousBufferSizes) {
 TEST_F(AudioProcessorTest, MultiplePrepareReleaseCycles) {
   // Simulate what a host does when changing settings
   for (int i = 0; i < 5; ++i) {
-    processor->prepareToPlay(44100.0, 512);
+    processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
     processor->releaseResources();
   }
 }
 
 TEST_F(AudioProcessorTest, ResetStreamingBuffersDoesNotCrash) {
-  processor->prepareToPlay(44100.0, 512);
+  processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   processor->resetStreamingBuffers();
   processor->releaseResources();
 }
 
 TEST_F(AudioProcessorTest, StreamingResetsClearSnapshotTelemetry) {
-  constexpr int kPreparedBlockSize = 512;
+  constexpr int kPreparedBlockSize = audio_plugin::kOutputChunkSize;
   constexpr int kLargeCallbackSize = 4096;
   processor->prepareToPlay(44100.0, kPreparedBlockSize);
   if (processor->getLatencySamples() == 0) {
@@ -457,7 +457,7 @@ protected:
   void SetUp() override {
     AudioProcessorTest::SetUp();
     // Prepare the processor for playback
-    processor->prepareToPlay(44100.0, 512);
+    processor->prepareToPlay(44100.0, audio_plugin::kOutputChunkSize);
   }
 
   void TearDown() override {
@@ -518,7 +518,7 @@ protected:
 };
 
 TEST_F(ProcessBlockTest, ProcessBlockDoesNotCrash) {
-  auto buffer = createBuffer(512);
+  auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
   juce::MidiBuffer midiBuffer;
 
   fillWithTestSignal(buffer);
@@ -578,13 +578,13 @@ TEST_F(ProcessBlockTest, ProducesNonSilentOutputWithLoadedModel) {
   float maximumReconstructionError = 0.0f;
 
   for (int block = 0; block < warmupBlocks + measureBlocks; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     buffer.clear();
     auto inputBus = processor->getBusBuffer(buffer, true, 0);
 
     // Put a distinctive signal in input channels (0-1)
-    for (int i = 0; i < 512; ++i) {
-      const int timelineSample = block * 512 + i;
+    for (int i = 0; i < audio_plugin::kOutputChunkSize; ++i) {
+      const int timelineSample = block * audio_plugin::kOutputChunkSize + i;
       const float val = std::sin(2.0f * 3.14159f * 440.0f *
                                  static_cast<float>(timelineSample) / 44100.0f);
       inputBus.setSample(0, i, val);
@@ -631,7 +631,7 @@ TEST_F(ProcessBlockTest, MultipleProcessBlockCalls) {
 
   // Simulate real-time streaming with many blocks
   for (int block = 0; block < 100; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer, 0.5f);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -694,15 +694,12 @@ TEST_F(ProcessBlockTest, MainBusUsesFixedPluginLatencyWithLoadedModel) {
 }
 
 TEST_F(AudioProcessorTest,
-       LargePreparedBlockFailsClosedForAsyncListeningContract) {
+       LargePreparedBlockReportsAdditionalSchedulingLatency) {
   constexpr int kBlockSize = 1024;
   processor->prepareToPlay(44100.0, kBlockSize);
   EXPECT_EQ(processor->getPreparedHostBlockSize(), kBlockSize);
-  EXPECT_EQ(processor->getLatencySamples(), 0);
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  EXPECT_TRUE(processor->getOrtStatusString().contains(
-      "requires 44100 Hz / 512 samples"));
-#endif
+  ASSERT_EQ(processor->getLatencySamples(), 1280)
+      << processor->getOrtStatusString().toStdString();
   processor->releaseResources();
 }
 
@@ -717,7 +714,7 @@ TEST_F(ProcessBlockTest, StoppedScrubClearsStreamingTimeline) {
   juce::MidiBuffer midiBuffer;
 
   for (int block = 0; block < 3; ++block) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     buffer.clear();
     auto inputBus = processor->getBusBuffer(buffer, true, 0);
     for (int i = 0; i < buffer.getNumSamples(); ++i) {
@@ -733,7 +730,7 @@ TEST_F(ProcessBlockTest, StoppedScrubClearsStreamingTimeline) {
   }
 
   playHead.setPosition(false, 8192);
-  auto afterScrub = createBuffer(512);
+  auto afterScrub = createBuffer(audio_plugin::kOutputChunkSize);
   afterScrub.clear();
   processor->processBlock(afterScrub, midiBuffer);
   const auto mainAfterScrub = processor->getBusBuffer(afterScrub, false, 0);
@@ -750,7 +747,7 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 
   // Process some blocks
   for (int i = 0; i < 10; ++i) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -760,7 +757,7 @@ TEST_F(ProcessBlockTest, ProcessBlockAfterReset) {
 
   // Process more blocks - should not crash
   for (int i = 0; i < 10; ++i) {
-    auto buffer = createBuffer(512);
+    auto buffer = createBuffer(audio_plugin::kOutputChunkSize);
     fillWithTestSignal(buffer);
     processor->processBlock(buffer, midiBuffer);
   }
@@ -782,10 +779,12 @@ TEST(ConstantsTest, ChannelCountIsStereo) {
   EXPECT_EQ(audio_plugin::kNumChannels, 2);
 }
 
-TEST(ConstantsTest, StatefulStreamingWindowIsTwoHops) {
-  EXPECT_EQ(audio_plugin::kOutputChunkSize, 512);
+TEST(ConstantsTest, CroppedAnalysisUsesFourHopsAndSynthesisUsesTwo) {
+  EXPECT_EQ(audio_plugin::kOutputChunkSize, 256);
   EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
-            2 * audio_plugin::kOutputChunkSize);
+            4 * audio_plugin::kOutputChunkSize);
+  EXPECT_EQ(audio_plugin::kAnalysisHistorySize, 768);
+  EXPECT_EQ(audio_plugin::kSynthesisFrameSize, 512);
 }
 
 TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
@@ -797,20 +796,20 @@ TEST(ConstantsTest, PluginLatencyIsOneGraphHopPlusOneAsyncQueueHop) {
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kAsyncQueueDelayChunks, 1);
   EXPECT_EQ(audio_plugin::kPluginLatencyChunks, 2);
-  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 1024);
+  EXPECT_EQ(audio_plugin::kPluginLatencySamples, 512);
   EXPECT_EQ(audio_plugin::kAudioThreadWaitBudgetMicroseconds, 0);
   EXPECT_EQ(audio_plugin::kSameCallbackWaitBudgetMicroseconds, 0);
 }
 
 TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 1504);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 1472);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 1408);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 1280);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 1024);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1536);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1536);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2560);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(32), 736);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(64), 704);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(128), 640);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(256), 512);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(512), 768);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(768), 1024);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(1024), 1280);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2304);
 }
 
 TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
@@ -825,18 +824,17 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
       audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
   EXPECT_FALSE(
       audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
-  EXPECT_FALSE(
-      audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
+  EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
-            2139);
+            1070);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(88200, 1024),
-            2048);
+            1536);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(96000, 512),
-            3766);
+            2139);
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(192000, 512),
-            7019);
-  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 2276);
+            3766);
+  EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(48000, 512, 137), 1207);
 }
 
 TEST(ConstantsTest, ModelSampleRateIsQualifiedRate) {
@@ -851,8 +849,8 @@ TEST(ConstantsTest, AutomaticOrtThreadCountUsesQualifiedPlatformCap) {
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(0), 2);
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(4), 2);
 #if defined(__APPLE__)
-  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 3);
-  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 3);
+  EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 2);
+  EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 2);
 #else
   EXPECT_EQ(audio_plugin::kOrtAutomaticIntraOpThreadCap, 4);
   EXPECT_EQ(audio_plugin::calculateAutomaticOrtIntraOpThreadCount(14), 4);
@@ -886,7 +884,7 @@ TEST_F(AudioProcessorTest, MultipleEditorCreation) {
 class AudioQualityTest : public AudioProcessorTest {
 protected:
   static constexpr double kSampleRate = 44100.0;
-  static constexpr int kBlockSize = 512;
+  static constexpr int kBlockSize = audio_plugin::kOutputChunkSize;
   static constexpr float kPi = 3.14159265358979323846f;
 
   // Random number generator for reproducible noise generation
@@ -1619,7 +1617,18 @@ TEST_F(AudioQualityTest, NoDCOffsetWithACInput) {
 
   for (int block = 0; block < 100; ++block) {
     juce::AudioBuffer<float> buffer(12, kBlockSize);
-    generateSineWave(buffer, 440.0f, 0.5f, 0, 2);
+    buffer.clear();
+    auto input = processor->getBusBuffer(buffer, true, 0);
+    // Keep oscillator phase continuous: restarting a 256-sample fragment of
+    // 440 Hz every callback gives the test input itself a DC component.
+    for (int i = 0; i < kBlockSize; ++i) {
+      const double time =
+          static_cast<double>(block * kBlockSize + i) / kSampleRate;
+      const float sample = static_cast<float>(
+          0.5 * std::sin(2.0 * 3.14159265358979323846 * 440.0 * time));
+      input.setSample(0, i, sample);
+      input.setSample(1, i, sample);
+    }
     processor->processBlock(buffer, midiBuffer);
 
     const auto mainBus = processor->getBusBuffer(buffer, false, 0);

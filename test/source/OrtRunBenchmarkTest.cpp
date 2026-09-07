@@ -311,9 +311,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 4U);
-  ASSERT_EQ(contract::kOutputNames.size(), 4U);
-  ASSERT_EQ(contract::kMetadata.size(), 16U);
+  ASSERT_EQ(contract::kInputNames.size(), 5U);
+  ASSERT_EQ(contract::kOutputNames.size(), 5U);
+  ASSERT_EQ(contract::kMetadata.size(), 46U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }
@@ -728,7 +728,7 @@ TEST(OrtStreamingRuntimeTest,
 
   AudioChunk secondTransient = makeZeroAudioChunk();
   secondTransient[0][73] = -0.6f;
-  secondTransient[1][401] = 0.75f;
+  secondTransient[1].at(401U % audio_plugin::kOutputChunkSize) = 0.75f;
   referenceInputs.push_back(secondTransient);
 
   referenceInputs.push_back(scaledToStereoRms(

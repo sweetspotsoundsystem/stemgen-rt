@@ -14,7 +14,6 @@ using audio_plugin::isCompleteModelOutputHopAtBoundary;
 using audio_plugin::planAsyncDueResult;
 using audio_plugin::planModelOutputRange;
 using audio_plugin::planModelOutputSchedule;
-using audio_plugin::planStoppedFlushCallback;
 
 constexpr uint64_t kLatency =
     static_cast<uint64_t>(audio_plugin::kPluginLatencySamples);
@@ -96,7 +95,7 @@ TEST(ModelOutputSchedulerTest,
   EXPECT_EQ(firstReal.scheduleTimelineSample, kLatency);
   EXPECT_EQ(firstReal.sourceOffset, 0U);
   EXPECT_EQ(firstReal.sampleCount, kChunkSize);
-  EXPECT_EQ(firstReal.firstTimelineSample, 1024U);
+  EXPECT_EQ(firstReal.firstTimelineSample, 512U);
   EXPECT_TRUE(
       isCompleteModelOutputHopAtBoundary(firstReal, kLatency, kChunkSize));
 }
@@ -119,28 +118,7 @@ TEST(ModelOutputSchedulerTest,
             AsyncDueResultAction::kHoldFuture);
 }
 
-TEST(ModelOutputSchedulerTest,
-     StopFlushPreservesExactlyTwoQualifiedCallbacksThenResets) {
-  const auto firstStopped = planStoppedFlushCallback(0U, true, true);
-  EXPECT_EQ(firstStopped.callbacksRemaining, 1U);
-  EXPECT_FALSE(firstStopped.resetAfterCallback);
 
-  const auto secondStopped = planStoppedFlushCallback(
-      firstStopped.callbacksRemaining, false, true);
-  EXPECT_EQ(secondStopped.callbacksRemaining, 0U);
-  EXPECT_TRUE(secondStopped.resetAfterCallback);
-
-  const auto thirdStopped = planStoppedFlushCallback(
-      secondStopped.callbacksRemaining, false, true);
-  EXPECT_EQ(thirdStopped.callbacksRemaining, 0U);
-  EXPECT_FALSE(thirdStopped.resetAfterCallback);
-}
-
-TEST(ModelOutputSchedulerTest, MismatchedStoppedCallbackDoesNotConsumeFlush) {
-  const auto mismatched = planStoppedFlushCallback(0U, true, false);
-  EXPECT_EQ(mismatched.callbacksRemaining, 2U);
-  EXPECT_FALSE(mismatched.resetAfterCallback);
-}
 
 TEST(ModelOutputSchedulerTest,
      RationalHostRangePreservesVariableLengthAndLatePrefix) {

@@ -502,6 +502,38 @@ uint32_t InferenceQueue::reset() {
     }
   }
 
+  // A full old ring can leave the producer's next slot owned by an in-flight
+  // old-epoch run. Invalidate the epoch first, then select an unowned slot in
+  // one bounded scan. Do not overwrite that run or drop the new stream's first
+  // hop solely because the old worker still owns the previous start slot.
+  // No new-epoch input is published until reset returns. A changed packed
+  // start index makes the worker synchronize again before accepting it.
+  for (size_t offset = 0; offset < queue_.size(); ++offset) {
+    const size_t candidate = (startIdx + offset) % queue_.size();
+    auto& slot = queue_[candidate];
+    if (!slot)
+      continue;
+    uint64_t slotControl = slot->control_.load(std::memory_order_acquire);
+    const auto state = InferenceRequest::stateFromControl(slotControl);
+    if (state == InferenceRequest::SlotState::Processing ||
+        state == InferenceRequest::SlotState::Reading ||
+        state == InferenceRequest::SlotState::Writing) {
+      continue;
+    }
+    if (!slot->control_.compare_exchange_strong(
+            slotControl,
+            InferenceRequest::makeControl(newEpoch,
+                                          InferenceRequest::SlotState::Empty),
+            std::memory_order_acq_rel, std::memory_order_acquire)) {
+      continue;
+    }
+    writeIdx_.store(candidate, std::memory_order_release);
+    consumeIdx_.store(candidate, std::memory_order_release);
+    epochControl_.store(makeEpochControl(newEpoch, candidate),
+                        std::memory_order_release);
+    break;
+  }
+
   return newEpoch;
 }
 
@@ -710,8 +742,9 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         hasPreviousInputSequence = false;
       }
 
-      // Run inference. c91 emits the preceding input hop, so a successful run
-      // immediately after reset publishes outputValid=false as normal pre-roll.
+      // Run inference. The graph emits the preceding input hop, so a successful
+      // run immediately after reset publishes outputValid=false as normal
+      // pre-roll.
       bool inferenceOk = false;
       request->outputValid = false;
       request->hostOutputValid = false;

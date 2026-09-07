@@ -1,0 +1,41 @@
+{
+  "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
+  "fixture_sha256": "5b96c8c6474d7340ad5d1c9b3e9e58300157603d1576dfe9c7b07b2a5c277316",
+  "generator_sha256": "81f4b02f0bed8a47ea59135990a8fb52b3c6e40f305cc219299686a129a77e42",
+  "sources": {
+    "checkpoint": {
+      "research_path": "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
+      "sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65"
+    },
+    "family": {
+      "research_path": "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py",
+      "sha256": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27"
+    },
+    "base": {
+      "research_path": "research/direct/latency_ola512.py",
+      "sha256": "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368"
+    }
+  },
+  "model_state_sha256": "a12c215810026c603a1fd394383c1646219b8b3f764ebe9c2a83856404443aa4",
+  "torch": "2.8.0+cu128",
+  "numpy": "2.2.6",
+  "sample_rate": 44100,
+  "hop": 256,
+  "frames": [
+    1,
+    255,
+    256,
+    257,
+    511,
+    512,
+    513,
+    16521
+  ],
+  "source_order": [
+    "drums",
+    "bass",
+    "vocals",
+    "other"
+  ],
+  "reference": "Original CPU FP32 PyTorch deployed outputs, zero state, one zero flush, cropped to real length. No ONNX execution."
+}

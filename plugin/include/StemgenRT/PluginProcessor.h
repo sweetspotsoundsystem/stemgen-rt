@@ -28,8 +28,8 @@ public:
   juce::String getOrtStatusString() const;
 
   // Returns the current plugin latency in samples.
-  // c91 emits the previous hop and the real-time path gives the asynchronous
-  // worker one additional callback, for an honest 1024-sample PDC.
+  // The graph emits the previous hop. With 256-sample host blocks, the worker
+  // has one additional hop to publish, for 512-sample (11.61 ms) PDC.
   int getLatencySamples() const;
 
   // Returns the current plugin latency in milliseconds based on sample rate.
@@ -151,9 +151,10 @@ private:
   std::atomic<bool> wasPlaying{false};
   bool hasExpectedPlayheadPosition_{false};
   int64_t expectedPlayheadPosition_{0};
-  // Exact stopped callbacks still required to drain the graph plus queue
-  // after a play-to-stop transition.
-  uint32_t stoppedFlushCallbacksRemaining_{0};
+  // Drain the native dry delay in samples, including partial host callbacks.
+  // Feed only the padding for a partial hop plus one graph-flush hop.
+  uint64_t stoppedTailSamplesRemaining_{0};
+  uint64_t stoppedModelSamplesRemaining_{0};
 
   std::atomic<size_t> lastUnderrunSamplesInLastBlock_{0};
   std::atomic<uint64_t> totalUnderrunSamples_{0};

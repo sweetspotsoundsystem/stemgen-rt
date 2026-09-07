@@ -21,10 +21,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, windows-latest]
+        os: [macos-15, windows-latest]
         build_type: [Release]
         include:
-          - os: macos-14
+          - os: macos-15
             artifact_name: StemgenRT-macOS
           - os: windows-latest
             artifact_name: StemgenRT-Windows
@@ -36,10 +36,10 @@ jobs:
 
     steps:
     - name: List Xcode installations
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: sudo ls -1 /Applications | grep "Xcode"
     - name: Select Xcode 16.2
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: sudo xcode-select -s /Applications/Xcode_16.2.0.app/Contents/Developer
     - uses: actions/checkout@v4
       with:
@@ -53,7 +53,7 @@ jobs:
         key: onnxruntime-1.26.0-${{ runner.os }}-${{ runner.arch }}
 
     - name: Download ONNX Runtime (macOS)
-      if: matrix.os == 'macos-14' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-15' && steps.cache-onnxruntime.outputs.cache-hit != 'true'
       run: ./scripts/download-onnxruntime.sh
 
     - name: Download ONNX Runtime (Windows)
@@ -61,7 +61,7 @@ jobs:
       run: .\scripts\download-onnxruntime.ps1
 
     - name: Configure CMake (macOS arm64)
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: >-
         cmake -S . -B ${{github.workspace}}/build
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
@@ -80,7 +80,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }}
 
     - name: Verify packaged macOS bundles
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }} --target StemgenRT_VerifyMacBundles
 
     - name: Test
@@ -88,7 +88,7 @@ jobs:
       run: ctest -C ${{ matrix.build_type }} --output-on-failure
 
     - name: Archive macOS bundles
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       run: |
         ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 StemgenRT-macOS-VST3.zip
         ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component StemgenRT-macOS-AU.zip
@@ -99,14 +99,14 @@ jobs:
       run: Compress-Archive -LiteralPath build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
         path: StemgenRT-macOS-VST3.zip
 
     - name: Upload AU (macOS)
-      if: matrix.os == 'macos-14'
+      if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-AU
@@ -119,15 +119,15 @@ jobs:
         name: ${{ matrix.artifact_name }}-VST3
         path: StemgenRT-Windows-VST3.zip
 
-  qualify-c91-macos:
-    name: Qualify c91 on Apple Silicon
+  qualify-macos:
+    name: Qualify cropped1024 on Apple Silicon
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
        contains(github.event.pull_request.labels.*.name, 'target-mac-qualification') &&
        (github.event.action != 'labeled' ||
         github.event.label.name == 'target-mac-qualification'))
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 90
     permissions:
       contents: read
@@ -137,8 +137,8 @@ jobs:
       shell: bash
       run: |
         umask 077
-        WRAPPER_DIR="$RUNNER_TEMP/c91-mac-ci-wrapper"
-        EVIDENCE_DIR="$RUNNER_TEMP/c91-mac-qualification"
+        WRAPPER_DIR="$RUNNER_TEMP/cropped1024-mac-ci-wrapper"
+        EVIDENCE_DIR="$RUNNER_TEMP/cropped1024-mac-qualification"
         mkdir "$WRAPPER_DIR"
         printf 'WRAPPER_DIR=%s\nEVIDENCE_DIR=%s\n' \
           "$WRAPPER_DIR" "$EVIDENCE_DIR" >> "$GITHUB_ENV"
@@ -174,7 +174,7 @@ jobs:
       run: |
         set -o pipefail
         set +e
-        ./scripts/qualify-c91-macos.sh "$EVIDENCE_DIR" 2>&1 |
+        ./scripts/qualify-macos.sh "$EVIDENCE_DIR" 2>&1 |
           tee "$WRAPPER_DIR/qualifier-console.log"
         statuses=("${PIPESTATUS[@]}")
         set -e
@@ -190,10 +190,10 @@ jobs:
       if: always()
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        name: c91-mac-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+        name: cropped1024-mac-qualification-${{ github.run_id }}-${{ github.run_attempt }}
         path: |
-          ${{ runner.temp }}/c91-mac-ci-wrapper
-          ${{ runner.temp }}/c91-mac-qualification
-          ${{ runner.temp }}/c91-mac-qualification.SHA256SUMS.sha256
+          ${{ runner.temp }}/cropped1024-mac-ci-wrapper
+          ${{ runner.temp }}/cropped1024-mac-qualification
+          ${{ runner.temp }}/cropped1024-mac-qualification.SHA256SUMS.sha256
         if-no-files-found: error
         retention-days: 30

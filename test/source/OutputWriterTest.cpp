@@ -314,7 +314,7 @@ TEST(OutputWriterTest, RoutesTinyAlignedMainEntirelyToOther) {
 
 TEST(OutputWriterTest,
      RoutesLowLevelDryFallbackEntirelyToOtherAfterTwoHopDelay) {
-  constexpr size_t kBlockSize = 512;
+  constexpr size_t kBlockSize = audio_plugin::kOutputChunkSize;
   constexpr float kTinyLeft = 8.0e-6f;
   constexpr float kTinyRight = -4.0e-6f;
 
@@ -350,7 +350,7 @@ TEST(OutputWriterTest,
 }
 
 TEST(OutputWriterTest, ReportsMissingModelOnlyAtOrAfterLatency) {
-  constexpr size_t kBlockSize = 512;
+  constexpr size_t kBlockSize = audio_plugin::kOutputChunkSize;
   OutputWriterHarness harness;
 
   harness.writeDryFallback(makeConstantStereo(kBlockSize, 0.2f, -0.1f));

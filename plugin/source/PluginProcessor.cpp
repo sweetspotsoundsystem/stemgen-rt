@@ -71,8 +71,8 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 }
 
 double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  // c91 needs one zero-input graph hop plus the asynchronous publication hop
-  // to render the last real input after transport stops.
+  // The model needs one zero-input graph hop plus the asynchronous publication
+  // hop to render the last real input after transport stops.
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   const int activeLatency =
       activeLatencySamples_.load(std::memory_order_acquire);
@@ -132,8 +132,8 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
           sampleRateError.isNotEmpty()
               ? sampleRateError
               : juce::String(
-                    "This asynchronous build requires 44.1 kHz / 512 "
-                    "samples and reports 1024-sample PDC"));
+                    "The model needs a 44.1 kHz session. A 256-sample buffer "
+                    "gives 11.61 ms latency."));
     }
     juce::String modelLoadError;
     {
@@ -424,7 +424,8 @@ void AudioPluginAudioProcessor::resetStreamingBuffers() {
 
   DBG("[HS-TasNet] Streaming buffers reset");
 #endif
-  stoppedFlushCallbacksRemaining_ = 0;
+  stoppedTailSamplesRemaining_ = 0;
+  stoppedModelSamplesRemaining_ = 0;
 }
 
 void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
@@ -459,7 +460,8 @@ void AudioPluginAudioProcessor::resetStreamingBuffersRT() {
   realtimeDueSequence_ = 0;
   realtimeDueEpoch_ = inferenceQueue_.getEpoch();
 #endif
-  stoppedFlushCallbacksRemaining_ = 0;
+  stoppedTailSamplesRemaining_ = 0;
+  stoppedModelSamplesRemaining_ = 0;
 }
 
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
@@ -496,11 +498,9 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
-        juce::String("Unsupported c91 asynchronous configuration ") +
-        juce::String(sampleRate, 1) + " Hz / " +
-        juce::String(samplesPerBlock) +
-        " samples; this build requires 44100 Hz / 512 samples with " +
-        juce::String(kPluginLatencySamples) + "-sample PDC";
+        juce::String("Unsupported audio configuration ") +
+        juce::String(sampleRate, 1) + " Hz / " + juce::String(samplesPerBlock) +
+        " samples; use 44100 Hz and a buffer of 1 to 65536 samples";
     {
       const std::lock_guard<std::mutex> lock(statusMutex_);
       modelLoadError_ = error;
@@ -807,24 +807,30 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         hasExpectedPlayheadPosition_ = false;
       }
 
-      // Reset immediately on starts, seeks, scrubs, and loop wraps. A
-      // play-to-stop transition is different: c91's graph delay plus the
-      // asynchronous queue delay require two exact stopped callbacks to drain
-      // the final playing input. Reset after the second one renders so a third
-      // stopped callback cannot replay stale tail/state.
+      // Keep the final real samples until their latency-aligned range has
+      // rendered. A partial final hop is padded once, followed by exactly one
+      // zero graph hop. The remaining callbacks only drain published output.
       if (transportDiscontinuity) {
         resetStreamingBuffersRT();
-        resetAfterCurrentCallback = false;
-      } else {
-        const StoppedFlushCallbackPlan stoppedFlushPlan =
-            planStoppedFlushCallback(
-                stoppedFlushCallbacksRemaining_, playbackStopped,
-                !isPlaying && callbackMatchesAsyncContract);
-        stoppedFlushCallbacksRemaining_ =
-            stoppedFlushPlan.callbacksRemaining;
-        resetAfterCurrentCallback = stoppedFlushPlan.resetAfterCallback;
       }
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+      else if (playbackStopped && activeLatency > 0) {
+        stoppedTailSamplesRemaining_ = static_cast<uint64_t>(activeLatency);
+        const uint64_t partial = overlapAdd_.getInputAccumCount();
+        stoppedModelSamplesRemaining_ =
+            (partial == 0U ? 0U : kOutputChunkSize - partial) +
+            kOutputChunkSize;
+      }
+#endif
     }
+  }
+
+  const bool drainingStoppedTail = stoppedTailSamplesRemaining_ > 0U;
+  if (drainingStoppedTail) {
+    const auto drained = std::min(stoppedTailSamplesRemaining_,
+                                  static_cast<uint64_t>(numSamples));
+    stoppedTailSamplesRemaining_ -= drained;
+    resetAfterCurrentCallback = stoppedTailSamplesRemaining_ == 0U;
   }
 
 #if !JucePlugin_IsSynth
@@ -864,7 +870,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // and reset all graph/queue state before consuming any old-epoch output.
     bool inputHadNonFiniteSample = false;
 #if !JucePlugin_IsSynth
-    for (int ch = 0; ch < kNumChannels && !inputHadNonFiniteSample; ++ch) {
+    for (int ch = 0;
+         ch < kNumChannels && !inputHadNonFiniteSample && !drainingStoppedTail;
+         ++ch) {
       if (inputChannelPtrs[ch] == nullptr) {
         continue;
       }
@@ -890,7 +898,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const bool synchronousOfflineRender = nonRealtimeRender;
     const bool qualifiedRealtimeAsyncCallback =
         !nonRealtimeRender && !unsafeRealtimeCallback &&
-        callbackMatchesAsyncContract;
+        callbackMatchesAsyncContract &&
+        activeLatency == kPluginLatencySamples &&
+        overlapAdd_.getInputAccumCount() == 0U &&
+        overlapAdd_.getOutputTimelineSample() % kOutputChunkSize == 0U;
 
     // Copy one already-claimed result onto its immutable absolute timeline.
     // The qualified real-time path requires a complete hop beginning at the
@@ -904,9 +915,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         return true;
       }
 
-      // Failed runs and c91's successful sequence-zero pre-roll both publish
-      // invalid markers so the exact-timeline consumer can advance entirely on
-      // the latency-aligned dry fallback.
+      // Failed runs and the graph's successful sequence-zero pre-roll both
+      // publish invalid markers so the exact-timeline consumer can advance
+      // entirely on the latency-aligned dry fallback.
       if (!consumeRequest->outputValid) {
         return true;
       }
@@ -1101,7 +1112,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       realtimeDueResultPending_ = false;
     };
 
-    if (qualifiedRealtimeAsyncCallback) {
+    if (qualifiedRealtimeAsyncCallback && realtimeDueResultPending_) {
       consumeExactRealtimeDueResult();
     } else {
       // Offline rendering may schedule completed results early on their exact
@@ -1117,7 +1128,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       for (int ch = 0; ch < kNumChannels; ++ch) {
 #if !JucePlugin_IsSynth
         const float rawSample =
-            (inputChannelPtrs[ch] != nullptr) ? inputChannelPtrs[ch][i] : 0.0f;
+            (!drainingStoppedTail && inputChannelPtrs[ch] != nullptr)
+                ? inputChannelPtrs[ch][i]
+                : 0.0f;
         const float sample = std::isfinite(rawSample) ? rawSample : 0.0f;
 #else
         const float sample = 0.0f;
@@ -1221,6 +1234,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
+    if (drainingStoppedTail) {
+      modelSampleCount =
+          static_cast<size_t>(std::min(static_cast<uint64_t>(modelSampleCount),
+                                       stoppedModelSamplesRemaining_));
+      stoppedModelSamplesRemaining_ -= modelSampleCount;
+    }
     for (size_t sample = 0U; sample < modelSampleCount; ++sample) {
       for (int ch = 0; ch < kNumChannels; ++ch) {
         overlapAdd_.pushModelInputSample(ch, modelInputPointers[ch][sample]);
@@ -1259,8 +1278,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
     const auto writeStats = outputWriter_.writeBlock(
         overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
-        numSamples, underrunTelemetryEnabled,
-        !unsafeRealtimeCallback && callbackMatchesAsyncContract,
+        numSamples, underrunTelemetryEnabled, !unsafeRealtimeCallback,
         !sampleRateConversionActive_);
 
     // Report exact-timeline model samples that remain scheduled after this

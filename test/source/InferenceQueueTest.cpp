@@ -300,6 +300,51 @@ TEST(InferenceQueueTest,
 }
 
 TEST(InferenceQueueTest,
+     ResetOfFullRingDoesNotLoseFirstHopBehindOldInFlightRun) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+  struct ReleaseGuard {
+    ~ReleaseGuard() {
+      runtime.releaseFirstRun.store(true, std::memory_order_release);
+    }
+    FakeRuntime& runtime;
+  } release{runtime};
+  runtime.blockFirstRun.store(true, std::memory_order_release);
+  InferenceQueueTestPeer::startThread(
+      queue, &runtime, &FakeRuntime::runCallback, &FakeRuntime::resetCallback);
+  submit(queue, queue.getEpoch(), 0);
+  ASSERT_TRUE(waitUntil(
+      [&] { return runtime.firstRunEntered.load(std::memory_order_acquire); }));
+  for (uint64_t sequence = 1; sequence < audio_plugin::kNumInferenceBuffers;
+       ++sequence)
+    submit(queue, queue.getEpoch(), sequence);
+  ASSERT_EQ(queue.getWriteSlot(), nullptr);
+
+  const uint32_t epoch = queue.reset();
+  // Claim synchronously while the old graph is still blocked: no wait/retry
+  // may hide a lost first request or overwrite the old Processing lease.
+  auto* firstInput = queue.getWriteSlot();
+  ASSERT_NE(firstInput, nullptr);
+  firstInput->chunkSequence = 0;
+  queue.submitWriteSlot(epoch);
+  submit(queue, epoch, 1);
+  runtime.releaseFirstRun.store(true, std::memory_order_release);
+  auto* preroll = waitForOutput(queue, epoch);
+  ASSERT_NE(preroll, nullptr);
+  EXPECT_EQ(preroll->chunkSequence, 0U);
+  EXPECT_FALSE(preroll->outputValid);
+  queue.releaseOutputSlot();
+  auto* firstValid = waitForOutput(queue, epoch);
+  ASSERT_NE(firstValid, nullptr);
+  EXPECT_EQ(firstValid->chunkSequence, 1U);
+  EXPECT_TRUE(firstValid->outputValid);
+  queue.releaseOutputSlot();
+  EXPECT_EQ(runtime.runCalls.load(std::memory_order_acquire), 3U);
+  queue.stopThread();
+}
+
+TEST(InferenceQueueTest,
      RepeatedResetPublicationRacesDoNotLoseCurrentEpochOrStall) {
   FakeRuntime runtime;
   InferenceQueue queue;
@@ -373,18 +418,18 @@ TEST(InferenceQueueTest,
   EXPECT_TRUE(second->outputValid);
   EXPECT_TRUE(second->hostOutputValid);
   EXPECT_EQ(second->hostOutputStartSample, 0U);
-  EXPECT_EQ(second->hostOutputSampleCount, 558U);
+  EXPECT_EQ(second->hostOutputSampleCount, 279U);
   queue.releaseOutputSlot();
 
   InferenceRequest* third = waitForOutput(queue, epoch);
   ASSERT_NE(third, nullptr);
   EXPECT_TRUE(third->hostOutputValid);
-  EXPECT_EQ(third->hostOutputStartSample, 558U);
+  EXPECT_EQ(third->hostOutputStartSample, 279U);
   queue.releaseOutputSlot();
 
   // A sequence gap resets state and converter phase before processing the new
   // sequence. Sequence five is the new invalid pre-roll; sequence six emits
-  // frame five at absolute model sample 5 * 512 instead of reusing the prior
+  // frame five at absolute model sample 5 * 256 instead of reusing the prior
   // local converter phase.
   submit(queue, epoch, 5U);
   submit(queue, epoch, 6U);
@@ -400,7 +445,7 @@ TEST(InferenceQueueTest,
   EXPECT_EQ(next->chunkSequence, 6U);
   EXPECT_TRUE(next->outputValid);
   EXPECT_TRUE(next->hostOutputValid);
-  EXPECT_EQ(next->hostOutputStartSample, 2787U);
+  EXPECT_EQ(next->hostOutputStartSample, 1394U);
   queue.releaseOutputSlot();
   queue.stopThread();
 }

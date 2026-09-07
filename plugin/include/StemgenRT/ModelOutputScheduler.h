@@ -16,8 +16,8 @@ enum class ModelOutputScheduleAction {
   kDiscardFullyLate,
 };
 
-// Callback-boundary admission for the fixed-hop asynchronous c91 path.  The
-// audio thread asks for exactly one sequence: the request submitted by the
+// Callback-boundary admission for the fixed-hop asynchronous cropped1024 path.
+// The audio thread asks for exactly one sequence: the request submitted by the
 // preceding callback.  Older results have permanently missed their physical
 // range, while a newer result must retain queue ownership until its own due
 // boundary rather than being replayed early.
@@ -34,31 +34,6 @@ struct AsyncDueResultPlan {
   uint64_t resultSequence{0};
 };
 
-// A play-to-stop transition must preserve enough zero-input callbacks to
-// drain both c91's graph delay and the asynchronous queue delay. Only an exact
-// qualified stopped callback consumes that budget; a mismatched callback is
-// fail-closed and cannot stand in for a physical 512-sample hop.
-struct StoppedFlushCallbackPlan {
-  uint32_t callbacksRemaining{0};
-  bool resetAfterCallback{false};
-};
-
-constexpr StoppedFlushCallbackPlan planStoppedFlushCallback(
-    uint32_t callbacksRemaining,
-    bool playbackStopped,
-    bool qualifiedStoppedCallback,
-    uint32_t requiredCallbacks =
-        static_cast<uint32_t>(kPluginLatencyChunks)) {
-  StoppedFlushCallbackPlan plan;
-  plan.callbacksRemaining =
-      playbackStopped ? requiredCallbacks : callbacksRemaining;
-  if (qualifiedStoppedCallback && plan.callbacksRemaining > 0U) {
-    --plan.callbacksRemaining;
-    plan.resetAfterCallback = plan.callbacksRemaining == 0U;
-  }
-  return plan;
-}
-
 constexpr AsyncDueResultPlan planAsyncDueResult(
     uint64_t dueSequence,
     uint64_t resultSequence,
@@ -73,9 +48,9 @@ constexpr AsyncDueResultPlan planAsyncDueResult(
   } else if (resultSequence > dueSequence) {
     plan.action = AsyncDueResultAction::kHoldFuture;
   } else if (!outputValid || resultSequence < modelOutputDelayChunks) {
-    // c91 sequence zero is the successful-but-invalid graph pre-roll.  Failed
-    // runs also publish invalid markers so the timeline can advance entirely
-    // on latency-aligned fallback.
+    // cropped1024 sequence zero is the successful-but-invalid graph pre-roll.
+    // Failed runs also publish invalid markers so the timeline can advance
+    // entirely on latency-aligned fallback.
     plan.action = AsyncDueResultAction::kConsumeInvalid;
   } else {
     plan.action = AsyncDueResultAction::kConsumeValid;
@@ -84,7 +59,7 @@ constexpr AsyncDueResultPlan planAsyncDueResult(
 }
 
 // Pure timeline mapping for one stateful graph result. The returned source
-// offset always refers to the original 512-sample result; elapsed samples are
+// offset always refers to the original 256-sample result; elapsed samples are
 // never shifted onto a newer output timeline.
 struct ModelOutputSchedulePlan {
   ModelOutputScheduleAction action{
@@ -110,7 +85,7 @@ constexpr bool isCompleteModelOutputHopAtBoundary(
 }
 
 // Plan publication for an already timestamped host-domain range. Sample-rate
-// conversion can produce a different number of host samples for each 512-
+// conversion can produce a different number of host samples for each 256-
 // sample model hop, so the generic range form is the source of truth. The
 // chunk-sequence overload below preserves the exact 44.1 kHz mapping.
 constexpr ModelOutputSchedulePlan planModelOutputRange(
@@ -202,12 +177,5 @@ static_assert(planAsyncDueResult(1U, 2U, true).action ==
               AsyncDueResultAction::kHoldFuture);
 static_assert(planAsyncDueResult(1U, 1U, true).action ==
               AsyncDueResultAction::kConsumeValid);
-static_assert(
-    planStoppedFlushCallback(0U, true, true).callbacksRemaining == 1U);
-static_assert(
-    !planStoppedFlushCallback(0U, true, true).resetAfterCallback);
-static_assert(planStoppedFlushCallback(1U, false, true).resetAfterCallback);
-static_assert(
-    planStoppedFlushCallback(0U, true, false).callbacksRemaining == 2U);
 
 }  // namespace audio_plugin

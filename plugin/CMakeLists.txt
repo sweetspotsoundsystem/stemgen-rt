@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # Version is needed by JUCE.
-project(AudioPlugin VERSION 0.2.0)
+project(AudioPlugin VERSION 0.3.0)
 
 # Adding a directory with the library/application name as a subfolder of the
 # include folder is a good practice. It helps avoid name clashes later on.
@@ -198,7 +198,7 @@ if(NOT _ORT_FOUND)
     message(WARNING "Using Homebrew ONNX Runtime - plugin will NOT be distributable to other Macs!")
     message(WARNING "For distribution, run: ./scripts/download-onnxruntime.sh")
     target_link_libraries(${PROJECT_NAME} PUBLIC onnxruntime::onnxruntime)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE STEMGENRT_USE_ONNXRUNTIME=1)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC STEMGENRT_USE_ONNXRUNTIME=1)
     
     if(APPLE)
       get_target_property(_ort_imported_loc onnxruntime::onnxruntime LOCATION)
@@ -262,7 +262,7 @@ endif()
 # Configure local ONNX Runtime if found
 if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
   target_include_directories(${PROJECT_NAME} PRIVATE ${ONNXRUNTIME_INCLUDE_DIR})
-  target_compile_definitions(${PROJECT_NAME} PRIVATE STEMGENRT_USE_ONNXRUNTIME=1)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC STEMGENRT_USE_ONNXRUNTIME=1)
   if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PUBLIC ${ONNXRUNTIME_LIBRARY})
   endif()

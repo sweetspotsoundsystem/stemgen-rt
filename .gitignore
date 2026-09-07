@@ -458,3 +458,6 @@ FodyWeavers.xsd
 .DS_Store
 
 StemgenRT.als
+
+# App-scoped development dependencies (no system installation)
+.local-linux-deps/

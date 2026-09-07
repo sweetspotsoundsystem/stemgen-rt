@@ -175,7 +175,7 @@ TEST(RealtimeStemSanityTest,
   ASSERT_GT(processor.getLatencySamples(), 0)
       << "Qualified model/runtime failed to load: "
       << processor.getOrtStatusString().toStdString();
-  ASSERT_EQ(processor.getLatencySamples(), 1024)
+  ASSERT_EQ(processor.getLatencySamples(), 512)
       << "The c91 candidate must expose graph delay 1 + queue delay 1";
   ASSERT_EQ(processor.getLatencySamples(), audio_plugin::kPluginLatencySamples);
 

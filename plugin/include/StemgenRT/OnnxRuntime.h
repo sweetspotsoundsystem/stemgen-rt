@@ -125,16 +125,18 @@ private:
   // recurrent state. Only the inference worker mutates these during normal
   // operation; the mutex protects non-RT control-path resets.
   std::vector<float> audioChunkBuffer_;
-  std::vector<float> pastAudio_;
-  std::vector<float> overlapAddBuffer_;
+  std::vector<float> audioHistory_;
+  std::vector<float> spectralNumeratorTail_;
+  std::vector<float> waveformTail_;
   std::vector<float> fusionHidden_;
   std::vector<float> previousAlignedInput_;
   std::vector<float> separatedOutputBuffer_;
-  std::vector<float> nextPastAudioBuffer_;
-  std::vector<float> nextOverlapAddBuffer_;
+  std::vector<float> nextAudioHistoryBuffer_;
+  std::vector<float> nextSpectralNumeratorTail_;
+  std::vector<float> nextWaveformTail_;
   std::vector<float> nextFusionHiddenBuffer_;
-  std::array<OrtValue*, 4> inputTensorValues_{};
-  std::array<OrtValue*, 4> outputTensorValues_{};
+  std::array<OrtValue*, 5> inputTensorValues_{};
+  std::array<OrtValue*, 5> outputTensorValues_{};
   bool hasPreviousAlignedInput_{false};
   std::mutex streamingStateMutex_;
 

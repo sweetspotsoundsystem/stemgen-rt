@@ -15,7 +15,7 @@ namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p) {
-  setSize(380, 420);
+  setSize(440, 440);
 
 #if HAS_LOGO_ASSET
   logoImage = juce::ImageCache::getFromMemory(BinaryData::logo_png,
@@ -29,111 +29,90 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 }
 
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
-  g.fillAll(juce::Colours::black);
-
-#if HAS_LOGO_ASSET
-  if (logoImage.isValid()) {
-    const auto logoBounds =
-        getLocalBounds().reduced(20).removeFromTop(170).toFloat();
-    const auto imageWidth = static_cast<float>(logoImage.getWidth());
-    const auto imageHeight = static_cast<float>(logoImage.getHeight());
-    const float scale = juce::jmin(logoBounds.getWidth() / imageWidth,
-                                   logoBounds.getHeight() / imageHeight);
-    g.drawImage(logoImage, logoBounds.withSizeKeepingCentre(
-                               imageWidth * scale, imageHeight * scale));
-  }
-#else
-  g.setColour(juce::Colours::white);
-  g.setFont(24.0f);
-  g.drawFittedText("StemgenRT", getLocalBounds().removeFromTop(170),
-                   juce::Justification::centred, 1);
-#endif
-
-  auto area = getLocalBounds().reduced(16);
-  area.removeFromTop(170);
-
-  const bool unsafeTiming = processorRef.isRealtimeCallbackTimingUnsafe();
-  const bool fallbackActive = processorRef.isUnderrunActive();
-  const bool dueBoundaryMissed =
-      processorRef.getSameCallbackTimeoutCount() > 0U;
-  const bool modelReady = processorRef.getLatencySamples() > 0;
-  const auto priorityStatus = processorRef.getInferenceWorkerPriorityStatus();
-  const bool priorityFailed =
-      priorityStatus == InferenceQueue::WorkerPriorityStatus::Failed;
-  const juce::String health =
-      unsafeTiming         ? "PDC timing warning"
-      : fallbackActive     ? "Dry fallback active"
-      : dueBoundaryMissed  ? "Due-boundary miss recorded"
-      : modelReady         ? "Streaming normally"
-                           : "Model unavailable";
-  g.setColour(
-      unsafeTiming || !modelReady
-          ? juce::Colours::orangered
-          : (fallbackActive || dueBoundaryMissed || priorityFailed
-                 ? juce::Colours::orange
-                 : juce::Colours::limegreen));
-  g.setFont(16.0f);
-  g.drawFittedText("Health: " + health, area.removeFromTop(26),
-                   juce::Justification::centred, 1);
+  const juce::Colour background(0xff101419);
+  const juce::Colour panel(0xff1c232b);
+  const juce::Colour muted(0xffa8b5c3);
+  const juce::Colour accent(0xff7ee2b8);
+  g.fillAll(background);
+  auto area = getLocalBounds().reduced(24);
 
   g.setColour(juce::Colours::white);
-  g.setFont(12.5f);
-  g.drawFittedText(processorRef.getOrtStatusString(), area.removeFromTop(42),
-                   juce::Justification::centred, 2);
+  g.setFont(juce::FontOptions(27.0f, juce::Font::bold));
+  g.drawText("StemgenRT", area.removeFromTop(34),
+             juce::Justification::centredLeft);
+  g.setColour(muted);
+  g.setFont(juce::FontOptions(14.0f));
+  g.drawText("Live music separation", area.removeFromTop(23),
+             juce::Justification::centredLeft);
+  area.removeFromTop(18);
 
-  g.drawFittedText(juce::String::formatted("PDC: %.1f ms (%d samples)",
-                                           processorRef.getLatencyMs(),
-                                           processorRef.getLatencySamples()),
-                   area.removeFromTop(24), juce::Justification::centred, 1);
-  g.drawFittedText(
-      juce::String::formatted(
-          "Host block: prepared %d, current %d (needs %d PDC)",
-          processorRef.getPreparedHostBlockSize(),
-          processorRef.getLastHostBlockSize(),
-          processorRef.getRequiredLatencySamplesForLastHostBlock()),
-      area.removeFromTop(24), juce::Justification::centred, 1);
+  const bool ready = processorRef.getLatencySamples() > 0;
+  const bool unsafe = processorRef.isRealtimeCallbackTimingUnsafe();
+  const bool fallback = processorRef.isUnderrunActive();
+  const juce::String health = !ready     ? "Separation unavailable"
+                              : unsafe   ? "Buffer changed — restart audio"
+                              : fallback ? "Catching up — mix routed to Other"
+                                         : "Ready to separate";
+  g.setColour(!ready || unsafe ? juce::Colours::orangered
+              : fallback       ? juce::Colours::orange
+                               : accent);
+  g.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+  g.drawFittedText(health, area.removeFromTop(27),
+                   juce::Justification::centredLeft, 1);
+  g.setColour(muted);
+  g.setFont(juce::FontOptions(12.5f));
+  const juce::String detail =
+      !ready ? processorRef.getOrtStatusString()
+             : "44.1 kHz session · 256-sample buffer for lowest latency";
+  g.drawFittedText(detail, area.removeFromTop(40),
+                   juce::Justification::centredLeft, 2);
+  area.removeFromTop(10);
 
-  g.setColour(fallbackActive ? juce::Colours::orange : juce::Colours::white);
-  g.drawFittedText(juce::String("Fallback: ") +
-                       (fallbackActive ? "active" : "inactive") + " | " +
-                       juce::String(static_cast<juce::int64>(
-                           processorRef.getUnderrunSampleCount())) +
+  auto latency = area.removeFromTop(57);
+  g.setColour(panel);
+  g.fillRoundedRectangle(latency.toFloat(), 8.0f);
+  latency.reduce(14, 0);
+  g.setColour(juce::Colours::white);
+  g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
+  g.drawText(juce::String(processorRef.getLatencyMs(), 2) + " ms",
+             latency.removeFromLeft(140), juce::Justification::centredLeft);
+  g.setColour(muted);
+  g.setFont(juce::FontOptions(12.0f));
+  g.drawFittedText("Host-compensated delay\n" +
+                       juce::String(processorRef.getLatencySamples()) +
                        " samples",
-                   area.removeFromTop(24), juce::Justification::centred, 1);
+                   latency, juce::Justification::centredRight, 2);
+  area.removeFromTop(18);
 
-  g.setColour(unsafeTiming ? juce::Colours::orangered : juce::Colours::white);
-  g.drawFittedText("Unsafe callback timing: " +
-                       juce::String(static_cast<juce::int64>(
-                           processorRef.getUnsafeRealtimeCallbackCount())) +
-                       " callbacks",
-                   area.removeFromTop(24), juce::Justification::centred, 1);
-
-  g.setColour(dueBoundaryMissed ? juce::Colours::orange
-                                : juce::Colours::white);
-  g.drawFittedText(
-      juce::String::formatted(
-          "Due-boundary misses: %lld | nonblocking",
-          static_cast<long long>(processorRef.getSameCallbackTimeoutCount())),
-      area.removeFromTop(24), juce::Justification::centred, 1);
-
-  juce::String priorityText;
-  switch (priorityStatus) {
-    case InferenceQueue::WorkerPriorityStatus::NotAttempted:
-      priorityText = "pending";
-      break;
-    case InferenceQueue::WorkerPriorityStatus::Applied:
-      priorityText = "applied";
-      break;
-    case InferenceQueue::WorkerPriorityStatus::Failed:
-      priorityText = "failed";
-      break;
-    case InferenceQueue::WorkerPriorityStatus::Unsupported:
-      priorityText = "unsupported";
-      break;
+  constexpr std::array<const char*, 4> stems = {"Drums", "Bass", "Other",
+                                                "Vocals"};
+  for (int row = 0; row < 2; ++row) {
+    auto line = area.removeFromTop(39);
+    for (int column = 0; column < 2; ++column) {
+      auto tile = line.removeFromLeft((getWidth() - 56) / 2);
+      tile.removeFromRight(8);
+      g.setColour(panel);
+      g.fillRoundedRectangle(tile.toFloat(), 6.0f);
+      g.setColour(juce::Colours::white);
+      g.setFont(juce::FontOptions(14.0f));
+      g.drawText(stems[static_cast<size_t>(row * 2 + column)],
+                 tile.reduced(12, 0), juce::Justification::centredLeft);
+    }
+    area.removeFromTop(8);
   }
-  g.setColour(priorityFailed ? juce::Colours::orange : juce::Colours::white);
-  g.drawFittedText("Worker priority: " + priorityText, area.removeFromTop(24),
-                   juce::Justification::centred, 1);
+  g.setColour(muted);
+  g.setFont(juce::FontOptions(12.0f));
+  g.drawFittedText(
+      "Route the four stereo stem outputs in your host.\nMain carries the "
+      "complete delayed mix.",
+      area.removeFromTop(35), juce::Justification::centredLeft, 2);
+  const auto missed = processorRef.getUnderrunSampleCount();
+  if (missed > 0U) {
+    g.setColour(fallback ? juce::Colours::orange : muted);
+    g.drawText("Fallback used: " +
+                   juce::String(static_cast<juce::int64>(missed)) + " samples",
+               area.removeFromTop(22), juce::Justification::centredLeft);
+  }
 }
 
 void AudioPluginAudioProcessorEditor::resized() {}
