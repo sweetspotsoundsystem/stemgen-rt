@@ -717,7 +717,7 @@ TEST(OrtStreamingRuntimeTest,
 
   AudioChunk firstTransient = makeZeroAudioChunk();
   firstTransient[0][31] = 0.8f;
-  firstTransient[1][233] = -0.7f;
+  firstTransient[1].at(233U % audio_plugin::kOutputChunkSize) = -0.7f;
   referenceInputs.push_back(firstTransient);
 
   referenceInputs.push_back(scaledToStereoRms(
