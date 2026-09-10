@@ -1,102 +1,79 @@
 # StemgenRT
 
-A real-time low-latency music source separation plugin. Drop it on a track and get 4 separate stems: drums, bass, other, and vocals.
+Separate a stereo music mix into **Drums, Bass, Other and Vocals** in your DAW.
+Main carries the complete delayed mix; the four stem outputs reconstruct it.
 
-With a latency of 11.6 milliseconds, it is made for spatializing DJ sets in real-time: split the mix into stems, place them in the room, and create an immersive experience.
+StemgenRT uses a trained [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet)
+model at **44.1 kHz**, processing 128 samples at a time. With a **128-sample host
+buffer**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
+one dedicated CPU worker, and the audio callback never waits for it.
 
-Built with [JUCE](https://github.com/juce-framework/JUCE) and [ONNX Runtime](https://onnxruntime.ai), using [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet).
+## Use
 
-Available as VST3 and AU.
+1. Set the session to **44.1 kHz** and select a **128-sample buffer** for the
+   lowest reported latency.
+2. Insert StemgenRT on a stereo track and enable its additional stereo outputs.
+3. Route **Main, Drums, Bass, Other, Vocals**. Summing the four stems reconstructs
+   Main; adding Main again doubles the mix.
 
-![Screenshot](./screenshots/StemgenRT.png)
+The editor shows the active delay and separation status. When a result misses
+its deadline, the complete delayed mix goes to Other for that interval. Late
+results are discarded, and separation fades back in over 64 samples when ready.
+Other sample rates use Main/Other fallback and display a setup message.
 
-## Usage
+| Prepared host buffer | Reported delay | At 44.1 kHz |
+| --- | --- | --- |
+| 64 | 320 samples | 7.26 ms |
+| 128 | 256 samples | 5.80 ms |
+| 256 | 384 samples | 8.71 ms |
+| 512 | 640 samples | 14.51 ms |
+| 1024 | 1152 samples | 26.12 ms |
 
-StemgenRT is a multi-output plugin with 4 stereo output buses:
+Smaller host buffers require an extra scheduling reserve after a complete model
+hop arrives. The host must reprepare the plugin after changing its buffer setup.
+Offline rendering supports varying callbacks and waits for inference. Render the
+reported tail at transport stop to retain the final samples.
 
-1. **Drums**
-2. **Bass**
-3. **Other** (synths, guitars, etc.)
-4. **Vocals**
+## Build and install
 
-To set it up:
-
-1. Insert StemgenRT on your source track (e.g., a DJ mix or full song)
-2. Create 4 auxiliary/bus tracks to receive each stem
-3. Route each of the plugin's stem outputs to its corresponding aux track
-
-Check your DAW's documentation for multi-output plugin routing.
-
-> [!NOTE]
-> Set your DAW to 44.1 kHz, the model only works at this sample rate.
-
-## Downloads
-
-- [StemgenRT-macOS-AU.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-AU.zip)
-- [StemgenRT-macOS-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-macOS-VST3.zip)
-- [StemgenRT-Windows-VST3.zip](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/download/latest/StemgenRT-Windows-VST3.zip)
-
-> [!NOTE]
-> The macOS plugin is not signed (yet). You need to sign it yourself: `codesign --force --deep --sign - StemgenRT.component`
-
-## Building
-
-First, grab the ONNX Runtime dependency:
+Requirements: CMake 3.22+, C++20, Git LFS and the ONNX Runtime 1.26.0 CPU SDK.
+CMake fetches JUCE 8.0.6 and GoogleTest 1.16.0. macOS builds target Apple Silicon
+and macOS 14 or newer; Windows builds produce VST3.
 
 ```bash
-# macOS
+git lfs pull
 ./scripts/download-onnxruntime.sh
-
-# Windows (PowerShell)
-./scripts/download-onnxruntime.ps1
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+./scripts/install-plugins.sh --release
 ```
 
-Then build with CMake:
+On Windows, use the corresponding `.ps1` download and install scripts. The macOS
+installer replaces complete AU/VST3 bundles and verifies signing. Restart your
+DAW after installation. Existing plugin identifiers and output routing remain
+compatible with saved sessions.
 
-```bash
-cmake -S . -B build
-cmake --build build
-```
+For Linux development, install JUCE's ALSA, FreeType, Fontconfig and X11 headers,
+place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build.
 
-For a release build:
+## Model and checks
 
-```bash
-cmake -S . -B build-release
-cmake --build build-release
-```
+The model combines spectrogram and waveform estimates with recurrent context.
+It consumes raw stereo samples and preserves their level. The plugin applies a
+linked near-silence confidence fade, then calculates
+`Other = Main - Drums - Bass - Vocals` to preserve the complete mix.
+See the [model interface and validation](model/README.md) for details.
 
-## How it works
+Tests cover independent PyTorch waveform parity, streaming resets, partial
+final clips, sample alignment, queue recovery, output reconstruction, variable
+offline callbacks and C++ heap traffic in the audio callback. Build and test
+checks pass on macOS and Windows for this model and DSP implementation.
 
-The plugin runs a neural network to separate audio, but neural networks are slow and audio callbacks are fast. To bridge the gap:
+Real-time performance depends on the machine and host load. Reported Apple M4
+runs passed correctness checks but recorded occasional missed deadlines; the
+strict zero-miss timing test remains unmet. Linux paced timing also failed.
+To measure a target Mac, run `./scripts/qualify-macos.sh ../stemgenrt-evidence`.
 
-1. **Audio thread** collects incoming samples and feeds them to a ring buffer
-2. **Inference thread** runs the model asynchronously in the background
-3. **Audio thread** picks up the processed stems when ready
-
-If inference can't keep up, the plugin gracefully crossfades to the dry signal rather than glitching.
-
-A few DSP tricks help the model out:
-
-- **HP/LP split + LP reinjection** — Input is split by LR4 crossover. HP goes to the model; LP bypasses inference and is reinjected after model output (currently bass-biased) to keep low end stable.
-- **Chunk boundary crossfade** — The model outputs more samples than the 512-sample center region. Extra samples from the right context are crossfaded with the next chunk's start, eliminating discontinuities at chunk boundaries.
-- **Input normalization** — Context-aware: RMS is computed over both the context window and the current input chunk, then normalized to a consistent level before inference. This avoids extreme gain swings at transients (e.g., loud kick tail in context, silence in input) and pushes the model's noise floor below the signal level.
-- **Vocals gate** — Detects spurious low-level content in the vocals stem (common on instrumentals) using both energy ratio and absolute level thresholds. Gated content is transferred to the "other" stem to preserve total energy. Asymmetric attack/release smoothing prevents pumping.
-- **Soft gating** — When input is silent, output is silent. Prevents the model from hallucinating noise.
-- **Low-band stabilizer** — Reconstructs low-band stem balance using dry-constrained low-frequency energy and suppresses synthetic high-frequency leakage on low-only inputs.
-
-The main bus is dry passthrough. The stem buses carry model output with LP reinjection, low-band stabilization, and gates applied.
-
-## A note on GPU acceleration
-
-You might expect GPU to be faster, but for this particular model it often isn't:
-
-- **1D convolutions** — GPUs are optimized for 2D (images). 1D audio convolutions don't parallelize as well.
-- **Batch size of 1** — Real-time audio processes one chunk at a time. GPUs shine with large batches.
-- **Memory-bound ops** — Reshapes and audio operations are limited by memory bandwidth, not compute. Your CPU cache is actually fast for this.
-- **Kernel launch overhead** — Each GPU operation has ~5-20μs overhead. With many small ops, it adds up.
-
-That said, GPU builds are available if you want to try.
-
-## License
-
-MIT
+Built with [JUCE](https://github.com/juce-framework/JUCE) and
+[ONNX Runtime](https://github.com/microsoft/onnxruntime).

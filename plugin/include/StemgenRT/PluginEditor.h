@@ -6,8 +6,9 @@
 namespace audio_plugin {
 
 #if !STEMGENRT_DEBUG_UI
-// Release build - just display logo
-class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
+// Release build - retain the logo and expose lightweight streaming health.
+class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                        private juce::Timer {
 public:
   explicit AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor&);
   ~AudioPluginAudioProcessorEditor() override;
@@ -16,7 +17,9 @@ public:
   void resized() override;
 
 private:
-  [[maybe_unused]] AudioPluginAudioProcessor& processorRef;
+  void timerCallback() override;
+
+  AudioPluginAudioProcessor& processorRef;
 
 #if HAS_LOGO_ASSET
   juce::Image logoImage;

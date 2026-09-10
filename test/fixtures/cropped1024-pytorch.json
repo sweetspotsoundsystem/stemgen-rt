@@ -1,0 +1,27 @@
+{
+  "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
+  "fixture_sha256": "dd2ed2bf592af4474c7e53ec2e9c6b41cb97c07489fab1ef68da68bbff6fc9e4",
+  "model_state_sha256": "c204b0fcb9627ca7fecd287db42fb869a1ae6783a1bc24cf2d8864c3b4a565fb",
+  "torch": "2.8.0+cu128",
+  "numpy": "2.2.6",
+  "sample_rate": 44100,
+  "hop": 128,
+  "frames": [
+    1,
+    127,
+    128,
+    129,
+    255,
+    256,
+    257,
+    16521
+  ],
+  "source_order": [
+    "drums",
+    "bass",
+    "vocals",
+    "other"
+  ],
+  "reference": "Original CPU FP32 PyTorch deployed outputs, zero state, one zero flush, cropped to real length. No ONNX execution.",
+  "model_sha256": "b8574ac2e67bcd1df533e3fc7464c0659d4bfa6744cfbb4389c0967271594fe3"
+}
