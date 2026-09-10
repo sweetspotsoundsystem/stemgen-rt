@@ -1,0 +1,16 @@
+{
+  "actual_exit_code": 0,
+  "timed_out": false,
+  "elapsed_seconds": 13.870645382005023,
+  "argv": [
+    "/home/axel/miniforge3/bin/python",
+    "-u",
+    "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms/scripts/generate-model-parity-fixture.py",
+    "--research-root",
+    "/home/axel/autoresearch/codex/HS-TasNet",
+    "--output",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-fixture-001/cropped1024-pytorch.bin"
+  ],
+  "source_bindings_unchanged": true,
+  "plan_sha256": "82b8931ba5e970bb8669d110e8a94a3d472e5fb97ead4f1d6d17517e7ea0dd86"
+}

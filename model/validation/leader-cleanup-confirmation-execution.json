@@ -1,0 +1,17 @@
+{
+  "actual_exit_code": 0,
+  "timed_out": false,
+  "elapsed_seconds": 35.07474427099805,
+  "argv": [
+    "/home/axel/miniforge3/bin/python",
+    "-u",
+    "-m",
+    "research.direct.report_latency58_confirmation",
+    "--plan",
+    "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-250-confirmation-summary-001/plan.json",
+    "--plan-sha256",
+    "1ec4fe95371783113785e153f7c4a430eb28d6dc25f94393b3a57fa2cb03bc62"
+  ],
+  "source_bindings_unchanged": true,
+  "plan_sha256": "1ec4fe95371783113785e153f7c4a430eb28d6dc25f94393b3a57fa2cb03bc62"
+}

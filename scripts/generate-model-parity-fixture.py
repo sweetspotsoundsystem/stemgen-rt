@@ -30,8 +30,8 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     root = args.research_root.resolve()
-    export_plan = root / "research/direct/runs/latency58/teacher-half250-onnx-001/plan.json"
-    expected_plan_sha = "b06b2ca26b12338b3fdd7ff74330acb51eb3768549fca41d4edfbc1fd0bf96bd"
+    export_plan = root / "research/direct/runs/latency58/leader-cleanup-250-onnx-001/plan.json"
+    expected_plan_sha = "59730a0fff133937142cc267b31a6d872a2842c167c9768e472defd50807b124"
     if digest(export_plan) != expected_plan_sha:
         raise ValueError("Authenticated export plan differs")
     plan = json.loads(export_plan.read_text())
@@ -53,19 +53,16 @@ def main():
 
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    from research.direct.latency58_teacher_checkpoint_v2 import make_model, load_model_state
+    from research.direct.evaluate_latency58_leader_cleanup import load_evaluation_model
     from research.direct.train_latency58 import state_sha256
 
-    def relocated(binding):
-        result = dict(binding)
-        result["path"] = str(root / Path(binding["path"]).relative_to(
-            "/home/axel/autoresearch/codex/HS-TasNet"))
-        return result
-
-    model = make_model(relocated(plan["parent_checkpoint"]))
-    load_model_state(model, relocated(plan["checkpoint"]))
+    # Use the same authenticated native-model loader as the scored candidate.
+    # It verifies the training plan and retained inference generation, including
+    # the model's complete ancestry. Export-copy and ORT code are not executed.
+    model, receipt = load_evaluation_model(plan)
     model_state_sha = state_sha256(model.state_dict())
-    if model_state_sha != plan["model_state_sha256"]:
+    if (model_state_sha != plan["model_state_sha256"]
+            or receipt["files"]["model.pt"]["sha256"] != plan["checkpoint"]["sha256"]):
         raise ValueError("Loaded model fingerprint differs")
 
     lengths = (1, 127, 128, 129, 255, 256, 257, 16521)

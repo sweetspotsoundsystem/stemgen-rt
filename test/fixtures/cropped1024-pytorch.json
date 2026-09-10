@@ -1,96 +1,84 @@
 {
   "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
-  "fixture_sha256": "addd45905460e99bc69e8c0448c51423aeb3b7da044d7992bad9ed34254f4ecf",
-  "generator_sha256": "5625beea1c29f9797fe31cf7591362ec2454fd86d5ac27497568fcb6c843858d",
-  "export_plan_sha256": "b06b2ca26b12338b3fdd7ff74330acb51eb3768549fca41d4edfbc1fd0bf96bd",
+  "fixture_sha256": "dd2ed2bf592af4474c7e53ec2e9c6b41cb97c07489fab1ef68da68bbff6fc9e4",
+  "generator_sha256": "3573e4d0fb923f17b3628ed94b01b070860a63ccd9bffaab51ecd2c3a51cef56",
+  "export_plan_sha256": "59730a0fff133937142cc267b31a6d872a2842c167c9768e472defd50807b124",
   "sources": {
+    "research/direct/report_latency58_sdr.py": {
+      "research_path": "research/direct/report_latency58_sdr.py",
+      "sha256": "dfbae5ede99ebd6a66be6783a1a9eb8fa7951d16aa75b6cf057aedf2c48573a3"
+    },
+    "research/direct/compare.py": {
+      "research_path": "research/direct/compare.py",
+      "sha256": "8ac63208ea5ba14a223a7245bdfd08008a380de8edf02163aa1e1fc9fa5352af"
+    },
+    "research/direct/runs/latency58/teacher-half-canonical-001/model.pt": {
+      "research_path": "research/direct/runs/latency58/teacher-half-canonical-001/model.pt",
+      "sha256": "05a973af6efa3482e759f63cb3d268646a80f547a3bdc13679f0e228efba6222"
+    },
     "research/direct/latency58.py": {
       "research_path": "research/direct/latency58.py",
       "sha256": "21116a02a90e9a0d79fbce16de21f6c91265e934e2a8e5607f710346047c98a3"
-    },
-    "research/direct/latency58_gpu.py": {
-      "research_path": "research/direct/latency58_gpu.py",
-      "sha256": "187d49bdef358c40b692252163a68945da8edf3e484fbf27620f04a9e338aea5"
-    },
-    "research/direct/train_latency58.py": {
-      "research_path": "research/direct/train_latency58.py",
-      "sha256": "174a6f3a2f6fefafc05abbaf2669ff7d3bcdbf26b660da48984e512c36c65bbd"
-    },
-    "research/direct/audit_latency58_checkpoint.py": {
-      "research_path": "research/direct/audit_latency58_checkpoint.py",
-      "sha256": "9c27a70d05ea0f6fd62a364698c828f8e3cb79d0a7d4ca847f6c12ebbb341eaa"
-    },
-    "research/direct/latency_ola512_training.py": {
-      "research_path": "research/direct/latency_ola512_training.py",
-      "sha256": "4034fd7ba55664b246b9979a59a9dbe556bbd2f81b2014f1e94278d3e590e18e"
-    },
-    "research/experiment.py": {
-      "research_path": "research/experiment.py",
-      "sha256": "095a909f1ea896f4d36876c886d8a11e845f4067a429e4ed05422341f7d2840d"
-    },
-    "hs_tasnet/__init__.py": {
-      "research_path": "hs_tasnet/__init__.py",
-      "sha256": "cdc2b3f15e6e66a0f759f2f6a15b73976f262d2e0fb8d4cafa2daab72dbf5648"
-    },
-    "hs_tasnet/hs_tasnet.py": {
-      "research_path": "hs_tasnet/hs_tasnet.py",
-      "sha256": "799e0e8e11ff60a13396f84cde3d86faf0e45da2025727e9e9738601b75f7b56"
-    },
-    "hs_tasnet/trainer.py": {
-      "research_path": "hs_tasnet/trainer.py",
-      "sha256": "ac3e67d52e6ba6ae90be13b0c83254e654567f2d1be4f90edbdc58328430d619"
-    },
-    "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt": {
-      "research_path": "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
-      "sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65"
-    },
-    "/home/axel/autoresearch/production/hs-tasnet-c91-full-v1/train_production.py": {
-      "research_path": "/home/axel/autoresearch/production/hs-tasnet-c91-full-v1/train_production.py",
-      "sha256": "1de9ff67364d5727ff494f751af095ab58353e95aa1a84fc34083574b560744d"
-    },
-    "research/direct/runs/latency11/smoke/ola512-gpu-trainer-prep/train_ola_gpu_v2.py": {
-      "research_path": "research/direct/runs/latency11/smoke/ola512-gpu-trainer-prep/train_ola_gpu_v2.py",
-      "sha256": "b8a37f29145d5ed4a0869a9d55c94b389f949af15cacdae35d7117e334946e2b"
-    },
-    "research/direct/runs/latency11/smoke/gpu-crash-followup/watch_gpu_process.py": {
-      "research_path": "research/direct/runs/latency11/smoke/gpu-crash-followup/watch_gpu_process.py",
-      "sha256": "804d1290b67ad8cd62786b4e342e2f17582173c0c49f68eca822a57bf596a888"
-    },
-    "research/direct/train_latency58_followup.py": {
-      "research_path": "research/direct/train_latency58_followup.py",
-      "sha256": "2a71ba6a44f826e3483366e2b662ec807501ae2d56d63df7f2540bb4b8c11863"
-    },
-    "research/direct/audit_latency58_followup.py": {
-      "research_path": "research/direct/audit_latency58_followup.py",
-      "sha256": "8bd099cb8102e9b2e4272b70e4c2ee127acd86dbcfbd4b943b9f776e8d866e94"
-    },
-    "research/direct/run_latency58_followup_stage.py": {
-      "research_path": "research/direct/run_latency58_followup_stage.py",
-      "sha256": "41234877eb5d098420596a2b42678881d44512e6bf0456c38d72ca2f28889831"
-    },
-    "research/direct/latency58_deployed_l1.py": {
-      "research_path": "research/direct/latency58_deployed_l1.py",
-      "sha256": "5243fc0ccff5df57de05a94843da4455c757e27924ea052e8306283cf85b1d4d"
-    },
-    "research/direct/latency58_checkpoint.py": {
-      "research_path": "research/direct/latency58_checkpoint.py",
-      "sha256": "aede43823b22a0d6607d51412fe330de757bac0df8e4d31f5bd2f756d9e40102"
     },
     "research/direct/latency58_evaluate.py": {
       "research_path": "research/direct/latency58_evaluate.py",
       "sha256": "6770fadb418daaae4fd6b28cdc43fa12da553a30235d9d20b0215d289112f489"
     },
-    "research/direct/check_latency58_followup_gpu.py": {
-      "research_path": "research/direct/check_latency58_followup_gpu.py",
-      "sha256": "bf2766cc4202428cb57e1fa48517ec24443e93bc7a17e81fbe7830194c47a4f7"
+    "research/direct/evaluate_latency58.py": {
+      "research_path": "research/direct/evaluate_latency58.py",
+      "sha256": "65447474b5ac979c72938fc9fd0f44edbcdc7cbebb62889170e6f6a62395135c"
     },
-    "research/direct/runs/latency58/raw4-b4-lr3e-5-pilot/model-step-002000.pt": {
-      "research_path": "research/direct/runs/latency58/raw4-b4-lr3e-5-pilot/model-step-002000.pt",
-      "sha256": "6b0feba723b8252f59061ae0a93c5d365419444507cabd55f3c1748fcf3eed15"
+    "research/direct/evaluate.py": {
+      "research_path": "research/direct/evaluate.py",
+      "sha256": "4eb794e5bf116a0ef66d74bfe835ee2bc721a355e1feda931bf1f16a0bff117f"
     },
-    "research/direct/runs/latency11/smoke/cropped1024-deployed-l1-prep/deployed_l1_objective.py": {
-      "research_path": "research/direct/runs/latency11/smoke/cropped1024-deployed-l1-prep/deployed_l1_objective.py",
-      "sha256": "5243fc0ccff5df57de05a94843da4455c757e27924ea052e8306283cf85b1d4d"
+    "research/evaluate.py": {
+      "research_path": "research/evaluate.py",
+      "sha256": "a9fb29dbbd63ef70664adc67959567703da99da139ad8086525024c731f9a5c8"
+    },
+    "research/metrics.py": {
+      "research_path": "research/metrics.py",
+      "sha256": "9465434e43e7fac6f9051100a57200dda87623e7e40954ce0c101ce9cb50460b"
+    },
+    "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency11/cropped1024-matched-raw4_control-b4-bf16-lr3e-5/checkpoints/step-000250/model.pt",
+      "sha256": "ac46729e5e4d379b09914a6e40ae927e09089b43fd4eef219ae7e034f355da65"
+    },
+    "research/direct/latency58_checkpoint.py": {
+      "research_path": "research/direct/latency58_checkpoint.py",
+      "sha256": "aede43823b22a0d6607d51412fe330de757bac0df8e4d31f5bd2f756d9e40102"
+    },
+    "research/direct/run_latency58_quality.py": {
+      "research_path": "research/direct/run_latency58_quality.py",
+      "sha256": "42fdfa5c83485f63d486026068f69fa23254863532ff603c4b8343baa2a6b2bf"
+    },
+    "research/direct/run_latency58_sdr_parallel_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_parallel_quality.py",
+      "sha256": "77c6657942c32f5f3e81b65c3ca7a79ea5c120aaf6df2191db39aedb2ea9a590"
+    },
+    "research/direct/evaluate_latency58_sdr_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_parallel.py",
+      "sha256": "85ff8341569605712409b6404d817327bc9e522d7a6540f9fce83d19b4076a86"
+    },
+    "research/direct/latency58_sdr_teacher.py": {
+      "research_path": "research/direct/latency58_sdr_teacher.py",
+      "sha256": "65abc82e7b0353a16e69a74e2580ccfd9d107bb030ec6bcd0aaebb9c4c2d7100"
+    },
+    "research/direct/check_latency58_sdr_teacher.py": {
+      "research_path": "research/direct/check_latency58_sdr_teacher.py",
+      "sha256": "c12dc7db2a1183eb9499ca6de083eeaba70ac8ccc8cd9ccae7e863aecf6fb32a"
+    },
+    "research/direct/latency58_teacher.py": {
+      "research_path": "research/direct/latency58_teacher.py",
+      "sha256": "a3dddfc262d502b40a54ec839c292cf8bdd0352615596a1de969808211b90f57"
+    },
+    "research/direct/latency58_teacher_checkpoint_v2.py": {
+      "research_path": "research/direct/latency58_teacher_checkpoint_v2.py",
+      "sha256": "1b8b2634e5f554f66b297492875c2aea16895b171bea977684b0c7fcf7296a81"
+    },
+    "research/direct/latency58_asymmetric_checkpoint.py": {
+      "research_path": "research/direct/latency58_asymmetric_checkpoint.py",
+      "sha256": "d0fde8a6d591697373bc362767565e7162edc2b137c10393ea694515ff9db334"
     },
     "research/direct/latency58_asymmetric.py": {
       "research_path": "research/direct/latency58_asymmetric.py",
@@ -100,120 +88,1312 @@
       "research_path": "research/direct/latency58_encoder_window.py",
       "sha256": "600bfc7b4fad21348ced51e0d5830730836e97669803761b25dc0e6c972f7603"
     },
-    "research/direct/check_latency58_asymmetric_gpu.py": {
-      "research_path": "research/direct/check_latency58_asymmetric_gpu.py",
-      "sha256": "a7cac546a0eb58c9727f5802892faf64bbc2eacb3bf5b0d05c0c22c91c6924fb"
+    "research/direct/latency58_gpu.py": {
+      "research_path": "research/direct/latency58_gpu.py",
+      "sha256": "187d49bdef358c40b692252163a68945da8edf3e484fbf27620f04a9e338aea5"
     },
-    "research/direct/train_latency58_asymmetric.py": {
-      "research_path": "research/direct/train_latency58_asymmetric.py",
-      "sha256": "e2b2d56a949efec39b357774bed103b7f8541843afb3cf7c910e26cda1b1b4ce"
-    },
-    "research/direct/audit_latency58_asymmetric.py": {
-      "research_path": "research/direct/audit_latency58_asymmetric.py",
-      "sha256": "3e63130b502cee765116a1c842924186fb2ee956706aba7f05e68f296b03133c"
-    },
-    "research/direct/run_latency58_asymmetric_stage.py": {
-      "research_path": "research/direct/run_latency58_asymmetric_stage.py",
-      "sha256": "ec6a3cdfa1ce5c69dbc7972dd5a9f93391048f3856fcdc11bb923cf86e5f7b37"
-    },
-    "research/direct/export_latency58_asymmetric.py": {
-      "research_path": "research/direct/export_latency58_asymmetric.py",
-      "sha256": "0dd06928c89580c8d76723543b5656dbc5b62918319f8bd0189ab47ac5fcbcc9"
-    },
-    "research/direct/latency58_asymmetric_checkpoint.py": {
-      "research_path": "research/direct/latency58_asymmetric_checkpoint.py",
-      "sha256": "d0fde8a6d591697373bc362767565e7162edc2b137c10393ea694515ff9db334"
-    },
-    "research/direct/latency58_asymmetric_onnx.py": {
-      "research_path": "research/direct/latency58_asymmetric_onnx.py",
-      "sha256": "94bd348f69a6ba6f00f861708bf7c062ef1f3326160f3f539a13d491e15cd24f"
-    },
-    "export_onnx.py": {
-      "research_path": "export_onnx.py",
-      "sha256": "6b9593f58ad85d9bf24aec82b95950dd9fc4b9165ff556eed700e279f072e9d4"
-    },
-    "research/direct/runs/latency58/asymmetric-raw4-b4-lr3e-5/model-step-000500.pt": {
-      "research_path": "research/direct/runs/latency58/asymmetric-raw4-b4-lr3e-5/model-step-000500.pt",
-      "sha256": "889f24e482328601bd70d84e0fc16c7b94776ac91e604e2782539bec153108aa"
+    "research/direct/train_latency58.py": {
+      "research_path": "research/direct/train_latency58.py",
+      "sha256": "174a6f3a2f6fefafc05abbaf2669ff7d3bcdbf26b660da48984e512c36c65bbd"
     },
     "research/direct/latency_cropped1024_onnx.py": {
       "research_path": "research/direct/latency_cropped1024_onnx.py",
       "sha256": "93e6973423b6cd8cc62e3df6cadd829fb2743886a7af6698449d66c100499e62"
     },
-    "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py": {
-      "research_path": "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py",
-      "sha256": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27"
+    "hs_tasnet/hs_tasnet.py": {
+      "research_path": "hs_tasnet/hs_tasnet.py",
+      "sha256": "799e0e8e11ff60a13396f84cde3d86faf0e45da2025727e9e9738601b75f7b56"
+    },
+    "research/direct/runs/latency58/raw4-b4-lr3e-5-pilot/model-step-002000.pt": {
+      "research_path": "research/direct/runs/latency58/raw4-b4-lr3e-5-pilot/model-step-002000.pt",
+      "sha256": "6b0feba723b8252f59061ae0a93c5d365419444507cabd55f3c1748fcf3eed15"
+    },
+    "research/direct/runs/c91-refined-v1/model.pt": {
+      "research_path": "research/direct/runs/c91-refined-v1/model.pt",
+      "sha256": "86ead5c164c3a49a5fb91f8d02a8db01e7c684109e485021620b33b51a51387a"
     },
     "research/direct/latency_ola512_onnx.py": {
       "research_path": "research/direct/latency_ola512_onnx.py",
       "sha256": "1ae71047f07d143cb1513833cce124322f7a33d16301b309dc7876bd43300235"
     },
+    "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py": {
+      "research_path": "research/direct/runs/latency11/smoke/cropped1024-ola-prep/cropped1024_ola.py",
+      "sha256": "5d5359e1b25749a4d84db0a30671154378bbf4c91e0b2efaae50894b676d7b27"
+    },
     "research/direct/latency_ola512.py": {
       "research_path": "research/direct/latency_ola512.py",
       "sha256": "90cbc93a3ab6c5e37b39442c066e82de7d1012b83b570b55acf57d026f775368"
     },
-    "research/direct/latency58_teacher.py": {
-      "research_path": "research/direct/latency58_teacher.py",
-      "sha256": "a3dddfc262d502b40a54ec839c292cf8bdd0352615596a1de969808211b90f57"
+    "export_onnx.py": {
+      "research_path": "export_onnx.py",
+      "sha256": "6b9593f58ad85d9bf24aec82b95950dd9fc4b9165ff556eed700e279f072e9d4"
     },
-    "research/direct/check_latency58_teacher.py": {
-      "research_path": "research/direct/check_latency58_teacher.py",
-      "sha256": "564676203c186154b07c0c4d72f70288e1353c519d273543052a449a73166e7d"
+    "research/direct/prepare_latency58_sdr_training.py": {
+      "research_path": "research/direct/prepare_latency58_sdr_training.py",
+      "sha256": "d12eb473a6e965a68cf561cd3bd9b6ee230b067815fc4cfa6afb8ad937bf0148"
     },
-    "research/direct/run_latency58_teacher_resource_v2.py": {
-      "research_path": "research/direct/run_latency58_teacher_resource_v2.py",
-      "sha256": "c801c05e74f7592ac27cb0e514d91756aa65ff7dcd1b112045166fa7c017cab4"
+    "/home/axel/autoresearch/production/hs-tasnet-c91-full-v1/train_production.py": {
+      "research_path": "/home/axel/autoresearch/production/hs-tasnet-c91-full-v1/train_production.py",
+      "sha256": "1de9ff67364d5727ff494f751af095ab58353e95aa1a84fc34083574b560744d"
     },
-    "research/direct/check_latency58_teacher_gpu_v2.py": {
-      "research_path": "research/direct/check_latency58_teacher_gpu_v2.py",
-      "sha256": "0d62f1379b760ff1ace645b339082f42174092a859420c409df31e12d2b7b4e7"
+    "research/experiment.py": {
+      "research_path": "research/experiment.py",
+      "sha256": "095a909f1ea896f4d36876c886d8a11e845f4067a429e4ed05422341f7d2840d"
     },
-    "research/direct/runs/latency11/smoke/cache-four-v3/batch-000000.pt": {
-      "research_path": "research/direct/runs/latency11/smoke/cache-four-v3/batch-000000.pt",
-      "sha256": "c129711578e44221ecc4d3403ab0c405a568ed11a3d833e66c55d1390adbc45b"
+    "research/direct/latency_ola512_training.py": {
+      "research_path": "research/direct/latency_ola512_training.py",
+      "sha256": "4034fd7ba55664b246b9979a59a9dbe556bbd2f81b2014f1e94278d3e590e18e"
     },
-    "research/direct/train_latency58_teacher.py": {
-      "research_path": "research/direct/train_latency58_teacher.py",
-      "sha256": "3a4931aa5bbad320a20b04d568652999d7727117a90f6575b3dd888c9315b1eb"
+    "research/direct/runs/latency11/smoke/ola512-gpu-trainer-prep/train_ola_gpu_v2.py": {
+      "research_path": "research/direct/runs/latency11/smoke/ola512-gpu-trainer-prep/train_ola_gpu_v2.py",
+      "sha256": "b8a37f29145d5ed4a0869a9d55c94b389f949af15cacdae35d7117e334946e2b"
     },
-    "research/direct/audit_latency58_teacher.py": {
-      "research_path": "research/direct/audit_latency58_teacher.py",
-      "sha256": "9ffa417456706b10f3c92205bae86095111b2ca33d15ab8b4cea9cef603dac32"
+    "research/direct/runs/latency11/smoke/gpu-crash-followup/watch_gpu_process.py": {
+      "research_path": "research/direct/runs/latency11/smoke/gpu-crash-followup/watch_gpu_process.py",
+      "sha256": "804d1290b67ad8cd62786b4e342e2f17582173c0c49f68eca822a57bf596a888"
+    },
+    "research/direct/latency58_sdr_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_checkpoint.py",
+      "sha256": "1393ec4978b3419939050fbcf86b1ea0e23d3f4906bc2b0919d3c12abeac6356"
+    },
+    "research/direct/train_latency58_sdr.py": {
+      "research_path": "research/direct/train_latency58_sdr.py",
+      "sha256": "d2e81dadc7475ff07c83c90352d81e47a2b45a5515a1bd4a6227ce6f62383569"
+    },
+    "research/direct/audit_latency58_sdr.py": {
+      "research_path": "research/direct/audit_latency58_sdr.py",
+      "sha256": "8518cafa44d721fa79ed2fb5cffb06b5f9ef31803e65fd85efbb1a0bdbbc55bc"
+    },
+    "research/direct/run_latency58_sdr_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_stage.py",
+      "sha256": "c310877dc94896b27920490ed85d3183b1282fcd7cf49c2c47372093f8670319"
+    },
+    "research/direct/runs/latency58/sdr-teacher-c91-b4-lr3e5-1000/checkpoints/step-001000/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-teacher-c91-b4-lr3e5-1000/checkpoints/step-001000/model.pt",
+      "sha256": "18eae45bc9adaabc7b73df53039030a4eb6bc04daabdefbf569352788730b519"
+    },
+    "research/direct/runs/latency58/sdr-teacher-c91-b4-lr3e5-1000/checkpoints/step-001000/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-teacher-c91-b4-lr3e5-1000/checkpoints/step-001000/rng.pt",
+      "sha256": "c197838beaebab47765ff1cb7fc114a90c53986767968261475356b0da861f8d"
+    },
+    "research/direct/evaluate_latency58_sdr.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr.py",
+      "sha256": "6754429dd67960582592030724e43ae0c8ec8bdb9b84c5dbcdfb90155b1a059e"
+    },
+    "research/direct/run_latency58_sdr_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_quality.py",
+      "sha256": "22d586362c92669e059d545ea5bf926ae9cde90fbf6a825a4c818a2a5f13e2e9"
+    },
+    "research/direct/compare_latency58_sdr.py": {
+      "research_path": "research/direct/compare_latency58_sdr.py",
+      "sha256": "23af4b15991e2529f0b7674afc6a60080993c8414218317ee45ae68377cc7aa3"
+    },
+    "research/direct/evaluate_latency58_sdr_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_probes.py",
+      "sha256": "2f29795bc882da031b28a711d28acd385a853b5408dd544ddbf8e91941844577"
+    },
+    "research/direct/bass.py": {
+      "research_path": "research/direct/bass.py",
+      "sha256": "93d80e29681b43a10548e580c6fede6a849d377c14ab2754c371a921e05f2a43"
+    },
+    "research/direct/evaluate_latency58_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_probes.py",
+      "sha256": "f6a266e767f5da9aa94104421323c0fcadbccc4e86606a5bc054f3d5f73be6ba"
+    },
+    "research/direct/latency58_sdr_context.py": {
+      "research_path": "research/direct/latency58_sdr_context.py",
+      "sha256": "0c5a0f607fabaac9f60c8330fb8d6a2eda5a875f345f7bb937fdd00fd2b5fad1"
+    },
+    "research/direct/check_latency58_sdr_context.py": {
+      "research_path": "research/direct/check_latency58_sdr_context.py",
+      "sha256": "cf071504a0a1bddd0c06240ab10d59caa46ae20656eac374f337bd4e32446785"
+    },
+    "research/direct/check_latency58_sdr_context_data.py": {
+      "research_path": "research/direct/check_latency58_sdr_context_data.py",
+      "sha256": "898e5e05da301faf1050377fda2285d045fea5bb6926d006a682c36d5ec647b7"
+    },
+    "research/direct/runs/latency58/sdr-context-augmentation-functional-001/check.py": {
+      "research_path": "research/direct/runs/latency58/sdr-context-augmentation-functional-001/check.py",
+      "sha256": "6d361b727ce0348a0a512f4881689fc4818cac85067564fc7e5838cc41f47536"
+    },
+    "research/direct/runs/latency58/sdr-context-lineage-functional-001/check.py": {
+      "research_path": "research/direct/runs/latency58/sdr-context-lineage-functional-001/check.py",
+      "sha256": "ab45eaffd16978999ad2c0e19c6caf1655204d2057a346c1cdc342b7e1b62070"
+    },
+    "research/direct/latency58_context_checkpoint.py": {
+      "research_path": "research/direct/latency58_context_checkpoint.py",
+      "sha256": "11703c7591c063c3e943729ecf607b410f1fb639675e976ac0395b78bf3cca13"
+    },
+    "research/direct/runs/latency58/sdr-teacher-cropped11-b4-lr3e5-1000/checkpoints/step-001000/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-teacher-cropped11-b4-lr3e5-1000/checkpoints/step-001000/model.pt",
+      "sha256": "8a84dd05944b237b6ff9d0fc1e31b1fe74bdb1f8406ac44208a20a887bf7f8bd"
+    },
+    "research/direct/runs/latency58/sdr-teacher-cropped11-b4-lr3e5-1000/checkpoints/step-001000/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-teacher-cropped11-b4-lr3e5-1000/checkpoints/step-001000/rng.pt",
+      "sha256": "c197838beaebab47765ff1cb7fc114a90c53986767968261475356b0da861f8d"
+    },
+    "research/direct/prepare_latency58_context.py": {
+      "research_path": "research/direct/prepare_latency58_context.py",
+      "sha256": "319726ee8575ccdb8df0250d12050f4416d5e55c3f18d5a3169f9ece7175a0cf"
+    },
+    "research/direct/train_latency58_context.py": {
+      "research_path": "research/direct/train_latency58_context.py",
+      "sha256": "8e079196a7ccd6e3935f837b2a190061322ee28e3fbaf8665bedf1c04d61fc2a"
+    },
+    "research/direct/audit_latency58_context.py": {
+      "research_path": "research/direct/audit_latency58_context.py",
+      "sha256": "e250e49114f1ef15983f7c95c64992fadfc3e90c36a2846419aba297195ce7b5"
+    },
+    "research/direct/run_latency58_context_stage.py": {
+      "research_path": "research/direct/run_latency58_context_stage.py",
+      "sha256": "b80205b386cbe94510f0eb462dbc643ee243a9bb666ad75f11d12aa9bcf868f6"
+    },
+    "research/direct/check_latency58_context_resource.py": {
+      "research_path": "research/direct/check_latency58_context_resource.py",
+      "sha256": "69a73b4a47047434573f33ced2814be8b14e3208875ab2a04c6b309c8c098000"
+    },
+    "research/direct/run_latency58_context_resource.py": {
+      "research_path": "research/direct/run_latency58_context_resource.py",
+      "sha256": "54e757787d2e1e8e22c8ff2a05c68166fdde017f4f24013f7971d1a22e285da6"
+    },
+    "research/direct/latency58_log_relative.py": {
+      "research_path": "research/direct/latency58_log_relative.py",
+      "sha256": "64be2a1f8ae401be5f0d7aac73b8b342b664a3ea43d71abb3a2dcb043fc47027"
+    },
+    "research/direct/qualify_latency58_log_relative.py": {
+      "research_path": "research/direct/qualify_latency58_log_relative.py",
+      "sha256": "eb8d4aa44fbdfcdfd2c430265b73c336d8a2aadb1afb5d6a256145a4003e543f"
+    },
+    "research/direct/latency58_log_relative_checkpoint.py": {
+      "research_path": "research/direct/latency58_log_relative_checkpoint.py",
+      "sha256": "a32d3fcf514924660f760ab08a9dcaf2e3bfa9f4066a5c8d1194115118e049b2"
+    },
+    "research/direct/train_latency58_log_relative.py": {
+      "research_path": "research/direct/train_latency58_log_relative.py",
+      "sha256": "466d33c04b2b480b62b10ed7e8b34471da4fdd13a78eccc6adfc7f8948339a08"
+    },
+    "research/direct/audit_latency58_log_relative.py": {
+      "research_path": "research/direct/audit_latency58_log_relative.py",
+      "sha256": "dcbda79404fc09d9ead12d7603f63fe4e4a8aefa883c6aa888d64314461adc21"
+    },
+    "research/direct/run_latency58_log_relative_stage.py": {
+      "research_path": "research/direct/run_latency58_log_relative_stage.py",
+      "sha256": "e6b126e922d278e8bf9ece75ef53be587f6296f1f197858970134ebffd491fb4"
+    },
+    "research/direct/runs/latency58/sdr-context-warm-b4-lr3e5-500/checkpoints/step-000500/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-context-warm-b4-lr3e5-500/checkpoints/step-000500/model.pt",
+      "sha256": "de2cdea92348145428afd7c1812ea99ab5633301a65effb42b5a9d84c606ee52"
+    },
+    "research/direct/runs/latency58/sdr-context-warm-b4-lr3e5-500/checkpoints/step-000500/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-context-warm-b4-lr3e5-500/checkpoints/step-000500/rng.pt",
+      "sha256": "91e03674cce6f1ef4cb3d781218174480423be9d29915566355574f3671df508"
+    },
+    "research/direct/latency58_sdr_lrrestart_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_lrrestart_checkpoint.py",
+      "sha256": "9a55360ac8d71ff7da02287c5194cef33368ccdca5edc247e642c5653baac781"
+    },
+    "research/direct/train_latency58_sdr_lrrestart.py": {
+      "research_path": "research/direct/train_latency58_sdr_lrrestart.py",
+      "sha256": "1e910f720e9e22da4a2a7e1c95e85649add1cf21c59ad584e8ea0a5aab6fb54a"
+    },
+    "research/direct/audit_latency58_sdr_lrrestart.py": {
+      "research_path": "research/direct/audit_latency58_sdr_lrrestart.py",
+      "sha256": "77a617da90b9b01e12488553c25adc5e9330117f55fb08c2af2d32eec0868c43"
+    },
+    "research/direct/run_latency58_sdr_lrrestart_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_lrrestart_stage.py",
+      "sha256": "f1672d964b99f7595d94e7e8fcd587aa962739964edd945657f3af61e87a394c"
+    },
+    "research/direct/diagnose_latency58_training_precision.py": {
+      "research_path": "research/direct/diagnose_latency58_training_precision.py",
+      "sha256": "1c653a7f533094106692f9c6a2cdb98bf9605ff9bb5fcac99b9e6846d3fa46f0"
+    },
+    "research/direct/run_latency58_precision_diagnostic.py": {
+      "research_path": "research/direct/run_latency58_precision_diagnostic.py",
+      "sha256": "e152320098597ac766c8ac205d2d63999b5e3e836fad3c706d26765274ef068f"
+    },
+    "research/direct/evaluate_latency58_sdr_lrrestart.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_lrrestart.py",
+      "sha256": "fa05dccaa4eb0c42d8b335f6a654aa4db92bce73aab0e70f47cfa10023a8b581"
+    },
+    "research/direct/evaluate_latency58_sdr_lrrestart_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_lrrestart_parallel.py",
+      "sha256": "014cd7ea0d3b3bb1cae7c4bfc7c1478bab43d89a7eccc797f3bbff93cd605e63"
+    },
+    "research/direct/evaluate_latency58_sdr_lrrestart_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_lrrestart_probes.py",
+      "sha256": "ffaceab51defba12be21e4633626116494891eca967f7b33f91cdf7abd67b9eb"
+    },
+    "research/direct/run_latency58_sdr_lrrestart_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_lrrestart_quality.py",
+      "sha256": "072774693357fadde5fddd6a3b7383c63d1840bee3ef4555b5c80e7d6364ee68"
+    },
+    "research/direct/report_latency58_sdr_lrrestart.py": {
+      "research_path": "research/direct/report_latency58_sdr_lrrestart.py",
+      "sha256": "ac49d61bb86d5bd4abea17919021eba1574015b4256431325b76432d4c92588d"
+    },
+    "research/direct/report_latency58_sdr_softcap_strong.py": {
+      "research_path": "research/direct/report_latency58_sdr_softcap_strong.py",
+      "sha256": "e354642c57bfa92d74f9af83860c30cd6231840ec1007fd5bd03a25a37482bd5"
+    },
+    "research/direct/audit_latency58_softcap_weight_match.py": {
+      "research_path": "research/direct/audit_latency58_softcap_weight_match.py",
+      "sha256": "5ae9a469d2467eb432b87eae926e5e2b3a10bc06d020be0dc23e90a7f4c39963"
+    },
+    "research/direct/latency58_sdr_softcap.py": {
+      "research_path": "research/direct/latency58_sdr_softcap.py",
+      "sha256": "4b982deb6b3098c3230ccd1f45853cedcf9acb43944a8713db75f54ff1b2986d"
+    },
+    "research/direct/qualify_latency58_sdr_softcap.py": {
+      "research_path": "research/direct/qualify_latency58_sdr_softcap.py",
+      "sha256": "c5e20df0d00d8c45a92f3d410ddc2ad0b1b352e002627d5579dbea16c6cf3022"
+    },
+    "research/direct/latency58_sdr_softcap_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_softcap_checkpoint.py",
+      "sha256": "91f09fc328efd308cbc3d1173c86ffa3f28894923ee1fcf3c55e33de970a451b"
+    },
+    "research/direct/train_latency58_sdr_softcap.py": {
+      "research_path": "research/direct/train_latency58_sdr_softcap.py",
+      "sha256": "8eba9afd53835308895e756c5d37d976e51e0f81e6e004fb6b1e5261a02701af"
+    },
+    "research/direct/audit_latency58_sdr_softcap.py": {
+      "research_path": "research/direct/audit_latency58_sdr_softcap.py",
+      "sha256": "8a8e990976573faad3e9dbe3bf7ce17d6cc56ef4aeb51b1772c10a20bc6d219f"
+    },
+    "research/direct/run_latency58_sdr_softcap_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_softcap_stage.py",
+      "sha256": "18bb289bff33e9d23172e167e88301d1e0ea4ee0811b70bc48db790a8cd86341"
+    },
+    "research/direct/runs/latency58/sdr-softcap-b4-lr3e5-500/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-softcap-b4-lr3e5-500/checkpoints/step-000250/model.pt",
+      "sha256": "cae70fae53940e33d1903c3bd50ebc217b4e728b958f79e81e5fceb613722c6c"
+    },
+    "research/direct/runs/latency58/sdr-softcap-b4-lr3e5-500/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-softcap-b4-lr3e5-500/checkpoints/step-000250/rng.pt",
+      "sha256": "ebe8d153f09a2b34d52730a37c4f0d0c23256e15bb2823046b88d0eb462af189"
+    },
+    "research/direct/train_latency58_sdr_softcap_strong.py": {
+      "research_path": "research/direct/train_latency58_sdr_softcap_strong.py",
+      "sha256": "3b482d3c9d5b084beb32c6c998606b77ec480fb39a0178960c06cafe6263408e"
+    },
+    "research/direct/latency58_sdr_softcap_strong_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_softcap_strong_checkpoint.py",
+      "sha256": "ece633f78a719b3452d1fd4795398a950e9d150482fb000e04dfc92483e1537b"
+    },
+    "research/direct/run_latency58_sdr_softcap_strong_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_softcap_strong_stage.py",
+      "sha256": "8055220ac20e47b2b4cd3e58a1e332df5645101ec4981c35486f52917714599d"
+    },
+    "research/direct/audit_latency58_sdr_softcap_strong.py": {
+      "research_path": "research/direct/audit_latency58_sdr_softcap_strong.py",
+      "sha256": "986ce0c8c6d01adb9129cd3199e7569f1e48d898da5ebbb4fe49ae27a33778e6"
+    },
+    "research/direct/evaluate_latency58_sdr_softcap_strong.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_softcap_strong.py",
+      "sha256": "0c58a4623e1465c64ce7f0c04dc6d5a4cd378bdb9481f3684739d38a208b56d6"
+    },
+    "research/direct/evaluate_latency58_sdr_softcap_strong_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_softcap_strong_parallel.py",
+      "sha256": "1799b1510008e91dcd14df10f38329666c6627f95e3ce26c58c27768ac9fcd48"
+    },
+    "research/direct/evaluate_latency58_sdr_softcap_strong_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_softcap_strong_probes.py",
+      "sha256": "6b417264e9c3a53b4acf8237378e344750046bb4ec1a0d179810b568b214ae4c"
+    },
+    "research/direct/run_latency58_sdr_softcap_strong_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_softcap_strong_quality.py",
+      "sha256": "b957a26e63e8c03442c2ae7d07aa5fd31367ae144051f4582bd83c27e683eb39"
+    },
+    "research/direct/runs/latency58/sdr-softcap-strong-b4-lr3e5-500/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-softcap-strong-b4-lr3e5-500/checkpoints/step-000250/model.pt",
+      "sha256": "869cf859463db6de871f3964fa3ba4cc825c67f7860243a67efdedf9879db723"
+    },
+    "research/direct/runs/latency58/sdr-softcap-strong-b4-lr3e5-500/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-softcap-strong-b4-lr3e5-500/checkpoints/step-000250/rng.pt",
+      "sha256": "ebe8d153f09a2b34d52730a37c4f0d0c23256e15bb2823046b88d0eb462af189"
+    },
+    "research/direct/check_latency58_sdr_accum.py": {
+      "research_path": "research/direct/check_latency58_sdr_accum.py",
+      "sha256": "82937283a4cf7e4293d1bea220e3ec46c06f357c78e473d154ffa7d44392f295"
+    },
+    "research/direct/latency58_sdr_accum.py": {
+      "research_path": "research/direct/latency58_sdr_accum.py",
+      "sha256": "77668041bbcb0c03bf48e48d842277d06dcfcccb5fda2711a0625c47203b285c"
+    },
+    "research/direct/evaluate_latency58_sdr_accum_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_accum_probes.py",
+      "sha256": "6f32a66b70e3823365dc668a39645c787a7ece12f846d9350e4eaef59218b4f2"
+    },
+    "research/direct/run_latency58_sdr_accum_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_accum_quality.py",
+      "sha256": "61f205686b44dd2427bfeade1fab876a50a641f9fa7c8f63584df6b7a5801be2"
+    },
+    "research/direct/evaluate_latency58_sdr_accum.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_accum.py",
+      "sha256": "5b13d65057496bd1754ffba5102d130d40a16e52ed5cd4e65ba4a470b0d0e418"
+    },
+    "research/direct/run_latency58_sdr_accum_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_accum_stage.py",
+      "sha256": "653a0405d42ff01fe21e62ba4e31c016de11642f962ee5ea53737cb6b12beec2"
+    },
+    "research/direct/evaluate_latency58_sdr_accum_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_accum_parallel.py",
+      "sha256": "cbf64ebf7163043fdd69b5d61e1fb9540d2df6586ef94b4524fb1f8a74a3c0b6"
+    },
+    "research/direct/train_latency58_sdr_accum.py": {
+      "research_path": "research/direct/train_latency58_sdr_accum.py",
+      "sha256": "2946124d9b2e6b607fd271e73526fe40ec8883f95448c0bba9929a3495fbda09"
+    },
+    "research/direct/report_latency58_sdr_accum.py": {
+      "research_path": "research/direct/report_latency58_sdr_accum.py",
+      "sha256": "577387b44d1807bd52200984771922b7ac1df1d3068c9db8ffa46d6894d8658a"
+    },
+    "research/direct/audit_latency58_sdr_accum.py": {
+      "research_path": "research/direct/audit_latency58_sdr_accum.py",
+      "sha256": "f6894184401dd1cc150625c633c52fa4962a8c9f5cf4ddb4d9860c31865a667f"
+    },
+    "research/direct/latency58_sdr_accum_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_accum_checkpoint.py",
+      "sha256": "5464113b043625b1e1f7fffcb87eabff3a46400f58d7c569aaf4a9126d6cb4a3"
+    },
+    "research/direct/export_latency58_sdr_candidate_v3.py": {
+      "research_path": "research/direct/export_latency58_sdr_candidate_v3.py",
+      "sha256": "562424dbc649a5a8cda1fe90e81524079e270be4c6915553d5a162569a79bd2f"
+    },
+    "research/direct/compare_latency58_sdr_endpoints.py": {
+      "research_path": "research/direct/compare_latency58_sdr_endpoints.py",
+      "sha256": "99e7ccd91b7ccfa12bd3b6b46467ffbfcfa1bd01ab50b4c412551ba7d0972408"
+    },
+    "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/model.pt",
+      "sha256": "a9c11cb41bbf523ac56e4413d1250731a03e8f1739a981978aa8ee20f3e8822c"
+    },
+    "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/rng.pt",
+      "sha256": "2aaaa87e2e267995ce6bd435502d2127d69d7967ec074d56db6cecd34c65e456"
+    },
+    "research/direct/latency58_accum_parent.py": {
+      "research_path": "research/direct/latency58_accum_parent.py",
+      "sha256": "d2d712e849511155d53b6d04f29c85213911d9f49ddb590c2b76ae83f9f76bd5"
+    },
+    "research/direct/check_latency58_drum_emphasis_v2.py": {
+      "research_path": "research/direct/check_latency58_drum_emphasis_v2.py",
+      "sha256": "218eb64a9c06cbd5761ee2463ebb8e6fdc815c65a1e5253bd1ec0ab6b1833100"
+    },
+    "research/direct/latency58_drum_emphasis.py": {
+      "research_path": "research/direct/latency58_drum_emphasis.py",
+      "sha256": "9bedce81212d0529bbd32b15218ac516794ff8cc88e31b0ff48a91c99072cdb0"
+    },
+    "research/direct/audit_latency58_sdr_drum_v3.py": {
+      "research_path": "research/direct/audit_latency58_sdr_drum_v3.py",
+      "sha256": "31d90028e548ec39450b6887a4de216374a14e7199ce9de47f06c86cab019076"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_v3.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_v3.py",
+      "sha256": "10443ac1749c6831398e636fbef02e76978d1dadc5b934fb0e8b15840a59da38"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_v3_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_v3_parallel.py",
+      "sha256": "0e7f5bcea908ec92281af0522bcccd9426b56f0182a017000f0ad611d7b3b865"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_v3_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_v3_probes.py",
+      "sha256": "f4102aa2f2f43bd088d1fd64719746a44c280a554cb7bb09f3973dd5eba09965"
+    },
+    "research/direct/latency58_sdr_drum_v3_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_drum_v3_checkpoint.py",
+      "sha256": "dcebbbd0f1b5f3cf1c6f75c2bc7391e2fd2b69f87b2653b0b37610d1c2414863"
+    },
+    "research/direct/report_latency58_sdr_drum_v3.py": {
+      "research_path": "research/direct/report_latency58_sdr_drum_v3.py",
+      "sha256": "7d7a4b80c604fe599c08193d0db0134fa6399953e82c252866c8f659295e89da"
+    },
+    "research/direct/run_latency58_sdr_drum_v3_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_drum_v3_quality.py",
+      "sha256": "96ede3e939881ed793d87c75935abb0ac55f8a19c8118fbcca6b4bbaa904dd64"
+    },
+    "research/direct/run_latency58_sdr_drum_v3_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_drum_v3_stage.py",
+      "sha256": "9830d574cb73a0fad24f366b232197ab009c315216f4ab3230b48d303ba6ba04"
+    },
+    "research/direct/train_latency58_sdr_drum_v3.py": {
+      "research_path": "research/direct/train_latency58_sdr_drum_v3.py",
+      "sha256": "c75d54224a668fdd0a2eb0af5001ffb9663cb3262fc9db5de1cc81c5b7682d1d"
+    },
+    "research/direct/export_latency58_sdr_candidate_v4.py": {
+      "research_path": "research/direct/export_latency58_sdr_candidate_v4.py",
+      "sha256": "b2f2e8a6316712bd44e3c7eec127f67c815832539c6cc05b4f8098aa9b8fdbd1"
+    },
+    "research/direct/runs/latency58/sdr-drum-v3-source-preflight-001/check.py": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-v3-source-preflight-001/check.py",
+      "sha256": "1421f84c7da963e659e25278c3b42870e64476da6f8648329fce81fae7e9fa1f"
+    },
+    "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-001000/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-001000/model.pt",
+      "sha256": "5c49dccd58a48f4e8c63bfc453161d27a4c63d5e45512ccfbeedb56bdc1c509c"
+    },
+    "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-001000/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-001000/rng.pt",
+      "sha256": "0a6d2d1d23e2a1206211cf440202253a5a670bde29ae2392a5e6c506f37a504a"
+    },
+    "research/direct/check_latency58_drum_accum.py": {
+      "research_path": "research/direct/check_latency58_drum_accum.py",
+      "sha256": "90b37865dd2e61c4b4e2ec98c2ad80e24a086df7bb367cbe07cd9c083b9f2ea3"
+    },
+    "research/direct/qualify_latency58_drum_accum_runner.py": {
+      "research_path": "research/direct/qualify_latency58_drum_accum_runner.py",
+      "sha256": "ff232b732e9c38d7505656536411388399571e9084ecab4cce5c1971df4d6616"
+    },
+    "research/direct/audit_latency58_sdr_drum_accum.py": {
+      "research_path": "research/direct/audit_latency58_sdr_drum_accum.py",
+      "sha256": "297ea2feb71b59ddc7b5d0e33229aacdc2420de6141a8903266aa0d254e1a222"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_accum.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_accum.py",
+      "sha256": "1ba571100d1c530f79d374655717eb30b058f30afb0fb6742fc13c63af108895"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_accum_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_accum_parallel.py",
+      "sha256": "908585b204cbba28163673a882b1205d7bcd391be6a7df711ffa818ef1a63054"
+    },
+    "research/direct/evaluate_latency58_sdr_drum_accum_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_drum_accum_probes.py",
+      "sha256": "12a08343b4414ccad64fcd294d544319fd32050ec56bba4ed543b1e8665cf614"
+    },
+    "research/direct/latency58_sdr_drum_accum_checkpoint.py": {
+      "research_path": "research/direct/latency58_sdr_drum_accum_checkpoint.py",
+      "sha256": "880c6034eae1ce35dd1d59be75220a02c073d36a0daadd8e86735dc3167b9075"
+    },
+    "research/direct/report_latency58_sdr_drum_accum.py": {
+      "research_path": "research/direct/report_latency58_sdr_drum_accum.py",
+      "sha256": "2c00a9b4d5ba4a93a76f765998d48f2cbd6b07af43778d15251a2c873d6f988c"
+    },
+    "research/direct/run_latency58_sdr_drum_accum_quality.py": {
+      "research_path": "research/direct/run_latency58_sdr_drum_accum_quality.py",
+      "sha256": "f4748fc3089c409a728cea76eeef5cf884ff04c00c5d7f45742a4c2cf1d9d2a5"
+    },
+    "research/direct/run_latency58_sdr_drum_accum_stage.py": {
+      "research_path": "research/direct/run_latency58_sdr_drum_accum_stage.py",
+      "sha256": "ed6803024c351064ef5adc67875579f42025d0eacc72b0e6bf85421da302379d"
+    },
+    "research/direct/train_latency58_sdr_drum_accum.py": {
+      "research_path": "research/direct/train_latency58_sdr_drum_accum.py",
+      "sha256": "d25780bb4795bcb89de35616add113d37e149e54afc5ba9ea4fa72b34bcd475c"
+    },
+    "research/direct/prepare_latency58_sdr_listening.py": {
+      "research_path": "research/direct/prepare_latency58_sdr_listening.py",
+      "sha256": "f346fa07d2d977e99f94f4351aab78b38fac31cc457a2a8f306fca37cea89e31"
+    },
+    "research/direct/serve_latency58_listening.py": {
+      "research_path": "research/direct/serve_latency58_listening.py",
+      "sha256": "c375cff1b56abae2735e46ee7f9d5264a171c161fad45ba3f6d0fd80aebd99ce"
+    },
+    "research/direct/check_latency58_long_context_data.py": {
+      "research_path": "research/direct/check_latency58_long_context_data.py",
+      "sha256": "d2fa61fbe3254c57a34f78376d49856dad2449e2229e04726a100e186765aa2c"
+    },
+    "research/direct/latency58_vocal_focus_augmentation.py": {
+      "research_path": "research/direct/latency58_vocal_focus_augmentation.py",
+      "sha256": "d4f98118303d114d2f8c32f33379aa5ed6f2d55eb175f2548b2e7e10621844b4"
+    },
+    "research/direct/check_latency58_vocal_focus_data.py": {
+      "research_path": "research/direct/check_latency58_vocal_focus_data.py",
+      "sha256": "fbb177fe3a07c9e1b54400280ac41e1ff6e7b7f05af9e9d668690289e4a59e1b"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/model.pt",
+      "sha256": "94482a55659a5aff556131256775c2c0e16224764d25983bb0c03f4849513cc6"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-001000/rng.pt",
+      "sha256": "de115ba3f8b94795d1ea0424b4534fe06da5ab06d5d3a97a6e2e6f3f10e7bc21"
+    },
+    "research/direct/latency58_drum_accum_parent.py": {
+      "research_path": "research/direct/latency58_drum_accum_parent.py",
+      "sha256": "a9f57bdf5ce1f4e4a470a34330a7d1a9453b5884dc5eb1147b70114045003ce5"
+    },
+    "research/direct/latency58_matched_history.py": {
+      "research_path": "research/direct/latency58_matched_history.py",
+      "sha256": "bdba87f224c14576bbc919b0b25739e77d05cc627d0ba57a6563c7a057f9e999"
+    },
+    "research/direct/check_latency58_local_mask_mixer.py": {
+      "research_path": "research/direct/check_latency58_local_mask_mixer.py",
+      "sha256": "07d45cf7f58e351629acd3b04eaabae93baec39a1dfccde6da5513d6b9cf1726"
+    },
+    "research/direct/latency58_local_mask_mixer.py": {
+      "research_path": "research/direct/latency58_local_mask_mixer.py",
+      "sha256": "3a0df4661ce185d42e73a049742c61f32a35ab1a43d2c807e8ff266780261eb2"
+    },
+    "research/direct/latency58_vocal_focus_model.py": {
+      "research_path": "research/direct/latency58_vocal_focus_model.py",
+      "sha256": "6446c3601341922c05fe6a82905de58c20fbd7e465faf744eff8fed4dfa771c7"
+    },
+    "research/direct/check_latency58_vocal_focus_model.py": {
+      "research_path": "research/direct/check_latency58_vocal_focus_model.py",
+      "sha256": "8e1c55738a3e1c5e33a5e5605ac7276b9228170f090318a742b8d2ea54a8e5b8"
+    },
+    "research/direct/latency58_vocal_focus_checkpoint.py": {
+      "research_path": "research/direct/latency58_vocal_focus_checkpoint.py",
+      "sha256": "9cd4deea416c8f8b540d0548ab3c25a9d47015ef0868805d53bf4d0b42d50896"
+    },
+    "research/direct/train_latency58_vocal_focus.py": {
+      "research_path": "research/direct/train_latency58_vocal_focus.py",
+      "sha256": "f2245ca8f4020a5d59e4c0c30c9af3940cfc70aeaf977265d6733eb4ed107be6"
+    },
+    "research/direct/run_latency58_vocal_focus_stage.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_stage.py",
+      "sha256": "6cc3f4a4e5bbfb96e4f8b182434537320ee31b951ec0dc52824e82ada9979b4a"
+    },
+    "research/direct/audit_latency58_vocal_focus.py": {
+      "research_path": "research/direct/audit_latency58_vocal_focus.py",
+      "sha256": "a0ae435b3dd52a2603d4f76807bddae048d4f328739c152e7db02c65b1eb68a7"
+    },
+    "research/direct/audit_latency58_vocal_focus_match.py": {
+      "research_path": "research/direct/audit_latency58_vocal_focus_match.py",
+      "sha256": "bcffb901a4197d0d0b28d6c417773ac2af95219c38d49730d500d1776e245bb1"
+    },
+    "research/direct/prepare_latency58_vocal_focus_resources.py": {
+      "research_path": "research/direct/prepare_latency58_vocal_focus_resources.py",
+      "sha256": "f00c8c81ff018d7cf5c203dd68f99b6de9ddc31ae278f71288b1b0dde3d44d46"
+    },
+    "research/direct/prepare_latency58_vocal_focus_training.py": {
+      "research_path": "research/direct/prepare_latency58_vocal_focus_training.py",
+      "sha256": "12322f13eb4d735a0786406f973b4b0cc9377eb78351ccdac0bda6cfe978ba03"
+    },
+    "research/direct/runs/latency58/vocal-focus-original-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-original-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "a6d8134cfab5208e849163e87a7e444ed84bde641ff3a94057565799d308af22"
+    },
+    "research/direct/runs/latency58/vocal-focus-original-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-original-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/runs/latency58/vocal-focus-focused-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-focused-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "22f32b76e5ed342272178362c38ebb8d8a4525be7af6adbcbbf3da910a918d5f"
+    },
+    "research/direct/runs/latency58/vocal-focus-focused-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-focused-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/runs/latency58/vocal-focus-focused-mixer-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-focused-mixer-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "3df451f207a38fa6abdf66ac0553d994dcb6bc1a9091e8881bfc5038b2f036ce"
+    },
+    "research/direct/runs/latency58/vocal-focus-focused-mixer-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/vocal-focus-focused-mixer-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/run_latency58_vocal_focus_comparison.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_comparison.py",
+      "sha256": "f1dc5665a657a1f1322a209f82ebf4951e1e15d4b08bce459a67a00c24791543"
+    },
+    "research/direct/audit_latency58_vocal_focus_training_match.py": {
+      "research_path": "research/direct/audit_latency58_vocal_focus_training_match.py",
+      "sha256": "710e470b36872fc04c7e74bc86b329bd4718ab5a2e51f1c1a6ebcf1b48e0bcea"
+    },
+    "research/direct/queue_latency58_vocal_focus_quality.py": {
+      "research_path": "research/direct/queue_latency58_vocal_focus_quality.py",
+      "sha256": "1299ce7648e45e763c50e947f504b10ed102a1282e7292b87312b0ddc401baa2"
+    },
+    "research/direct/run_latency58_vocal_focus_quality.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_quality.py",
+      "sha256": "d754d55ba2e16e12bf3236ed6f75650cf90ec4c4c26dcb5de0cd578c620cdd87"
+    },
+    "research/direct/evaluate_latency58_vocal_focus.py": {
+      "research_path": "research/direct/evaluate_latency58_vocal_focus.py",
+      "sha256": "099dddcf38b65685d5e29ad9c72fc7aa45286f58bd62506d46c16eff1ef25d9e"
+    },
+    "research/direct/evaluate_latency58_vocal_focus_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_vocal_focus_parallel.py",
+      "sha256": "8b7f16cfffb37dd21c1efff7fd03338bf394fcbc6f551aff3f660371f35d88b8"
+    },
+    "research/direct/evaluate_latency58_vocal_focus_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_vocal_focus_probes.py",
+      "sha256": "bd952437fe566d5a3e563160de67a6a069f9434553cfe411ebf52914b557f522"
+    },
+    "research/direct/evaluate_latency58_vocal_focus_views.py": {
+      "research_path": "research/direct/evaluate_latency58_vocal_focus_views.py",
+      "sha256": "eb71b4e7eca496e8dcfdff790c7f250ae2ceb657887d520dcf30cacb55d5e009"
+    },
+    "research/direct/run_latency58_vocal_focus_views.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_views.py",
+      "sha256": "7d303bd31e9fd2439005da3991dd7afb6b153e253245f0a64dcf4c74f16b270a"
+    },
+    "research/direct/report_latency58_vocal_focus.py": {
+      "research_path": "research/direct/report_latency58_vocal_focus.py",
+      "sha256": "91c694757d256f06d9e1b5206c084f8e2a5fa74e577ebdcb68270468b43e6a22"
+    },
+    "research/direct/compare_latency58_vocal_views.py": {
+      "research_path": "research/direct/compare_latency58_vocal_views.py",
+      "sha256": "0f1a99e9751870d32af2b6abfc9ca543141bfb6bf08e4e5ebb5c0a6167762bb0"
+    },
+    "research/direct/latency58_vocal_views.py": {
+      "research_path": "research/direct/latency58_vocal_views.py",
+      "sha256": "70175bfc11865217fb5bf88fb7ac03161740555db1e1006336713a215043b918"
+    },
+    "research/direct/queue_latency58_vocal_focus_quality_v2.py": {
+      "research_path": "research/direct/queue_latency58_vocal_focus_quality_v2.py",
+      "sha256": "cc3889ab22a46279f8a2583a3398d36cd2ef670657c58c1692c0f66b7252fec5"
+    },
+    "research/direct/record_latency58_vocal_focus_review.py": {
+      "research_path": "research/direct/record_latency58_vocal_focus_review.py",
+      "sha256": "a9468e8e721de08ebb9146d2436db2fed2d057064f92cf8db93c5e252429daff"
+    },
+    "research/direct/retire_latency58_vocal_focus_optimizer.py": {
+      "research_path": "research/direct/retire_latency58_vocal_focus_optimizer.py",
+      "sha256": "fca8eb8a90ea7eaef07d865f3cbebbf9808ccc81a447b20d0b128c12d1c1d29c"
+    },
+    "research/direct/report_latency58_vocal_focus_windows.py": {
+      "research_path": "research/direct/report_latency58_vocal_focus_windows.py",
+      "sha256": "6d01a7159b4bfcb21a36f40b808a589007119b3913a5460bb1acaecce5458cc3"
+    },
+    "research/direct/run_latency58_vocal_focus_listening_v2.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_listening_v2.py",
+      "sha256": "6f90417a4e80aebc6051141971718852da8d8d1807abbb2bf61fff0168d3c8ef"
+    },
+    "research/direct/prepare_latency58_vocal_focus_listening_v2.py": {
+      "research_path": "research/direct/prepare_latency58_vocal_focus_listening_v2.py",
+      "sha256": "c3ad00c4b0b5e01f677929be93a15d502fdcd1abdb31835068f1d55270f8351a"
+    },
+    "research/direct/audit_latency58_vocal_focus_browser.py": {
+      "research_path": "research/direct/audit_latency58_vocal_focus_browser.py",
+      "sha256": "32b587ea5d0badfdfedb1375626f86fff6d1d44bfa336d0d6dabc1d4b2301541"
+    },
+    "research/direct/compare_latency58_vocal_focus.py": {
+      "research_path": "research/direct/compare_latency58_vocal_focus.py",
+      "sha256": "fcaa3e85fa3669d5d27bd6b71ae7461c17e5370718212cef0e11bc292446f951"
+    },
+    "research/direct/capture_latency58_vocal_focus_skelpolu.py": {
+      "research_path": "research/direct/capture_latency58_vocal_focus_skelpolu.py",
+      "sha256": "b439330fb5c60bff6591e2e832f2e9d65dfcb9ce6c4aef0312ce89733ba1d763"
+    },
+    "research/direct/latency58_counterfactual_teacher.py": {
+      "research_path": "research/direct/latency58_counterfactual_teacher.py",
+      "sha256": "e3d5187d8d5019005c937178594b65180eff2315b31b6f0006fea96d94cdb24e"
+    },
+    "research/direct/check_latency58_counterfactual_teacher.py": {
+      "research_path": "research/direct/check_latency58_counterfactual_teacher.py",
+      "sha256": "de7af5772a6db85d1dcf086cc2e99b5cde37abc0e5801cf91e0951f07ab26b9b"
+    },
+    "research/direct/diagnose_latency58_vocal_loss_tradeoff.py": {
+      "research_path": "research/direct/diagnose_latency58_vocal_loss_tradeoff.py",
+      "sha256": "731f2e904e5b04dfb258f9e818ca86090a92f45023733dbed4564ec8c15cf33d"
+    },
+    "research/direct/check_latency58_vocal_views.py": {
+      "research_path": "research/direct/check_latency58_vocal_views.py",
+      "sha256": "abff02ed1da9101947f4c613c4092ad2a1c5c9d17311fe415382baac6a4cd1d8"
+    },
+    "research/direct/evaluate_latency58_vocal_views.py": {
+      "research_path": "research/direct/evaluate_latency58_vocal_views.py",
+      "sha256": "ea116ddc9cf95f9c87cbddd362a120883b422cfc01bf3ae76172edd89c3bd8f0"
+    },
+    "research/direct/evaluate_latency58_sdr_history.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_history.py",
+      "sha256": "93c9eb373d7a4f24de8b8e5aa35bf8df4e21b06820419f14f77dfbbb5c6bf550"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/model.pt",
+      "sha256": "d8cbe56bf5066fff0ee71516eeea905f9d8a7afd7af517d196c0b0b5cb715faf"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/rng.pt",
+      "sha256": "8c809c5ec8572dd2b127c4b0b7c6c3a468f826b4a1667046629a8d5eba939f59"
+    },
+    "research/direct/diagnose_latency58_c91_vocal_views.py": {
+      "research_path": "research/direct/diagnose_latency58_c91_vocal_views.py",
+      "sha256": "df788a14dc50047ad58b7d27415116dc754c3fe655b9a5d1b537727e80694c32"
+    },
+    "research/direct/run_latency58_teacher_quality.py": {
+      "research_path": "research/direct/run_latency58_teacher_quality.py",
+      "sha256": "666232cbfccd740655d56c9b51aae9b322c295b4948f1779ac62b202ee603e6b"
     },
     "research/direct/latency58_teacher_checkpoint.py": {
       "research_path": "research/direct/latency58_teacher_checkpoint.py",
       "sha256": "a78ab98d72735bc2cda6f6af446fa1911d0ccaeb9a3e878f2174fdb22f28c787"
     },
-    "research/direct/run_latency58_teacher_training.py": {
-      "research_path": "research/direct/run_latency58_teacher_training.py",
-      "sha256": "e71cb61faa38aa77ef27643e75a181a848c0063e50eb0be9e18f866691e229d9"
+    "research/direct/evaluate_latency58_teacher.py": {
+      "research_path": "research/direct/evaluate_latency58_teacher.py",
+      "sha256": "f570e77a776e5e9dc6ce293f1ee23528ee3f60924e51567aaaa620968663d28e"
     },
-    "research/direct/run_latency58_quality.py": {
-      "research_path": "research/direct/run_latency58_quality.py",
-      "sha256": "42fdfa5c83485f63d486026068f69fa23254863532ff603c4b8343baa2a6b2bf"
+    "research/direct/evaluate_latency58_teacher_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_teacher_probes.py",
+      "sha256": "43bb5501445ada5dd17bf5fd2f31bd4be24d3f521a6191e102173e233abc5867"
     },
-    "research/direct/runs/latency58/teacher-half-canonical-001/model.pt": {
-      "research_path": "research/direct/runs/latency58/teacher-half-canonical-001/model.pt",
-      "sha256": "05a973af6efa3482e759f63cb3d268646a80f547a3bdc13679f0e228efba6222"
+    "research/direct/run_latency58_context_quality.py": {
+      "research_path": "research/direct/run_latency58_context_quality.py",
+      "sha256": "5e3d2fca80ebae5851f8686bd49ffc54437844025395cf6b675919596875a4c6"
+    },
+    "research/direct/evaluate_latency58_context.py": {
+      "research_path": "research/direct/evaluate_latency58_context.py",
+      "sha256": "66a6392d4b64aabc4aa36658ffc22b876eb94fda4697a4049dedeeaecb035900"
+    },
+    "research/direct/evaluate_latency58_context_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_context_parallel.py",
+      "sha256": "a8bbe3eea38de5ae67299874e302cd58d96e391e8b19dccababf4df5b9c47252"
+    },
+    "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/model.pt",
+      "sha256": "966aa208e0dac92394aa1d705da2513454e75c32283a166875e1e28183f2806a"
+    },
+    "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-accum-b16-micro4-lr3e5-1000/checkpoints/step-000500/rng.pt",
+      "sha256": "ebb85fa5fe565ec28a3bd1f7e7fc01f34412f5729401922905fca43d65246a5f"
+    },
+    "research/direct/capture_latency58_primary_regression_audio.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio.py",
+      "sha256": "bab40758733723780195532e15e7107e6775d281d2c4fdd1db0528558a8e4b8f"
+    },
+    "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-000250/model.pt",
+      "sha256": "38d6b1a0042c0441414a85f30a3ceb360a03f0eabc43e4f4202fd7835d8a48d9"
+    },
+    "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-v3-b4-lr3e5-1000/checkpoints/step-000250/rng.pt",
+      "sha256": "07ded61f2881dd482f5a370768cd4ad3e013c0704bc97b7dde42d8ce7f92c471"
+    },
+    "research/direct/capture_latency58_primary_regression_audio_v2.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio_v2.py",
+      "sha256": "badedf7d3c3393e7d2b28069b45766777fa44b912b37233340df762df3906590"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000250/model.pt",
+      "sha256": "c13e1dc7ecb0a745f973c84378a9d4098c2da360977656c540b9713684dd3c60"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-b16-micro4-lr3e5-1000/checkpoints/step-000250/rng.pt",
+      "sha256": "a6460b3ceb65c665346bbc6ca028018bc81dcd32fd3ce28a0bb9d3296f4a11dd"
+    },
+    "research/direct/capture_latency58_primary_regression_audio_v3.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio_v3.py",
+      "sha256": "2a205ebc27e572c6e8e678829addb1170ab5319f6ecf52ec271366a5c3b0f0fb"
+    },
+    "research/direct/capture_latency58_primary_regression_audio_v4.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio_v4.py",
+      "sha256": "ffa2766cf8fae77bb7951b327e1b83470f95948decb0af22b54f162874111a75"
+    },
+    "research/direct/runs/latency58/sdr-drum-accum-250-skelpolu-layout-diagnostic-001/diagnose.py": {
+      "research_path": "research/direct/runs/latency58/sdr-drum-accum-250-skelpolu-layout-diagnostic-001/diagnose.py",
+      "sha256": "4561e56de327f1112dab9ddc3cf64d79b39347439ddc83268e27b063b95882ae"
+    },
+    "research/direct/capture_latency58_primary_regression_audio_v5.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio_v5.py",
+      "sha256": "7bb824e37816551ed512aa206cc80235b04e3468b3b73d4159b578a66159f1b4"
+    },
+    "research/direct/capture_latency58_primary_regression_audio_v6.py": {
+      "research_path": "research/direct/capture_latency58_primary_regression_audio_v6.py",
+      "sha256": "753e82e78998da11ab69426829114a77d8cabb6fb29ada4a960b56b528f74f1a"
+    },
+    "research/direct/run_latency58_vocal_focus_skelpolu.py": {
+      "research_path": "research/direct/run_latency58_vocal_focus_skelpolu.py",
+      "sha256": "42141a9bd5926e0ad12f2c07ca725c7b56cdc6286be39a69979c57f0224c4185"
+    },
+    "research/direct/audit_latency58_vocal_focus_skelpolu_browser.py": {
+      "research_path": "research/direct/audit_latency58_vocal_focus_skelpolu_browser.py",
+      "sha256": "e7ef7b0e953db6b0a4b8c29a299c6f470713167476d9deb3c685407ef4bdc830"
+    },
+    "research/direct/latency58_counterfactual_journal.py": {
+      "research_path": "research/direct/latency58_counterfactual_journal.py",
+      "sha256": "7c00d47a77f0ffa82220751476188c1c9732d709d09a71e9c8647350cdc595f6"
+    },
+    "research/direct/check_latency58_counterfactual_journal.py": {
+      "research_path": "research/direct/check_latency58_counterfactual_journal.py",
+      "sha256": "e69efffea75bc3f8d476743eec92bc1d68caab7c1dee1e83b81f8525a2cbe8e7"
+    },
+    "research/direct/latency58_counterfactual_checkpoint.py": {
+      "research_path": "research/direct/latency58_counterfactual_checkpoint.py",
+      "sha256": "41f8244cb7f9e0167a098707610aa5df4ea2b8c15a1744e9306fe8d629635c43"
+    },
+    "research/direct/train_latency58_counterfactual.py": {
+      "research_path": "research/direct/train_latency58_counterfactual.py",
+      "sha256": "a781c293484d70c884482c4ad4a23d6b7606a771c33c5ae68ad6b742ed5368ec"
+    },
+    "research/direct/audit_latency58_counterfactual.py": {
+      "research_path": "research/direct/audit_latency58_counterfactual.py",
+      "sha256": "e51cfc7a0a3b5ff4d8361617d9030b4702740277bf557bd35ffeda6d2b9966dc"
+    },
+    "research/direct/run_latency58_counterfactual_stage.py": {
+      "research_path": "research/direct/run_latency58_counterfactual_stage.py",
+      "sha256": "1daa7100de0a6de667c637bd6c312cc8db20375834e5cb571419ad97c782df4a"
+    },
+    "research/direct/prepare_latency58_counterfactual_resources.py": {
+      "research_path": "research/direct/prepare_latency58_counterfactual_resources.py",
+      "sha256": "0e6c5dc753f3bda73ba61dbcffe30767e4d246906b72c58357be1e15ca6503fa"
+    },
+    "research/direct/audit_latency58_counterfactual_resources.py": {
+      "research_path": "research/direct/audit_latency58_counterfactual_resources.py",
+      "sha256": "0742def7e474620745ceaeb0f754edb95074b715bddf644713093144a5ba7240"
+    },
+    "research/direct/prepare_latency58_counterfactual_training.py": {
+      "research_path": "research/direct/prepare_latency58_counterfactual_training.py",
+      "sha256": "a85660fc6a307dcd0ac090bb6cb169f58d5d8fe65a66405042a5a85baf01bb1f"
+    },
+    "research/direct/evaluate_latency58_counterfactual.py": {
+      "research_path": "research/direct/evaluate_latency58_counterfactual.py",
+      "sha256": "459bc9b4e7c5d1f145c0f641adc936534a49a5826d2c3e898241e83868b755a7"
+    },
+    "research/direct/evaluate_latency58_counterfactual_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_counterfactual_parallel.py",
+      "sha256": "db02ef97cdab47ea8ba340d24af51e59ae18cf9f98bb8d5cd903cadb27c316d8"
+    },
+    "research/direct/evaluate_latency58_counterfactual_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_counterfactual_probes.py",
+      "sha256": "8bdda1d286d5fb528c964f802318f171f543ab28e1f5b7ac4672bba54b6b61d0"
+    },
+    "research/direct/evaluate_latency58_counterfactual_views.py": {
+      "research_path": "research/direct/evaluate_latency58_counterfactual_views.py",
+      "sha256": "e104fd32b40f424aaeb7d002a0e8bf88c97bac0c939cf0a7672945468adf9bb3"
+    },
+    "research/direct/audit_latency58_counterfactual_training_match.py": {
+      "research_path": "research/direct/audit_latency58_counterfactual_training_match.py",
+      "sha256": "b7cf92ec62b73b0699828d4a654d663d4f19e08bf6a9b6b3921ffd0b20a64266"
+    },
+    "research/direct/run_latency58_counterfactual_quality.py": {
+      "research_path": "research/direct/run_latency58_counterfactual_quality.py",
+      "sha256": "86be5f7f0192aa5dfc49c68498d4e6df210f6aed815af2bb19380d03450552b6"
+    },
+    "research/direct/run_latency58_counterfactual_views.py": {
+      "research_path": "research/direct/run_latency58_counterfactual_views.py",
+      "sha256": "3cfaec4383c8fc857522b567d3b873eb3ed05efdb99b0467501a2a51a5081896"
+    },
+    "research/direct/report_latency58_counterfactual.py": {
+      "research_path": "research/direct/report_latency58_counterfactual.py",
+      "sha256": "acb67bc0d4ca68d2f9759bd3c975c3223171181f3dec7c2e7cc2707f462856f7"
+    },
+    "research/direct/queue_latency58_counterfactual_quality.py": {
+      "research_path": "research/direct/queue_latency58_counterfactual_quality.py",
+      "sha256": "3b668c918e68f0834e84411e9ddc4a41a70936197ddfdda8ef2132b1ddf3ea06"
+    },
+    "research/direct/prepare_latency58_counterfactual_quality.py": {
+      "research_path": "research/direct/prepare_latency58_counterfactual_quality.py",
+      "sha256": "f8496ce2fd4faa6da027e1bc539f43cb63711eda98177b478d08b8373ebea2ce"
+    },
+    "research/direct/runs/latency58/counterfactual-teacher-ordinary-only-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/counterfactual-teacher-ordinary-only-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "f785520776e083e78e254542341293974374b900a8cf320d28d4f59d576a850f"
+    },
+    "research/direct/runs/latency58/counterfactual-teacher-ordinary-only-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/counterfactual-teacher-ordinary-only-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/inventory_latency58_quiet_references.py": {
+      "research_path": "research/direct/inventory_latency58_quiet_references.py",
+      "sha256": "427d5b7dd741d6238d4c9a07fa607c9ae6aeec5233639a4b6dd3c7d888941b40"
+    },
+    "research/direct/evaluate_latency58_quiet_wanted.py": {
+      "research_path": "research/direct/evaluate_latency58_quiet_wanted.py",
+      "sha256": "ca3263bc6ea6a3266d833685cf3eaa0214ff68d809ab44216bff853de2947569"
+    },
+    "research/direct/queue_latency58_quiet_candidate.py": {
+      "research_path": "research/direct/queue_latency58_quiet_candidate.py",
+      "sha256": "bd55f78fcc4bd047af6857d79c09a7f19bea6f20b4c060ffbe5dc69448998f5c"
+    },
+    "research/direct/compare_latency58_quiet_wanted.py": {
+      "research_path": "research/direct/compare_latency58_quiet_wanted.py",
+      "sha256": "569689cb3e532662229e0f25dd46e30eff76be58c30f21341d92773dc308bace"
+    },
+    "research/direct/report_latency58_vocal_gain_error.py": {
+      "research_path": "research/direct/report_latency58_vocal_gain_error.py",
+      "sha256": "bfa1913a8e13c0b7943230a3cb85bbab2f48f54f7da9b7f688ef7b7801bb6d81"
+    },
+    "research/direct/prepare_latency58_counterfactual_listening.py": {
+      "research_path": "research/direct/prepare_latency58_counterfactual_listening.py",
+      "sha256": "219331e9b61099580bb3a3e8ab1013a383b30fc048ae6ccfb38044d1660f036f"
+    },
+    "research/direct/prepare_latency58_counterfactual_listening_v2.py": {
+      "research_path": "research/direct/prepare_latency58_counterfactual_listening_v2.py",
+      "sha256": "2d97234ad4706f64bf782d69d92520ed6074c1af9e0dbb6d18563a7ac1ea757c"
+    },
+    "research/direct/audit_latency58_counterfactual_browser.py": {
+      "research_path": "research/direct/audit_latency58_counterfactual_browser.py",
+      "sha256": "8e10b3f8f7d1a3b3c7da93b1f8f4d3dca697f8ce707bf9dd2a68eaeb248f5bcf"
+    },
+    "research/direct/record_latency58_counterfactual_review.py": {
+      "research_path": "research/direct/record_latency58_counterfactual_review.py",
+      "sha256": "9331beb12826c1213e7246e4f710cf9593970df3a4263d5f6ab6a1a4f374b939"
+    },
+    "research/direct/latency58_controlled_deployed_loss.py": {
+      "research_path": "research/direct/latency58_controlled_deployed_loss.py",
+      "sha256": "827484d2f42d3c1525359fda87115939a66a266cca5cf760e7bbe32131b67240"
+    },
+    "research/direct/check_latency58_controlled_deployed_loss.py": {
+      "research_path": "research/direct/check_latency58_controlled_deployed_loss.py",
+      "sha256": "00c543b08b81b1d26e265c448a1fed2cf0440b465e48dd1ee76c9b12fd5355db"
+    },
+    "research/direct/train_latency58_controlled_deployed.py": {
+      "research_path": "research/direct/train_latency58_controlled_deployed.py",
+      "sha256": "e97bff689da04477010d5ac24666f03ca0656da7ec5b660a613457d13e50bfaf"
+    },
+    "research/direct/latency58_controlled_deployed_checkpoint.py": {
+      "research_path": "research/direct/latency58_controlled_deployed_checkpoint.py",
+      "sha256": "d26509f45e55a4f36a7380bc410e83cd4945d00a366496a8f325a6d5e64fd32f"
+    },
+    "research/direct/check_latency58_controlled_deployed_model.py": {
+      "research_path": "research/direct/check_latency58_controlled_deployed_model.py",
+      "sha256": "817d767a6113a0c38165dbd9d10157233722993f95bf63f4e4a06f9aaf306481"
+    },
+    "research/direct/latency58_controlled_deployed_journal.py": {
+      "research_path": "research/direct/latency58_controlled_deployed_journal.py",
+      "sha256": "d7d8cdad3598e9e2d846d0fed701366356d1cb9293d3949dd1b2a1b2cfb2de3a"
+    },
+    "research/direct/run_latency58_controlled_deployed_resource.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_resource.py",
+      "sha256": "83f82aeaebf26b0f6c21d8bfbf2e4fbe108e98be02f6ff08bd5a660f1a202021"
+    },
+    "research/direct/prepare_latency58_controlled_deployed_resources.py": {
+      "research_path": "research/direct/prepare_latency58_controlled_deployed_resources.py",
+      "sha256": "15a296f3b7136353ffb785d20ac524193dcc161f78a29f07a3c5f5a6a438757e"
+    },
+    "research/direct/audit_latency58_controlled_deployed_resources.py": {
+      "research_path": "research/direct/audit_latency58_controlled_deployed_resources.py",
+      "sha256": "14eed7de9eec01883a21d9dbf625bf93854bdf88cb4c82bc0481e0e6b54ced58"
+    },
+    "research/direct/prepare_latency58_controlled_deployed_training.py": {
+      "research_path": "research/direct/prepare_latency58_controlled_deployed_training.py",
+      "sha256": "3f011b4a116931fdf6781b0aea58f951ec604f4b664ed34d3fe262522f5f7ce5"
+    },
+    "research/direct/run_latency58_controlled_deployed_stage.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_stage.py",
+      "sha256": "23e7e95d5d749176e06f26927bd150a77ca849b2aa159627101a1c61ccf17cb5"
+    },
+    "research/direct/audit_latency58_controlled_deployed.py": {
+      "research_path": "research/direct/audit_latency58_controlled_deployed.py",
+      "sha256": "9886d8e40220f19fb45d5f4c3dd14ae433aaffd8ee6e8811b5d56fe2f5f762ba"
+    },
+    "research/direct/evaluate_latency58_controlled_deployed.py": {
+      "research_path": "research/direct/evaluate_latency58_controlled_deployed.py",
+      "sha256": "171a61aeb9cc3e19787dbf91627fdab10da124c3eee9dd32f86ff02dd6785b3c"
+    },
+    "research/direct/evaluate_latency58_controlled_deployed_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_controlled_deployed_parallel.py",
+      "sha256": "56e4a34d3bb49c60c419dba62ad2434fce3bb832b6ee6df488cc5fce33288814"
+    },
+    "research/direct/evaluate_latency58_controlled_deployed_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_controlled_deployed_probes.py",
+      "sha256": "0b79dfef16e45256c21466979ac7d598e06d04d5af39b0754f572a8ffda6912e"
+    },
+    "research/direct/evaluate_latency58_controlled_deployed_views.py": {
+      "research_path": "research/direct/evaluate_latency58_controlled_deployed_views.py",
+      "sha256": "e32bbc454ada600ceb8a8529e92734653bf01b78bd603bfd7e003888e5ee726d"
+    },
+    "research/direct/audit_latency58_controlled_deployed_training_match.py": {
+      "research_path": "research/direct/audit_latency58_controlled_deployed_training_match.py",
+      "sha256": "e38ae8a5ab749fb664c7cb0f140bd89f712dcdf5b6677f333ccc83272b58c50d"
+    },
+    "research/direct/run_latency58_controlled_deployed_quality.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_quality.py",
+      "sha256": "4a61191df183ab4375c6f92443c420114e1d1e62b84bb6702ca94c1dfd6fa328"
+    },
+    "research/direct/run_latency58_controlled_deployed_views.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_views.py",
+      "sha256": "833baa70dbf70d58038dc02212c8ad4ef60e0faccd70cc2f3844e3e7178d03f8"
+    },
+    "research/direct/report_latency58_controlled_deployed.py": {
+      "research_path": "research/direct/report_latency58_controlled_deployed.py",
+      "sha256": "60364941fc3c211d3639ec3db9d7095e77dd10cbc49473f1c9d8beec834387b3"
+    },
+    "research/direct/queue_latency58_controlled_deployed_quality.py": {
+      "research_path": "research/direct/queue_latency58_controlled_deployed_quality.py",
+      "sha256": "3fd280e15bb311c6868facf32bbfe23715ee61f3a2019132e9549540811cac19"
+    },
+    "research/direct/prepare_latency58_controlled_deployed_quality.py": {
+      "research_path": "research/direct/prepare_latency58_controlled_deployed_quality.py",
+      "sha256": "b91e194b7ebe2a58b334e3aa265882839b3a60fd7678569f67703992c48aa704"
+    },
+    "research/direct/runs/latency58/controlled-deployed-half-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/controlled-deployed-half-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "d5fdf8ee437c1fe49a76efd6841650930a5b1ca902ed0d77de48ec7fea61f7c2"
+    },
+    "research/direct/runs/latency58/controlled-deployed-half-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/controlled-deployed-half-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/check_latency58_controlled_deployed_supplements.py": {
+      "research_path": "research/direct/check_latency58_controlled_deployed_supplements.py",
+      "sha256": "635ecfd633896a001ec37dee91367aed8e99f6eb82e23ba5ccc1cd3d8c395fe5"
+    },
+    "research/direct/evaluate_latency58_quiet_deployed.py": {
+      "research_path": "research/direct/evaluate_latency58_quiet_deployed.py",
+      "sha256": "1d9f2c4411e4eea2664ac4997708e642e923f925d4ae9c87aa1c2b1a8cdb5869"
+    },
+    "research/direct/report_latency58_controlled_deployed_gain_error.py": {
+      "research_path": "research/direct/report_latency58_controlled_deployed_gain_error.py",
+      "sha256": "f27a265eda6be992f3fea956e33391d7c134343805ff4f2b6c8ecaa8df986ffe"
+    },
+    "research/direct/queue_latency58_quiet_deployed.py": {
+      "research_path": "research/direct/queue_latency58_quiet_deployed.py",
+      "sha256": "4633a7a8143a9ecc28620fe5b37845ed2d2ddf6ee0198cc20815f453c58b750b"
+    },
+    "research/direct/queue_latency58_controlled_deployed_supplements.py": {
+      "research_path": "research/direct/queue_latency58_controlled_deployed_supplements.py",
+      "sha256": "f98c6884babf2eed8f0e36cd44a6d445f8fce394aa47474197d433347249e2ea"
+    },
+    "research/direct/prepare_latency58_controlled_deployed_listening.py": {
+      "research_path": "research/direct/prepare_latency58_controlled_deployed_listening.py",
+      "sha256": "c76d4cb24899107d3099520e46fc51efd9bb291e5203a701572714d87bb4bff9"
+    },
+    "research/direct/audit_latency58_controlled_deployed_browser.py": {
+      "research_path": "research/direct/audit_latency58_controlled_deployed_browser.py",
+      "sha256": "8914bf84cf43acfce499273ea4b8529cecf05b46e737a9b15a9014076e4d1857"
+    },
+    "research/direct/run_latency58_controlled_deployed_listening.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_listening.py",
+      "sha256": "28a4e771023dd7c4b09c9f026b0f2b7ba20a1f61614d36142afb2e0fd1f56e52"
+    },
+    "research/direct/run_latency58_controlled_deployed_listening_v2.py": {
+      "research_path": "research/direct/run_latency58_controlled_deployed_listening_v2.py",
+      "sha256": "5d5bb5b8b1bc896dca38baa8aa5253e1b596cb7a641aa5a7b17771d860e0e1c8"
+    },
+    "research/direct/record_latency58_controlled_deployed_review.py": {
+      "research_path": "research/direct/record_latency58_controlled_deployed_review.py",
+      "sha256": "e1b519b1e0a1717a576e25b7325731b2d248d692f8abfea137acf71769bd9fb4"
+    },
+    "research/direct/audit_latency58_leader_cleanup.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup.py",
+      "sha256": "94b6ac0cebb265f5399969f0122a8b2749543d83c39f4edd70621821c5950b76"
+    },
+    "research/direct/prepare_latency58_leader_cleanup_training.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup_training.py",
+      "sha256": "7e66babbd4c46e693eaca3fba170b38af06da21207bdc64255c62ddd2507ae55"
+    },
+    "research/direct/check_latency58_leader_cleanup_model.py": {
+      "research_path": "research/direct/check_latency58_leader_cleanup_model.py",
+      "sha256": "921cfd60bb3aaf9b8f657ca1b57d7fb1d9e1c9b868440f5c30839be55cb94b3e"
+    },
+    "research/direct/train_latency58_leader_cleanup.py": {
+      "research_path": "research/direct/train_latency58_leader_cleanup.py",
+      "sha256": "ff731048456acb459df7bc02c445dbd08eb18b1704168d0e94658e9c1ee89007"
+    },
+    "research/direct/latency58_leader_cleanup_checkpoint.py": {
+      "research_path": "research/direct/latency58_leader_cleanup_checkpoint.py",
+      "sha256": "e7679355552de73bf3ed996adcd7f4247ed01651e3db0fb2f01e148575853a9c"
+    },
+    "research/direct/prepare_latency58_leader_cleanup.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup.py",
+      "sha256": "8b3bacf372375c7ac83979d8229ec3b9deb63b4cd8711c4e0997520b58a42e5b"
+    },
+    "research/direct/run_latency58_leader_cleanup_resource.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_resource.py",
+      "sha256": "5b136cbb69fd48fb2ab10bff98539d5301d5295fd73b9029ef812f65e2b1d117"
+    },
+    "research/direct/audit_latency58_leader_cleanup_resource.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup_resource.py",
+      "sha256": "d81cc814364fc3b2cc24c0e79052fa329ed48d54ccdc70ca09d401185150065d"
+    },
+    "research/direct/run_latency58_leader_cleanup_stage.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_stage.py",
+      "sha256": "81dc6084d33ba3e18f42f0695a843cef7a387ae46d217dfb53e58eecd946ffb5"
+    },
+    "research/direct/run_latency58_leader_cleanup_stage_v2.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_stage_v2.py",
+      "sha256": "fc9042b5fc0f8bc633c6c3562c605a4ab458825171c67d553e8648e5859f00da"
+    },
+    "research/direct/run_latency58_leader_cleanup_resource_v2.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_resource_v2.py",
+      "sha256": "6e86b31aaa6164e1359062c211fb3d3e8cb93f8f6382214289f2b39d53481d4b"
+    },
+    "research/direct/audit_latency58_leader_cleanup_v2.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup_v2.py",
+      "sha256": "b2bf2b21864044e65da822339b47ed0c502ceb49a6c0118f6529436662bfd23c"
+    },
+    "research/direct/check_latency58_leader_cleanup_model_v2.py": {
+      "research_path": "research/direct/check_latency58_leader_cleanup_model_v2.py",
+      "sha256": "074c5007b6c175dd5d87876fbb5c60b8ecea288a84c3e14eeecf7276226349e7"
+    },
+    "research/direct/prepare_latency58_leader_cleanup_training_v2.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup_training_v2.py",
+      "sha256": "2c75298fd9550002a77ddf4ca299285c77075eb292672ef6323466531a11ad5a"
+    },
+    "research/direct/audit_latency58_leader_cleanup_resource_v2.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup_resource_v2.py",
+      "sha256": "30c509322a70a5f22ade2f125b9dc3554ce12dcd81b9de5ca8ca6c20cdac9776"
+    },
+    "research/direct/prepare_latency58_leader_cleanup_v2.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup_v2.py",
+      "sha256": "e4b6bde434c2227c55f44286e146ad7469b47db90ff9ec516db6d75f441d94b1"
+    },
+    "research/direct/train_latency58_leader_cleanup_v2.py": {
+      "research_path": "research/direct/train_latency58_leader_cleanup_v2.py",
+      "sha256": "cbe654fb34c0f14e88b1e1cca4906ebbb97372a54788bf703cbe51640dff2f13"
+    },
+    "research/direct/latency58_leader_cleanup_checkpoint_v2.py": {
+      "research_path": "research/direct/latency58_leader_cleanup_checkpoint_v2.py",
+      "sha256": "95986e8de643db86f6bf2a55af3cb02a89c157a7bd4b618b75fef20954475a1b"
+    },
+    "research/direct/evaluate_latency58_leader_cleanup.py": {
+      "research_path": "research/direct/evaluate_latency58_leader_cleanup.py",
+      "sha256": "1a06ddd8f2ac8a23ccaa9e29c10422105072d293746788197ed83c63e4b3adad"
+    },
+    "research/direct/evaluate_latency58_leader_cleanup_parallel.py": {
+      "research_path": "research/direct/evaluate_latency58_leader_cleanup_parallel.py",
+      "sha256": "858e165f72a7a0b111d814aeb46fdca9811c312f67830bef66413b7a9f67ddcc"
+    },
+    "research/direct/evaluate_latency58_leader_cleanup_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_leader_cleanup_probes.py",
+      "sha256": "acc10e02997b703f7002f384a53e2691c5328545714ada4c109535727a67a9cd"
+    },
+    "research/direct/evaluate_latency58_leader_cleanup_views.py": {
+      "research_path": "research/direct/evaluate_latency58_leader_cleanup_views.py",
+      "sha256": "e93efa0d6ca293af5435384e31ab5f785695efab6870ff9c53982f28630e162a"
+    },
+    "research/direct/audit_latency58_leader_cleanup_training_match.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup_training_match.py",
+      "sha256": "f7b6f02d24440aa0414d1fb3b0ac4a721376cd63e16115593ac2f65da09f00fb"
+    },
+    "research/direct/run_latency58_leader_cleanup_quality.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_quality.py",
+      "sha256": "cc4dce7f1117a9cc68cdae640d6b1cc6d6e9de1c2ca4183142207ecc5545e48c"
+    },
+    "research/direct/run_latency58_leader_cleanup_views.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_views.py",
+      "sha256": "18d859c77f53b0c66886b848062b6fb51bac98bf71355168b65a4e393b5ff201"
+    },
+    "research/direct/report_latency58_leader_cleanup.py": {
+      "research_path": "research/direct/report_latency58_leader_cleanup.py",
+      "sha256": "b140ffab83844f3f8dfb1d78bfe3072fe03f3056bfecb5d8fbdf157c351eccf3"
+    },
+    "research/direct/queue_latency58_leader_cleanup_quality.py": {
+      "research_path": "research/direct/queue_latency58_leader_cleanup_quality.py",
+      "sha256": "3b6828d0df9ed9040d2a0896634cdeba5587233c47385d8684b04c7eef6cd6e1"
+    },
+    "research/direct/prepare_latency58_leader_cleanup_quality.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup_quality.py",
+      "sha256": "1531d133360993c20a3ad6c1fba189cddbd82a4c9754e191ecadfb425d8e7957"
+    },
+    "research/direct/runs/latency58/leader-cleanup-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/leader-cleanup-b16-micro4-lr3e5-250/checkpoints/step-000250/model.pt",
+      "sha256": "2c68804549a6285b4d15e727945b955f89aeeb1b456534c3d47398066aae60b7"
+    },
+    "research/direct/runs/latency58/leader-cleanup-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/leader-cleanup-b16-micro4-lr3e5-250/checkpoints/step-000250/rng.pt",
+      "sha256": "b261e17b03450d81a157895776d2597663587e0cff8087436951de1a3365853d"
+    },
+    "research/direct/record_latency58_leader_cleanup_review.py": {
+      "research_path": "research/direct/record_latency58_leader_cleanup_review.py",
+      "sha256": "718502bad23ce229f79235c167d291a4e19093e7061f9134dd55b26c42a9e8e8"
+    },
+    "research/direct/evaluate_latency58_quiet_leader_cleanup.py": {
+      "research_path": "research/direct/evaluate_latency58_quiet_leader_cleanup.py",
+      "sha256": "d9589a93f6c9b9a9832260783c33de3b28225a97b8bb45cf4439542d56ca8f48"
+    },
+    "research/direct/report_latency58_leader_cleanup_gain_error.py": {
+      "research_path": "research/direct/report_latency58_leader_cleanup_gain_error.py",
+      "sha256": "5a7950d613100125bc8f463734466d1794b4d565953ef61dba24e791cc0d9ba0"
+    },
+    "research/direct/check_latency58_leader_cleanup_supplements.py": {
+      "research_path": "research/direct/check_latency58_leader_cleanup_supplements.py",
+      "sha256": "15ed905730fc358f3489857910cc26f1d61806fad079907a71cfa4ac54acf711"
+    },
+    "research/direct/run_latency58_leader_cleanup_supplements.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_supplements.py",
+      "sha256": "f861dd67614eb6cab0af58039ef8ad3743624da6e130797c06073811c707fbe6"
+    },
+    "research/direct/prepare_latency58_leader_cleanup_listening.py": {
+      "research_path": "research/direct/prepare_latency58_leader_cleanup_listening.py",
+      "sha256": "4caccd8f3e23d64404e696fd1e30a75f7b341c174d26d724571999921d952b90"
+    },
+    "research/direct/run_latency58_leader_cleanup_listening.py": {
+      "research_path": "research/direct/run_latency58_leader_cleanup_listening.py",
+      "sha256": "76f2976922085380728d1c2f3825d52839289639e80024237dfa2d03ac340248"
+    },
+    "research/direct/check_latency58_leader_cleanup_listening.py": {
+      "research_path": "research/direct/check_latency58_leader_cleanup_listening.py",
+      "sha256": "367c8274d406e3cac76d3d0806b75eebe8d312a7bdbca6284200f4062191af8e"
+    },
+    "research/direct/audit_latency58_leader_cleanup_browser.py": {
+      "research_path": "research/direct/audit_latency58_leader_cleanup_browser.py",
+      "sha256": "7fd3aa7a154d2b6b8447ea3ecac4803a5d88d3c4eb4360d770ad5758efbde92d"
+    },
+    "research/direct/check_latency58_leader_cleanup_listening_v2.py": {
+      "research_path": "research/direct/check_latency58_leader_cleanup_listening_v2.py",
+      "sha256": "c77d7857d2d671c66b94091557227d3d70c2e013da271ce93b14ab643db13468"
+    },
+    "research/direct/runs/latency58/sdr-log-relative-b4-lr3e5-500/checkpoints/step-000250/model.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-log-relative-b4-lr3e5-500/checkpoints/step-000250/model.pt",
+      "sha256": "fc242da5d1373d1ded38ca3da9f53925c3a624e832af5b95bdad6ce09e351371"
+    },
+    "research/direct/runs/latency58/sdr-log-relative-b4-lr3e5-500/checkpoints/step-000250/rng.pt": {
+      "research_path": "research/direct/runs/latency58/sdr-log-relative-b4-lr3e5-500/checkpoints/step-000250/rng.pt",
+      "sha256": "ebe8d153f09a2b34d52730a37c4f0d0c23256e15bb2823046b88d0eb462af189"
+    },
+    "research/direct/run_latency58_log_relative_quality.py": {
+      "research_path": "research/direct/run_latency58_log_relative_quality.py",
+      "sha256": "96529e5093eac60fb794c627acf9691dcb62ac1226c766d735d93b0e82b33758"
+    },
+    "research/direct/evaluate_latency58_log_relative.py": {
+      "research_path": "research/direct/evaluate_latency58_log_relative.py",
+      "sha256": "d1eac5faaf05755fc6454647a8cb9c8f88169a0ac9f1ea75f5601268ebba1149"
+    },
+    "research/direct/evaluate_latency58_log_relative_probes.py": {
+      "research_path": "research/direct/evaluate_latency58_log_relative_probes.py",
+      "sha256": "b024035b91d26a54684b4ac50947d3319ce82e8b22f0d43d0b97f316a3717141"
+    },
+    "research/direct/report_latency58_log_relative.py": {
+      "research_path": "research/direct/report_latency58_log_relative.py",
+      "sha256": "650f354dda5f5f9688361b9f4a4072dad663e2a7c9fe925658b4f32f4aafe408"
+    },
+    "research/direct/retire_latency58_leader_cleanup_artifacts.py": {
+      "research_path": "research/direct/retire_latency58_leader_cleanup_artifacts.py",
+      "sha256": "8b82ae7524347d59f873bf3d3abc03967cf6c2ad8e849e4113cb5f0c7d846765"
+    },
+    "research/direct/check_latency58_vocal_export_metadata.py": {
+      "research_path": "research/direct/check_latency58_vocal_export_metadata.py",
+      "sha256": "55a0cdbe5fa179fac2ede4d5ee175be07908dcedfdea5a6f2409f15239f46bac"
+    },
+    "research/direct/export_latency58_sdr_candidate_v5.py": {
+      "research_path": "research/direct/export_latency58_sdr_candidate_v5.py",
+      "sha256": "ac7cdfd33a0077e4587102a8427d91c480313a40bbc7641d4bac53c82eac3f83"
+    },
+    "research/direct/export_latency58_sdr_candidate_v6.py": {
+      "research_path": "research/direct/export_latency58_sdr_candidate_v6.py",
+      "sha256": "d3c08af2f7529430e056ef176b6d2422a403c3b2e343e50b93b31074f9486d83"
     },
     "research/direct/export_latency58_teacher.py": {
       "research_path": "research/direct/export_latency58_teacher.py",
       "sha256": "75833e3e82fa6d07bcf9bfe368c1379cb898c1cbc2de03af03573686d51df0b2"
     },
-    "research/direct/latency58_teacher_checkpoint_v2.py": {
-      "research_path": "research/direct/latency58_teacher_checkpoint_v2.py",
-      "sha256": "1b8b2634e5f554f66b297492875c2aea16895b171bea977684b0c7fcf7296a81"
+    "research/direct/latency58_asymmetric_onnx.py": {
+      "research_path": "research/direct/latency58_asymmetric_onnx.py",
+      "sha256": "94bd348f69a6ba6f00f861708bf7c062ef1f3326160f3f539a13d491e15cd24f"
     },
-    "research/direct/canonicalize_latency58_teacher.py": {
-      "research_path": "research/direct/canonicalize_latency58_teacher.py",
-      "sha256": "206d4fd27a2b9b428a7ff6c893a577fedae6517c0786ca3b56e6eb76ee824bc6"
+    "research/direct/export_latency58_sdr_candidate_v7.py": {
+      "research_path": "research/direct/export_latency58_sdr_candidate_v7.py",
+      "sha256": "242a9410ccdf579969918a0477190975bf6c8bccaa27fccf7c1b3e8c11356a40"
     },
-    "research/direct/prepare_latency58_teacher_native.py": {
-      "research_path": "research/direct/prepare_latency58_teacher_native.py",
-      "sha256": "b485d226fe429dd554f0e0615678bc0c39ff40acb7a71109530d6b2d3af6de70"
+    "research/direct/check_latency58_leader_export_metadata.py": {
+      "research_path": "research/direct/check_latency58_leader_export_metadata.py",
+      "sha256": "f46b47f0019bfd3a9c83b8d3ccf7db456f1877aaedbaef37f12c908fcb09daf9"
+    },
+    "research/direct/run_latency58_leader_export_metadata.py": {
+      "research_path": "research/direct/run_latency58_leader_export_metadata.py",
+      "sha256": "6fe241daa8b0817b17fc2bf774b53fdf709af7363eb221d6b62cf7c6315d800d"
+    },
+    "research/direct/check_latency58_leader_export_metadata_v2.py": {
+      "research_path": "research/direct/check_latency58_leader_export_metadata_v2.py",
+      "sha256": "7ff29bce1f4287b15eca9c3a347a9efe046cc893a0fd25d4246d1f4c97f27148"
+    },
+    "research/direct/check_latency58_confirmation_v4.py": {
+      "research_path": "research/direct/check_latency58_confirmation_v4.py",
+      "sha256": "5a6207cbd2d60a214a908bb936d5503987b1d6e2f7a70b6932e35d303f590871"
+    },
+    "research/direct/evaluate_latency58_sdr_confirmation_v4.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_confirmation_v4.py",
+      "sha256": "2830743be36059093e869c4a231a20a3004d07c3b786bff0159bb8ab66c57c2c"
+    },
+    "research/direct/evaluate_latency58_sdr_confirmation_v3.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_confirmation_v3.py",
+      "sha256": "0cbca4da0b650d97c2e88ba9e0c57acbbb87e3abf71e993b5bcdd2935d8153a5"
+    },
+    "research/direct/evaluate_latency58_sdr_confirmation_v5.py": {
+      "research_path": "research/direct/evaluate_latency58_sdr_confirmation_v5.py",
+      "sha256": "11c19dd0ffc7ef105420962262c834fd761970262f263bff9c54606c2fe2e764"
+    },
+    "research/direct/check_latency58_confirmation_v5.py": {
+      "research_path": "research/direct/check_latency58_confirmation_v5.py",
+      "sha256": "7293db4a2bd9595da5c542fac400bce7390f2d3616a6d3f7d84490a9cd3a3638"
     }
   },
-  "model_state_sha256": "1daa6edb7be90eb641817b788b5540c89de57b125e454bdf463469ffcd3366ea",
+  "model_state_sha256": "c204b0fcb9627ca7fecd287db42fb869a1ae6783a1bc24cf2d8864c3b4a565fb",
   "torch": "2.8.0+cu128",
   "numpy": "2.2.6",
   "sample_rate": 44100,

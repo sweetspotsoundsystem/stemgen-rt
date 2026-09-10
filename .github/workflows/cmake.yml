@@ -7,7 +7,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main", "ax/cropped1024-11ms" ]
+    branches: [ "main", "ax/cropped1024-11ms", "ax/hop128-5ms-teacher" ]
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
