@@ -1,6 +1,6 @@
 # Working on StemgenRT
 
-StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. This experimental branch integrates the asymmetric-window hop128 teacher endpoint (5000 total updates). Its 128-sample graph delay plus 128 samples of asynchronous scheduling gives 256 samples / 5.80 ms at a 44.1 kHz / 128-sample prepared host configuration. Long native waveform parity passes; Linux realtime timing fails. Quality and listening acceptance and Apple M4 DAW timing are pending. The model contract's historical `QUALIFIED` variable prefix is an identity/ABI lock, not proof of platform qualification.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. This experimental branch integrates the asymmetric-window hop128 leader-cleanup endpoint (8250 total updates). Its 128-sample graph delay plus 128 samples of asynchronous scheduling gives 256 samples / 5.80 ms at a 44.1 kHz / 128-sample prepared host configuration. Primary SDR and reserved-interval confirmation improve over the working model. Long native waveform parity passes; Linux realtime timing fails. Listening acceptance and Apple M4 DAW timing for these weights remain pending. The model contract's historical `QUALIFIED` variable prefix is an identity/ABI lock, not proof of platform qualification. Preserve `ax/hop128-5ms-teacher` at `86562b9` as the working rollback.
 
 ## Commands
 
@@ -17,7 +17,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 55 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 99 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |

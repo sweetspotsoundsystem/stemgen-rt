@@ -2,9 +2,9 @@
 
 Separate a stereo mix into Drums, Bass, Other and Vocals in your DAW. Main carries the complete latency-aligned mix; the four stem outputs reconstruct it.
 
-This experimental branch bundles the **hop128 asymmetric-window teacher** model. With a **44.1 kHz session and a 128-sample host buffer**, it reports **256 samples / 5.80 ms** of delay. The real-time audio callback never waits for inference. Production inference runs on one dedicated worker with no ORT helper threads.
+This experimental branch bundles the **hop128 asymmetric-window model with vocal cleanup**. With a **44.1 kHz session and a 128-sample host buffer**, it reports **256 samples / 5.80 ms** of delay. The real-time audio callback never waits for inference. Production inference runs on one dedicated worker with no ORT helper threads.
 
-The model passes short export and long native waveform checks. It remains below the accepted 11.6 ms model on the fixed quality panel, and its bass probes are mixed. Listening acceptance and performance in the intended DAW on Apple M4 are pending. See [model provenance and validation](model/README.md) for the measurements.
+The model improves full-band SDR from **3.8466 to 4.0691 dB** on the fixed quality panel. Reserved intervals corroborate the gain, and controlled tests show less vocal/instrument spill. Local regressions remain, including some quiet instruments. Short export and long native waveform checks pass; listening acceptance and performance in the intended DAW on Apple M4 are pending for these weights. See [model provenance and validation](model/README.md) for the measurements. The prior working version remains on `ax/hop128-5ms-teacher` at `86562b9` for rollback.
 
 ## Use
 

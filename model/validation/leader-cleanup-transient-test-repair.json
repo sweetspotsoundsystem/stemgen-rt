@@ -1,0 +1,75 @@
+{
+  "schema": "hop128-transient-test-repair-v1",
+  "scope": "Test-only memory safety repair following the initial candidate Windows CI failure",
+  "failed_run_url": "https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/34443972523",
+  "initial_macos_build_bundle_checks_tests": "pass",
+  "initial_windows_build": "pass",
+  "initial_windows_test_suite": "fail",
+  "windows_failure": "2026-09-10T06:24:15.2208086Z 146/170 Test #146: OrtStreamingRuntimeTest.AlternatingRawLevelsAndSparseTransientsRemainFinite ...........................***Exception: SegFault  5.50 sec",
+  "old_statement": "firstTransient[1][233] = -0.7f;",
+  "new_statement": "firstTransient[1].at(233U % audio_plugin::kOutputChunkSize) = -0.7f;",
+  "explanation": "makeZeroAudioChunk allocates kOutputChunkSize = 128 floats in each channel. The old index 233 writes outside the right-channel vector. The corrected index is 105 and the write is bounds checked. Existing assertions and model/runtime processing are unchanged.",
+  "sanitizer_reproduction": {
+    "status": "pass",
+    "scope": "Extracted actual test allocation and write with actual generated contract; not a full-plugin sanitizer run",
+    "old_test_sha256": "7f936065a2b39bd1efbacb43505f1d121f11b27da25c9406db109bb2d5f6fe8e",
+    "fixed_test_sha256": "9511f00f40c9a6034146f523203e98c5b44d6f0d228225890652ef724f62c7a3",
+    "vector_samples": 128,
+    "old_index": 233,
+    "fixed_index": 105,
+    "results": {
+      "old": {
+        "compile_argv": [
+          "c++",
+          "-std=c++20",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-g",
+          "-O0",
+          "-fsanitize=address",
+          "-fno-omit-frame-pointer",
+          "-I/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms/plugin/include",
+          "-I/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms/build-release/generated",
+          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old.cpp",
+          "-o",
+          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old"
+        ],
+        "compile_exit_code": 0,
+        "actual_exit_code": 1,
+        "source_sha256": "7ab4ee1696738d371f255c62ea24be82156ac0818ce297f4a85b4643ee282d1e",
+        "diagnostic_heap_buffer_overflow": true
+      },
+      "fixed": {
+        "compile_argv": [
+          "c++",
+          "-std=c++20",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-g",
+          "-O0",
+          "-fsanitize=address",
+          "-fno-omit-frame-pointer",
+          "-I/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms/plugin/include",
+          "-I/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms/build-release/generated",
+          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-fixed.cpp",
+          "-o",
+          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-fixed"
+        ],
+        "compile_exit_code": 0,
+        "actual_exit_code": 0,
+        "source_sha256": "12766732a32804844543eabd8bafcb25ef8240bd3c96c3733651145f10a545cd",
+        "diagnostic_heap_buffer_overflow": false
+      }
+    }
+  },
+  "sanitizer_old_diagnostic": "=================================================================\n==7815==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x5150000006a4 at pc 0x640161de87a4 bp 0x7ffc4ca10d60 sp 0x7ffc4ca10d50\nWRITE of size 4 at 0x5150000006a4 thread T0\n    #0 0x640161de87a3 in main /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old.cpp:15\n    #1 0x7dccb2c2a1c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: 328820b908de8ea1ef79afa8995e302e819163d7)\n    #2 0x7dccb2c2a28a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: 328820b908de8ea1ef79afa8995e302e819163d7)\n    #3 0x640161de82e4 in _start (/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old+0x22e4) (BuildId: d60b0d0840c58a8b9b9b5aa8d5bcd1279f0fa294)\n\n0x5150000006a4 is located 420 bytes after 512-byte region [0x515000000300,0x515000000500)\nallocated by thread T0 here:\n    #0 0x7dccb34fe548 in operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95\n    #1 0x640161deaa55 in std::__new_allocator<float>::allocate(unsigned long, void const*) /usr/include/c++/13/bits/new_allocator.h:151\n    #2 0x640161dea7ef in std::allocator<float>::allocate(unsigned long) /usr/include/c++/13/bits/allocator.h:198\n    #3 0x640161dea7ef in std::allocator_traits<std::allocator<float> >::allocate(std::allocator<float>&, unsigned long) /usr/include/c++/13/bits/alloc_traits.h:482\n    #4 0x640161dea7ef in std::_Vector_base<float, std::allocator<float> >::_M_allocate(unsigned long) /usr/include/c++/13/bits/stl_vector.h:381\n    #5 0x640161dea26a in std::_Vector_base<float, std::allocator<float> >::_M_create_storage(unsigned long) /usr/include/c++/13/bits/stl_vector.h:398\n    #6 0x640161de9b70 in std::_Vector_base<float, std::allocator<float> >::_Vector_base(unsigned long, std::allocator<float> const&) /usr/include/c++/13/bits/stl_vector.h:335\n    #7 0x640161de90ce in std::vector<float, std::allocator<float> >::vector(unsigned long, float const&, std::allocator<float> const&) /usr/include/c++/13/bits/stl_vector.h:571\n    #8 0x640161de8dcd in std::vector<float, std::allocator<float> >::_M_fill_assign(unsigned long, float const&) /usr/include/c++/13/bits/vector.tcc:275\n    #9 0x640161de8bc8 in std::vector<float, std::allocator<float> >::assign(unsigned long, float const&) /usr/include/c++/13/bits/stl_vector.h:809\n    #10 0x640161de8567 in makeZeroAudioChunk() /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old.cpp:9\n    #11 0x640161de874b in main /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old.cpp:14\n    #12 0x7dccb2c2a1c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: 328820b908de8ea1ef79afa8995e302e819163d7)\n    #13 0x7dccb2c2a28a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: 328820b908de8ea1ef79afa8995e302e819163d7)\n    #14 0x640161de82e4 in _start (/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old+0x22e4) (BuildId: d60b0d0840c58a8b9b9b5aa8d5bcd1279f0fa294)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/leader-cleanup-plugin-linux-004/transient-index-old.cpp:15 in main\nShadow bytes around the buggy address:\n  0x515000000400: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x515000000480: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x515000000500: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000580: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000600: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n=>0x515000000680: fa fa fa fa[fa]fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000700: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000780: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000800: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000880: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x515000000900: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07 \n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==7815==ABORTING\n",
+  "retained_ci_logs": {
+    "run.json": "796e2df9f5b30fb2b6910b0eec1e418a0e531ea6474e54cbadbf794e44a84df0",
+    "windows-job.log": "160476a46f7af4e6ccfd5462bf9a8c488f87674d8ab9c7893f90e2c42af83416",
+    "macos-job.log": "89048c9647d4cbbaaf2970be55aee68dd9375e1f39c66eaa1e81a7f1cdbd7823"
+  },
+  "platform_retest": "A fresh Linux full-suite result and subsequent macOS/Windows CI run are required for the corrected source.",
+  "initial_commit": "66a16472c94c9ee6393171027a82499bf499dfdf"
+}
