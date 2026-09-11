@@ -6,25 +6,8 @@
 #include <new>
 #include <thread>
 
+#include "AudioPluginProcessorTestPeer.h"
 #include "RealtimeAllocationGuard.h"
-
-namespace audio_plugin {
-class AudioPluginProcessorTestPeer {
-public:
-#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
-  static void stopWorker(AudioPluginAudioProcessor& processor) {
-    processor.inferenceQueue_.stopThread();
-  }
-  static bool submissionCompleted(AudioPluginAudioProcessor& processor) {
-    const auto& queue = processor.inferenceQueue_;
-    const size_t index = (queue.writeIdx_.load(std::memory_order_acquire) +
-                          queue.queue_.size() - 1U) %
-                         queue.queue_.size();
-    return queue.queue_[index]->isProcessed();
-  }
-#endif
-};
-}  // namespace audio_plugin
 
 namespace audio_plugin_test {
 

@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <thread>
 
+#include "AudioPluginProcessorTestPeer.h"
+
 namespace audio_plugin_test {
 namespace {
 
@@ -66,12 +68,11 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
 
-  // Starting transport must create a clean stream generation. Give the worker
-  // comfortably more than one hop between callbacks so this validates state
-  // and timeline recovery rather than benchmarking the test machine.
+  // Starting transport must create a clean stream generation. Observe worker
+  // publication between real-time callbacks so this checks state/timeline
+  // recovery independently of inference speed or shared-runner scheduling.
   constexpr int kWarmupBlocks = 8;
   constexpr int kMeasureBlocks = 16;
-  constexpr auto kWorkerAllowance = std::chrono::milliseconds(20);
   int64_t playbackSample = 0;
   float maximumRetainedStemMagnitude = 0.0f;
   float maximumReconstructionError = 0.0f;
@@ -120,7 +121,18 @@ TEST(TransportUnderrunE2ETest,
     }
 
     playbackSample += kBlockSize;
-    std::this_thread::sleep_for(kWorkerAllowance);
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+    const auto deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!audio_plugin::AudioPluginProcessorTestPeer::submissionCompleted(
+               processor) &&
+           std::chrono::steady_clock::now() < deadline) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(audio_plugin::AudioPluginProcessorTestPeer::submissionCompleted(
+        processor))
+        << "Inference did not publish playback block " << block;
+#endif
   }
 
   EXPECT_GT(maximumRetainedStemMagnitude, 1.0e-3f)
@@ -130,6 +142,9 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSamplesInLastBlock(), 0U);
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
+  EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0U);
+  EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor.getMaximumSameCallbackWaitMicroseconds(), 0);
 
   // c91 needs one zero-input graph hop to flush the final playing hop. The
   // asynchronous queue adds a boundary: the first stopped callback submits
