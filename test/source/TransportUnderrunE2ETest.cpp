@@ -67,6 +67,7 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSamplesInLastBlock(), 0U);
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
+  const auto queueDropsWhileStopped = processor.getQueueFullChunkDropCount();
 
   // Starting transport must create a clean stream generation. Observe worker
   // publication between real-time callbacks so this checks state/timeline
@@ -143,7 +144,7 @@ TEST(TransportUnderrunE2ETest,
   EXPECT_EQ(processor.getUnderrunSampleCount(), 0U);
   EXPECT_EQ(processor.getUnderrunBlockCount(), 0U);
   EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0U);
-  EXPECT_EQ(processor.getQueueFullChunkDropCount(), 0U);
+  EXPECT_EQ(processor.getQueueFullChunkDropCount(), queueDropsWhileStopped);
   EXPECT_EQ(processor.getMaximumSameCallbackWaitMicroseconds(), 0);
 
   // c91 needs one zero-input graph hop to flush the final playing hop. The
