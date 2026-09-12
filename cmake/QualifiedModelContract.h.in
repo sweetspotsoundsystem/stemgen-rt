@@ -50,6 +50,8 @@ inline constexpr auto kInputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_INPUT_HIDDEN_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_NAME@",
 });
 inline constexpr auto kInputAudioShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_AUDIO_SHAPE@});
@@ -61,6 +63,10 @@ inline constexpr auto kInputSpectralTailShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_SHAPE@});
 inline constexpr auto kInputWaveformTailShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_SHAPE@});
+inline constexpr auto kInputAttentionKeysShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_SHAPE@});
+inline constexpr auto kInputAttentionValuesShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_SHAPE@});
 
 inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME@",
@@ -68,6 +74,8 @@ inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_NAME@",
 });
 inline constexpr auto kOutputSeparatedShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE@});
@@ -79,11 +87,20 @@ inline constexpr auto kOutputSpectralTailShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_SHAPE@});
 inline constexpr auto kOutputWaveformTailShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_SHAPE@});
+inline constexpr auto kOutputAttentionKeysShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_SHAPE@});
+inline constexpr auto kOutputAttentionValuesShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_SHAPE@});
 
 struct MetadataEntry {
   std::string_view key;
   std::string_view value;
 };
+
+inline constexpr std::size_t kAttentionKeyElements =
+    kInputAttentionKeysShape[0] * kInputAttentionKeysShape[1] * kInputAttentionKeysShape[2];
+inline constexpr std::size_t kAttentionValueElements =
+    kInputAttentionValuesShape[0] * kInputAttentionValuesShape[1] * kInputAttentionValuesShape[2];
 
 inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
     {"hs_tasnet.kind",
@@ -142,8 +159,12 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_GRAPH_QUALIFIED@)meta"},
     {"hs_tasnet.native_host_timing_qualified",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_NATIVE_HOST_TIMING_QUALIFIED@)meta"},
+    {"hs_tasnet.runtime_variant",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_RUNTIME_VARIANT@)meta"},
     {"hs_tasnet.output_policy",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_OUTPUT_POLICY@)meta"},
+    {"hs_tasnet.fixed_residual_share",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FIXED_RESIDUAL_SHARE@)meta"},
     {"hs_tasnet.source_order",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_SOURCE_ORDER@)meta"},
     {"hs_tasnet.state_names",
@@ -164,6 +185,42 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_SNAPSHOT_STEP@)meta"},
     {"hs_tasnet.training_updates",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_UPDATES@)meta"},
+    {"hs_tasnet.parent_checkpoint_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_CHECKPOINT_SHA256@)meta"},
+    {"hs_tasnet.parent_model_state_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_MODEL_STATE_SHA256@)meta"},
+    {"hs_tasnet.parent_training_updates",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_TRAINING_UPDATES@)meta"},
+    {"hs_tasnet.training_objective",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_OBJECTIVE@)meta"},
+    {"hs_tasnet.training_precision",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_PRECISION@)meta"},
+    {"hs_tasnet.current_stage_augmentation",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CURRENT_STAGE_AUGMENTATION@)meta"},
+    {"hs_tasnet.training_batch_size",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_BATCH_SIZE@)meta"},
+    {"hs_tasnet.training_microbatch_size",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_MICROBATCH_SIZE@)meta"},
+    {"hs_tasnet.gradient_accumulation_steps",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_GRADIENT_ACCUMULATION_STEPS@)meta"},
+    {"hs_tasnet.training_warmup_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_WARMUP_SAMPLES@)meta"},
+    {"hs_tasnet.training_scored_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_SCORED_SAMPLES@)meta"},
+    {"hs_tasnet.training_carried_state",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_CARRIED_STATE@)meta"},
+    {"hs_tasnet.online_teacher_used_in_current_stage",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ONLINE_TEACHER_USED_IN_CURRENT_STAGE@)meta"},
+    {"hs_tasnet.teacher_used_in_inference",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_USED_IN_INFERENCE@)meta"},
+    {"hs_tasnet.teacher_generated_targets_in_current_stage",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_GENERATED_TARGETS_IN_CURRENT_STAGE@)meta"},
+    {"hs_tasnet.additional_audio_buffering_samples",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_AUDIO_BUFFERING_SAMPLES@)meta"},
+    {"hs_tasnet.additional_state_tensors",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_STATE_TENSORS@)meta"},
+    {"hs_tasnet.architecture",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ARCHITECTURE@)meta"},
     {"hs_tasnet.exporter_sha256",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORTER_SHA256@)meta"},
     {"hs_tasnet.model_source_sha256",
@@ -172,6 +229,8 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORT_COPY_SOURCE_SHA256@)meta"},
     {"hs_tasnet.export_helpers_sha256",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORT_HELPERS_SHA256@)meta"},
+    {"hs_tasnet.checkpoint_loader_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_LOADER_SHA256@)meta"},
     {"hs_tasnet.fft_implementation",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_FFT_IMPLEMENTATION@)meta"},
     {"hs_tasnet.external_data",
@@ -184,106 +243,28 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_WAVEFORM_SYNTHESIS_WINDOW@)meta"},
     {"hs_tasnet.analysis_synthesis_product",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_ANALYSIS_SYNTHESIS_PRODUCT@)meta"},
-    {"hs_tasnet.asymmetric_training_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_ASYMMETRIC_TRAINING_UPDATES@)meta"},
-    {"hs_tasnet.training_objective",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_OBJECTIVE@)meta"},
-    {"hs_tasnet.teacher_weight",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_WEIGHT@)meta"},
-    {"hs_tasnet.teacher_model_state_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_MODEL_STATE_SHA256@)meta"},
-    {"hs_tasnet.teacher_used_in_inference",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_USED_IN_INFERENCE@)meta"},
-    {"hs_tasnet.checkpoint_loader_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_LOADER_SHA256@)meta"},
-    {"hs_tasnet.teacher_kind",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_KIND@)meta"},
-    {"hs_tasnet.sdr_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.context_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_CONTEXT_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.log_relative_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LOG_RELATIVE_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.log_relative_weight",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LOG_RELATIVE_WEIGHT@)meta"},
-    {"hs_tasnet.log_relative_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LOG_RELATIVE_VERSION@)meta"},
-    {"hs_tasnet.sdr_softcap_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_SOFTCAP_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.sdr_softcap_strong_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_SOFTCAP_STRONG_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.sdr_softcap_weight",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_SOFTCAP_WEIGHT@)meta"},
-    {"hs_tasnet.sdr_softcap_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_SOFTCAP_VERSION@)meta"},
-    {"hs_tasnet.sdr_softcap_error_ratio_floor",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_SDR_SOFTCAP_ERROR_RATIO_FLOOR@)meta"},
-    {"hs_tasnet.lr_restart_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LR_RESTART_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.accum_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_ACCUM_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.drum_accum_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DRUM_ACCUM_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.drum_emphasis_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DRUM_EMPHASIS_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.drum_weight",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DRUM_WEIGHT@)meta"},
-    {"hs_tasnet.drum_objective_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DRUM_OBJECTIVE_VERSION@)meta"},
-    {"hs_tasnet.trial_augmented_examples",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRIAL_AUGMENTED_EXAMPLES@)meta"},
-    {"hs_tasnet.trial_microbatches",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRIAL_MICROBATCHES@)meta"},
-    {"hs_tasnet.gradient_accumulation_steps",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_GRADIENT_ACCUMULATION_STEPS@)meta"},
-    {"hs_tasnet.training_microbatch_size",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_MICROBATCH_SIZE@)meta"},
-    {"hs_tasnet.context_used_only_during_training",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_CONTEXT_USED_ONLY_DURING_TRAINING@)meta"},
-    {"hs_tasnet.training_warmup_samples",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_WARMUP_SAMPLES@)meta"},
-    {"hs_tasnet.training_scored_samples",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_SCORED_SAMPLES@)meta"},
-    {"hs_tasnet.training_carried_state",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TRAINING_CARRIED_STATE@)meta"},
-    {"hs_tasnet.leader_cleanup_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LEADER_CLEANUP_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.vocal_focus_trial_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_VOCAL_FOCUS_TRIAL_UPDATES@)meta"},
-    {"hs_tasnet.counterfactual_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_COUNTERFACTUAL_VERSION@)meta"},
-    {"hs_tasnet.teacher_mode",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_MODE@)meta"},
-    {"hs_tasnet.teacher_batch_divisor",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_TEACHER_BATCH_DIVISOR@)meta"},
-    {"hs_tasnet.focused_augmentation",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_FOCUSED_AUGMENTATION@)meta"},
-    {"hs_tasnet.augmentation_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_AUGMENTATION_VERSION@)meta"},
-    {"hs_tasnet.local_mask_mixer",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_LOCAL_MASK_MIXER@)meta"},
-    {"hs_tasnet.additional_loss_version",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_LOSS_VERSION@)meta"},
-    {"hs_tasnet.additional_loss_weight",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_LOSS_WEIGHT@)meta"},
-    {"hs_tasnet.additional_loss_used_only_during_training",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_LOSS_USED_ONLY_DURING_TRAINING@)meta"},
-    {"hs_tasnet.deployed_truth_stem_weights",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DEPLOYED_TRUTH_STEM_WEIGHTS@)meta"},
-    {"hs_tasnet.deployed_truth_divisor",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_DEPLOYED_TRUTH_DIVISOR@)meta"},
-    {"hs_tasnet.parent_model_state_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_MODEL_STATE_SHA256@)meta"},
-    {"hs_tasnet.parent_checkpoint_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_CHECKPOINT_SHA256@)meta"},
-    {"hs_tasnet.parent_training_updates",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_TRAINING_UPDATES@)meta"},
-    {"hs_tasnet.reference_training_plan_sha256",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_REFERENCE_TRAINING_PLAN_SHA256@)meta"},
-    {"hs_tasnet.comparison_variable",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_COMPARISON_VARIABLE@)meta"},
-    {"hs_tasnet.matched_loss_effect_from_leader_claimed",
-     R"meta(@STEMGENRT_QUALIFIED_METADATA_MATCHED_LOSS_EFFECT_FROM_LEADER_CLAIMED@)meta"},
+    {"hs_tasnet.source_checkpoint_full14_sdr_db",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SOURCE_CHECKPOINT_FULL14_SDR_DB@)meta"},
+    {"hs_tasnet.source_checkpoint_full14_result_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_SOURCE_CHECKPOINT_FULL14_RESULT_SHA256@)meta"},
+    {"hs_tasnet.integer_weight_precision",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INTEGER_WEIGHT_PRECISION@)meta"},
+    {"hs_tasnet.activation_quantization",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ACTIVATION_QUANTIZATION@)meta"},
+    {"hs_tasnet.precise_node_count",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PRECISE_NODE_COUNT@)meta"},
+    {"hs_tasnet.inference_precision",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INFERENCE_PRECISION@)meta"},
+    {"hs_tasnet.floating_additional_layers",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_FLOATING_ADDITIONAL_LAYERS@)meta"},
+    {"hs_tasnet.refinement_silu_implementation",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_REFINEMENT_SILU_IMPLEMENTATION@)meta"},
+    {"hs_tasnet.integer_exporter_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INTEGER_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.integer_precision_transform_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_INTEGER_PRECISION_TRANSFORM_SHA256@)meta"},
+    {"hs_tasnet.embedded_quality_scope",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_EMBEDDED_QUALITY_SCOPE@)meta"},
 });
 
 static_assert(kInputAudioShape == std::array<std::int64_t, 3>{1, 2, 128});
@@ -298,7 +279,11 @@ static_assert(kOutputSpectralTailShape == kInputSpectralTailShape);
 static_assert(kOutputWaveformTailShape == kInputWaveformTailShape);
 static_assert(kAnalysisWindowSamples == kAnalysisHistorySamples + kHopSamples);
 static_assert(kSynthesisFrameSamples == 2 * kHopSamples);
-static_assert(kInputNames.size() == 5 && kOutputNames.size() == 5);
+static_assert(kInputNames.size() == 7 && kOutputNames.size() == 7);
+static_assert(kInputAttentionKeysShape == std::array<std::int64_t, 3>{1, 31, 64});
+static_assert(kInputAttentionValuesShape == std::array<std::int64_t, 3>{1, 31, 128});
+static_assert(kOutputAttentionKeysShape == kInputAttentionKeysShape);
+static_assert(kOutputAttentionValuesShape == kInputAttentionValuesShape);
 static_assert(kNumChannels == 2 && kNumStems == 4);
 static_assert(kSampleRate == 44100 && kHopSamples == 128);
 static_assert(kModelOutputDelayChunks == 1 && kAsyncQueueDelayChunks == 1);

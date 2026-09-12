@@ -1,0 +1,21 @@
+Running main() from /home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms/libs/googletest/googletest/src/gtest_main.cc
+Note: Google Test filter = OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuPerHop
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from OrtStreamingRuntimeTest
+[ RUN      ] OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuPerHop
+
+Stateful CPU hop timing (ORT 1.26.0): mean=3.24726 ms, p50=2.94329 ms, p95=4.73659 ms, p99=6.08591 ms, max=9.58591 ms, hop budget=2.90249 ms, deadline misses=265/500
+test/source/OrtRunBenchmarkTest.cpp:976: Failure
+Expected: (percentileFromSorted(runMilliseconds, 0.95)) < (hopBudgetMilliseconds), actual: 4.736590549999999 vs 2.9024943310657596
+
+[  FAILED  ] OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuPerHop (2291 ms)
+[----------] 1 test from OrtStreamingRuntimeTest (2291 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (2291 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] OrtStreamingRuntimeTest.DISABLED_BenchmarkStatefulCpuPerHop
+
+ 1 FAILED TEST
