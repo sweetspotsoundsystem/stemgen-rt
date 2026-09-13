@@ -2,11 +2,21 @@
 
 This revision uses the saved EMA checkpoint with two additional branch memories.
 The exported graph scores 4.455188 dB SDR; its source checkpoint scores
-4.465157 dB. See the [quality and validation report](model/README.md). This candidate keeps one
+4.465157 dB. See the [quality and validation report](model/README.md). This release keeps one
 inference worker, 44.1 kHz audio, 128-sample model hops and 256 samples of total
-latency with a 128-sample host buffer. It has no target-Mac timing result yet.
+latency with a 128-sample host buffer. The user reported successful M4 Pro testing
+of PR #13; released-AU testing on M4 and formal paced timing evidence remain pending.
 The model SHA-256 begins `d2945742d27f`. Results from the previous attention
 graph (`e354d24bfa0f`) or C204 must be recorded separately.
+
+## Test the released AU
+
+Download `StemgenRT-macOS-AU.zip` from the
+[v0.4.0 release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.4.0).
+Quit the DAW, extract the archive and replace the complete `StemgenRT.component`
+bundle in `~/Library/Audio/Plug-Ins/Components/`. Keep the previous bundle outside
+the plugin directory for rollback. Restart the DAW and use the audition checks
+below. The bundle includes the model and ONNX Runtime; a source build is optional.
 
 ## Build and collect machine evidence
 
@@ -15,7 +25,7 @@ authenticates its own dependencies and Release build. Install Xcode Command
 Line Tools, CMake, Ninja and Git LFS first. From a native arm64 Terminal:
 
 ```bash
-git clone --branch ax/best-model-m4-test https://github.com/sweetspotsoundsystem/stemgen-rt.git stemgen-rt-branch-memory
+git clone --branch v0.4.0 https://github.com/sweetspotsoundsystem/stemgen-rt.git stemgen-rt-branch-memory
 cd stemgen-rt-branch-memory
 git lfs pull
 ./scripts/qualify-macos.sh ../stemgenrt-branch-memory-m4-evidence
@@ -52,10 +62,9 @@ notes with the model/commit identity so timings can be attributed to this build.
 ## Return to C204
 
 The C204 baseline remains available at commit
-`6fc2382` (the base of this test branch). Keep its installer/build, or build that
+`6fc2382` (release v0.3.0). Keep its installer/build, or build that
 commit in a separate checkout and run its `scripts/install-plugins.sh --release`
 to restore the complete bundles. The installer replaces whole bundles; avoid
 copying files into an existing plugin bundle.
 
 The previous attention candidate is also available at `c848050` for comparison.
-Merge to main and release follow the target-Mac and DAW testing of this revision.

@@ -71,14 +71,15 @@ See the [model interface and validation](model/README.md) for details.
 
 Tests cover independent PyTorch waveform parity, streaming resets, partial
 final clips, sample alignment, queue recovery, output reconstruction, variable
-offline callbacks and C++ heap traffic in the audio callback. This branch is
-a test candidate; new-model validation and target-Mac timing are documented
-in [model/README.md](model/README.md).
+offline callbacks and C++ heap traffic in the audio callback. Model validation
+and target-Mac testing are documented in [model/README.md](model/README.md).
 
 Real-time performance depends on the machine and host load. Measurements of the
-previous model do not establish this model's deadlines. Follow the
+previous model do not establish this model's deadlines. The user reported
+successful M4 Pro testing of PR #13; released-AU testing on M4 and formal paced
+timing evidence remain pending. Follow the
 [M4 and M4 Pro test instructions](M4_TESTING.md) to collect timing and audition
-this candidate with the same single inference worker.
+this release with the same single inference worker.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).
