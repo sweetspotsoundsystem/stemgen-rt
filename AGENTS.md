@@ -1,6 +1,6 @@
 # Working on StemgenRT
 
-StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The model uses a 128-sample hop at 44.1 kHz with six persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The model uses a 128-sample hop at 44.1 kHz with eight persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging.
 
 ## Commands
 
@@ -17,7 +17,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all seven inputs, seven outputs, float32 static shapes and 81 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 84 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |
@@ -28,10 +28,12 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 | `waveform_tail` | `[1,4,2,128]` | `next_waveform_tail`: same shape |
 | `attention_keys` | `[1,31,64]` | `next_attention_keys`: same shape |
 | `attention_values` | `[1,31,128]` | `next_attention_values`: same shape |
+| `spec_memory_hidden` | `[1,1,500]` | `next_spec_memory_hidden`: same shape |
+| `waveform_memory_hidden` | `[1,1,500]` | `next_waveform_memory_hidden`: same shape |
 
-Initialize all six states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
+Initialize all eight states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
 
-The attention caches contain only received feature frames and add no audio queue.
+The attention caches and two branch memories contain only received features and add no audio queue. Fusion and branch GRU hidden states use the public scale 2^-18; carry returned values without rescaling.
 
 Only the inference worker advances/resets model state. Audio-thread resets invalidate epochs in bounded time; an in-flight old-epoch run must never publish into the new stream. Input sequence gaps reset state and create one invalid pre-roll result.
 

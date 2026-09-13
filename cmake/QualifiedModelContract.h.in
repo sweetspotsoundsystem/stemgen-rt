@@ -52,6 +52,8 @@ inline constexpr auto kInputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_NAME@",
     "@STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_SPEC_MEMORY_HIDDEN_NAME@",
+    "@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_MEMORY_HIDDEN_NAME@",
 });
 inline constexpr auto kInputAudioShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_AUDIO_SHAPE@});
@@ -67,6 +69,10 @@ inline constexpr auto kInputAttentionKeysShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_SHAPE@});
 inline constexpr auto kInputAttentionValuesShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_SHAPE@});
+inline constexpr auto kInputSpecMemoryHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_SPEC_MEMORY_HIDDEN_SHAPE@});
+inline constexpr auto kInputWaveformMemoryHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_INPUT_WAVEFORM_MEMORY_HIDDEN_SHAPE@});
 
 inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME@",
@@ -76,6 +82,8 @@ inline constexpr auto kOutputNames = std::to_array<std::string_view>({
     "@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_NAME@",
     "@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_SPEC_MEMORY_HIDDEN_NAME@",
+    "@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_MEMORY_HIDDEN_NAME@",
 });
 inline constexpr auto kOutputSeparatedShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE@});
@@ -91,6 +99,10 @@ inline constexpr auto kOutputAttentionKeysShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_SHAPE@});
 inline constexpr auto kOutputAttentionValuesShape = std::to_array<std::int64_t>(
     {@STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_SHAPE@});
+inline constexpr auto kOutputSpecMemoryHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_SPEC_MEMORY_HIDDEN_SHAPE@});
+inline constexpr auto kOutputWaveformMemoryHiddenShape = std::to_array<std::int64_t>(
+    {@STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_MEMORY_HIDDEN_SHAPE@});
 
 struct MetadataEntry {
   std::string_view key;
@@ -101,6 +113,11 @@ inline constexpr std::size_t kAttentionKeyElements =
     kInputAttentionKeysShape[0] * kInputAttentionKeysShape[1] * kInputAttentionKeysShape[2];
 inline constexpr std::size_t kAttentionValueElements =
     kInputAttentionValuesShape[0] * kInputAttentionValuesShape[1] * kInputAttentionValuesShape[2];
+
+inline constexpr std::size_t kSpecMemoryHiddenElements =
+    kInputSpecMemoryHiddenShape[0] * kInputSpecMemoryHiddenShape[1] * kInputSpecMemoryHiddenShape[2];
+inline constexpr std::size_t kWaveformMemoryHiddenElements =
+    kInputWaveformMemoryHiddenShape[0] * kInputWaveformMemoryHiddenShape[1] * kInputWaveformMemoryHiddenShape[2];
 
 inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
     {"hs_tasnet.kind",
@@ -221,6 +238,12 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_STATE_TENSORS@)meta"},
     {"hs_tasnet.architecture",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_ARCHITECTURE@)meta"},
+    {"hs_tasnet.checkpoint_weight_role",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_WEIGHT_ROLE@)meta"},
+    {"hs_tasnet.weight_averaging",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_WEIGHT_AVERAGING@)meta"},
+    {"hs_tasnet.public_branch_memory_state_scale",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PUBLIC_BRANCH_MEMORY_STATE_SCALE@)meta"},
     {"hs_tasnet.exporter_sha256",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_EXPORTER_SHA256@)meta"},
     {"hs_tasnet.model_source_sha256",
@@ -279,7 +302,11 @@ static_assert(kOutputSpectralTailShape == kInputSpectralTailShape);
 static_assert(kOutputWaveformTailShape == kInputWaveformTailShape);
 static_assert(kAnalysisWindowSamples == kAnalysisHistorySamples + kHopSamples);
 static_assert(kSynthesisFrameSamples == 2 * kHopSamples);
-static_assert(kInputNames.size() == 7 && kOutputNames.size() == 7);
+static_assert(kInputNames.size() == 9 && kOutputNames.size() == 9);
+static_assert(kInputSpecMemoryHiddenShape == std::array<std::int64_t, 3>{1, 1, 500});
+static_assert(kInputWaveformMemoryHiddenShape == kInputSpecMemoryHiddenShape);
+static_assert(kOutputSpecMemoryHiddenShape == kInputSpecMemoryHiddenShape);
+static_assert(kOutputWaveformMemoryHiddenShape == kInputWaveformMemoryHiddenShape);
 static_assert(kInputAttentionKeysShape == std::array<std::int64_t, 3>{1, 31, 64});
 static_assert(kInputAttentionValuesShape == std::array<std::int64_t, 3>{1, 31, 128});
 static_assert(kOutputAttentionKeysShape == kInputAttentionKeysShape);

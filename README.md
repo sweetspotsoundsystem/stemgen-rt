@@ -59,9 +59,11 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 
 ## Model and checks
 
-The model combines spectrogram and waveform estimates with recurrent context
-and causal attention over received features. Its integer deployment graph scores
-4.288488 dB SDR on the development panel, compared with 4.069079 dB for C204.
+The model combines spectrogram and waveform estimates with causal attention
+and separate recurrent memories for the two branches. The exported graph scores
+4.455188 dB SDR on the development panel; its source EMA checkpoint scores
+4.465157 dB. The [deployment report](model/quality-deployment.json) records the
+exact graph separately from its source checkpoint.
 It consumes raw stereo samples and preserves their level. The plugin applies a
 linked near-silence confidence fade, then calculates
 `Other = Main - Drums - Bass - Vocals` to preserve the complete mix.

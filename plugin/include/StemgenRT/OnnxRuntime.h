@@ -141,6 +141,8 @@ private:
   // Received feature history only; these caches add no audio buffering.
   std::vector<float> attentionKeys_;
   std::vector<float> attentionValues_;
+  std::vector<float> specMemoryHidden_;
+  std::vector<float> waveformMemoryHidden_;
   std::vector<float> previousAlignedInput_;
   std::vector<float> separatedOutputBuffer_;
   std::vector<float> nextAudioHistoryBuffer_;
@@ -149,6 +151,8 @@ private:
   std::vector<float> nextFusionHiddenBuffer_;
   std::vector<float> nextAttentionKeys_;
   std::vector<float> nextAttentionValues_;
+  std::vector<float> nextSpecMemoryHidden_;
+  std::vector<float> nextWaveformMemoryHidden_;
   std::array<OrtValue*, qualified_model::kInputNames.size()>
       inputTensorValues_{};
   std::array<OrtValue*, qualified_model::kOutputNames.size()>
