@@ -128,13 +128,13 @@ source hashes and test results. Training and CPU scoring ran concurrently.
 
 ## M4 and M4 Pro testing
 
-This revision has no quiet Linux or target-Mac timing qualification. The PR CI
-builds the macOS and Windows bundles; machine deadlines and DAW behavior need
-testing on the target Macs. Earlier attention-model and C204 timings do not
-qualify this larger graph.
+The user reported successful M4 Pro testing of PR #13 and approved its release.
+Testing the released AU on M4 remains pending. This report contains no inspected
+target-Mac timing capture or quiet Linux timing qualification for this revision.
+CI builds and tests the macOS and Windows bundles. Earlier attention-model and
+C204 timings do not qualify this larger graph.
 
 Use the [M4/M4 Pro instructions](../M4_TESTING.md) to collect evidence and audition
 with one inference worker. The runtime retains aligned fallback for late
 results. C204 at `6fc2382` and the prior attention candidate at `c848050` remain
-available for comparison and rollback. Main promotion and release follow the
-user's target-Mac and DAW tests.
+available for comparison and rollback.
