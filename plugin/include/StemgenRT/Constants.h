@@ -18,7 +18,7 @@ constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
 // Fixed model contract. The graph consumes one 128-sample hop and emits the
 // preceding hop while carrying 896-sample audio history, fusion-GRU and both
-// overlap tails.
+// overlap tails, two received-feature attention caches and two branch memories.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;

@@ -208,20 +208,32 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     return false;
   }
 
-  const std::array<std::vector<std::int64_t>, 5> expectedInputShapes = {{
-      toShapeVector(qualified_model::kInputAudioShape),
-      toShapeVector(qualified_model::kInputHistoryShape),
-      toShapeVector(qualified_model::kInputHiddenShape),
-      toShapeVector(qualified_model::kInputSpectralTailShape),
-      toShapeVector(qualified_model::kInputWaveformTailShape),
-  }};
-  const std::array<std::vector<std::int64_t>, 5> expectedOutputShapes = {{
-      toShapeVector(qualified_model::kOutputSeparatedShape),
-      toShapeVector(qualified_model::kOutputHistoryShape),
-      toShapeVector(qualified_model::kOutputHiddenShape),
-      toShapeVector(qualified_model::kOutputSpectralTailShape),
-      toShapeVector(qualified_model::kOutputWaveformTailShape),
-  }};
+  const std::array<std::vector<std::int64_t>,
+                   qualified_model::kInputNames.size()>
+      expectedInputShapes = {{
+          toShapeVector(qualified_model::kInputAudioShape),
+          toShapeVector(qualified_model::kInputHistoryShape),
+          toShapeVector(qualified_model::kInputHiddenShape),
+          toShapeVector(qualified_model::kInputSpectralTailShape),
+          toShapeVector(qualified_model::kInputWaveformTailShape),
+          toShapeVector(qualified_model::kInputAttentionKeysShape),
+          toShapeVector(qualified_model::kInputAttentionValuesShape),
+          toShapeVector(qualified_model::kInputSpecMemoryHiddenShape),
+          toShapeVector(qualified_model::kInputWaveformMemoryHiddenShape),
+      }};
+  const std::array<std::vector<std::int64_t>,
+                   qualified_model::kOutputNames.size()>
+      expectedOutputShapes = {{
+          toShapeVector(qualified_model::kOutputSeparatedShape),
+          toShapeVector(qualified_model::kOutputHistoryShape),
+          toShapeVector(qualified_model::kOutputHiddenShape),
+          toShapeVector(qualified_model::kOutputSpectralTailShape),
+          toShapeVector(qualified_model::kOutputWaveformTailShape),
+          toShapeVector(qualified_model::kOutputAttentionKeysShape),
+          toShapeVector(qualified_model::kOutputAttentionValuesShape),
+          toShapeVector(qualified_model::kOutputSpecMemoryHiddenShape),
+          toShapeVector(qualified_model::kOutputWaveformMemoryHiddenShape),
+      }};
 
   size_t inputCount = 0;
   size_t outputCount = 0;
@@ -685,6 +697,18 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
       !createTensor(inputTensorValues_[4], waveformTail_,
                     qualified_model::kInputWaveformTailShape,
                     qualified_model::kInputNames[4].data()) ||
+      !createTensor(inputTensorValues_[5], attentionKeys_,
+                    qualified_model::kInputAttentionKeysShape,
+                    qualified_model::kInputNames[5].data()) ||
+      !createTensor(inputTensorValues_[6], attentionValues_,
+                    qualified_model::kInputAttentionValuesShape,
+                    qualified_model::kInputNames[6].data()) ||
+      !createTensor(inputTensorValues_[7], specMemoryHidden_,
+                    qualified_model::kInputSpecMemoryHiddenShape,
+                    qualified_model::kInputNames[7].data()) ||
+      !createTensor(inputTensorValues_[8], waveformMemoryHidden_,
+                    qualified_model::kInputWaveformMemoryHiddenShape,
+                    qualified_model::kInputNames[8].data()) ||
       !createTensor(outputTensorValues_[0], separatedOutputBuffer_,
                     qualified_model::kOutputSeparatedShape,
                     qualified_model::kOutputNames[0].data()) ||
@@ -699,7 +723,19 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
                     qualified_model::kOutputNames[3].data()) ||
       !createTensor(outputTensorValues_[4], nextWaveformTail_,
                     qualified_model::kOutputWaveformTailShape,
-                    qualified_model::kOutputNames[4].data())) {
+                    qualified_model::kOutputNames[4].data()) ||
+      !createTensor(outputTensorValues_[5], nextAttentionKeys_,
+                    qualified_model::kOutputAttentionKeysShape,
+                    qualified_model::kOutputNames[5].data()) ||
+      !createTensor(outputTensorValues_[6], nextAttentionValues_,
+                    qualified_model::kOutputAttentionValuesShape,
+                    qualified_model::kOutputNames[6].data()) ||
+      !createTensor(outputTensorValues_[7], nextSpecMemoryHidden_,
+                    qualified_model::kOutputSpecMemoryHiddenShape,
+                    qualified_model::kOutputNames[7].data()) ||
+      !createTensor(outputTensorValues_[8], nextWaveformMemoryHidden_,
+                    qualified_model::kOutputWaveformMemoryHiddenShape,
+                    qualified_model::kOutputNames[8].data())) {
     releasePreallocatedTensorValues();
     return false;
   }
@@ -764,12 +800,22 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     spectralNumeratorTail_.resize(tailElements);
     waveformTail_.resize(tailElements);
     fusionHidden_.resize(hiddenElements);
+    attentionKeys_.resize(qualified_model::kAttentionKeyElements);
+    attentionValues_.resize(qualified_model::kAttentionValueElements);
+    specMemoryHidden_.resize(qualified_model::kSpecMemoryHiddenElements);
+    waveformMemoryHidden_.resize(
+        qualified_model::kWaveformMemoryHiddenElements);
     previousAlignedInput_.resize(audioElements);
     separatedOutputBuffer_.resize(separatedElements);
     nextAudioHistoryBuffer_.resize(historyElements);
     nextSpectralNumeratorTail_.resize(tailElements);
     nextWaveformTail_.resize(tailElements);
     nextFusionHiddenBuffer_.resize(hiddenElements);
+    nextAttentionKeys_.resize(qualified_model::kAttentionKeyElements);
+    nextAttentionValues_.resize(qualified_model::kAttentionValueElements);
+    nextSpecMemoryHidden_.resize(qualified_model::kSpecMemoryHiddenElements);
+    nextWaveformMemoryHidden_.resize(
+        qualified_model::kWaveformMemoryHiddenElements);
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -802,6 +848,10 @@ void OnnxRuntime::clearStreamingState() {
   std::fill(spectralNumeratorTail_.begin(), spectralNumeratorTail_.end(), 0.0f);
   std::fill(waveformTail_.begin(), waveformTail_.end(), 0.0f);
   std::fill(fusionHidden_.begin(), fusionHidden_.end(), 0.0f);
+  std::fill(attentionKeys_.begin(), attentionKeys_.end(), 0.0f);
+  std::fill(attentionValues_.begin(), attentionValues_.end(), 0.0f);
+  std::fill(specMemoryHidden_.begin(), specMemoryHidden_.end(), 0.0f);
+  std::fill(waveformMemoryHidden_.begin(), waveformMemoryHidden_.end(), 0.0f);
   std::fill(previousAlignedInput_.begin(), previousAlignedInput_.end(), 0.0f);
   hasPreviousAlignedInput_ = false;
 }
@@ -842,12 +892,23 @@ bool OnnxRuntime::runInference(
       spectralNumeratorTail_.size() != tailElements ||
       waveformTail_.size() != tailElements ||
       fusionHidden_.size() != hiddenElements ||
+      attentionKeys_.size() != qualified_model::kAttentionKeyElements ||
+      attentionValues_.size() != qualified_model::kAttentionValueElements ||
+      specMemoryHidden_.size() != qualified_model::kSpecMemoryHiddenElements ||
+      waveformMemoryHidden_.size() !=
+          qualified_model::kWaveformMemoryHiddenElements ||
       previousAlignedInput_.size() != audioElements ||
       separatedOutputBuffer_.size() != separatedElements ||
       nextAudioHistoryBuffer_.size() != historyElements ||
       nextSpectralNumeratorTail_.size() != tailElements ||
       nextWaveformTail_.size() != tailElements ||
       nextFusionHiddenBuffer_.size() != hiddenElements ||
+      nextAttentionKeys_.size() != qualified_model::kAttentionKeyElements ||
+      nextAttentionValues_.size() != qualified_model::kAttentionValueElements ||
+      nextSpecMemoryHidden_.size() !=
+          qualified_model::kSpecMemoryHiddenElements ||
+      nextWaveformMemoryHidden_.size() !=
+          qualified_model::kWaveformMemoryHiddenElements ||
       std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
                   [](const OrtValue* value) { return value == nullptr; }) ||
       std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
@@ -884,26 +945,21 @@ bool OnnxRuntime::runInference(
       }
     }
 
-    const std::array<const char*, 5> inputNames = {
-        qualified_model::kInputNames[0].data(),
-        qualified_model::kInputNames[1].data(),
-        qualified_model::kInputNames[2].data(),
-        qualified_model::kInputNames[3].data(),
-        qualified_model::kInputNames[4].data()};
-    const std::array<const char*, 5> outputNames = {
-        qualified_model::kOutputNames[0].data(),
-        qualified_model::kOutputNames[1].data(),
-        qualified_model::kOutputNames[2].data(),
-        qualified_model::kOutputNames[3].data(),
-        qualified_model::kOutputNames[4].data()};
-    const OrtValue* constInputValues[5] = {
-        inputTensorValues_[0], inputTensorValues_[1], inputTensorValues_[2],
-        inputTensorValues_[3], inputTensorValues_[4]};
-    std::array<OrtValue*, 5> runOutputValues = outputTensorValues_;
+    std::array<const char*, qualified_model::kInputNames.size()> inputNames{};
+    std::array<const char*, qualified_model::kOutputNames.size()> outputNames{};
+    std::array<const OrtValue*, qualified_model::kInputNames.size()>
+        constInputValues{};
+    for (size_t index = 0; index < inputNames.size(); ++index) {
+      inputNames[index] = qualified_model::kInputNames[index].data();
+      constInputValues[index] = inputTensorValues_[index];
+    }
+    for (size_t index = 0; index < outputNames.size(); ++index)
+      outputNames[index] = qualified_model::kOutputNames[index].data();
+    auto runOutputValues = outputTensorValues_;
 
     OrtStatus* runStatus =
         api->Run(ortSession_.get(), nullptr, inputNames.data(),
-                 constInputValues, inputNames.size(), outputNames.data(),
+                 constInputValues.data(), inputNames.size(), outputNames.data(),
                  outputNames.size(), runOutputValues.data());
 
     // With every output pre-bound, ORT must retain the supplied OrtValue
@@ -944,7 +1000,15 @@ bool OnnxRuntime::runInference(
         !allFinite(nextAudioHistoryBuffer_.data(), historyElements) ||
         !allFinite(nextSpectralNumeratorTail_.data(), tailElements) ||
         !allFinite(nextWaveformTail_.data(), tailElements) ||
-        !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements)) {
+        !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements) ||
+        !allFinite(nextAttentionKeys_.data(),
+                   qualified_model::kAttentionKeyElements) ||
+        !allFinite(nextAttentionValues_.data(),
+                   qualified_model::kAttentionValueElements) ||
+        !allFinite(nextSpecMemoryHidden_.data(),
+                   qualified_model::kSpecMemoryHiddenElements) ||
+        !allFinite(nextWaveformMemoryHidden_.data(),
+                   qualified_model::kWaveformMemoryHiddenElements)) {
       DBG("[ORT] Non-finite streaming output; resetting recurrent state");
       clearStreamingState();
       return false;
@@ -1039,6 +1103,14 @@ bool OnnxRuntime::runInference(
                 tailElements * sizeof(float));
     std::memcpy(fusionHidden_.data(), nextFusionHiddenBuffer_.data(),
                 hiddenElements * sizeof(float));
+    std::memcpy(attentionKeys_.data(), nextAttentionKeys_.data(),
+                qualified_model::kAttentionKeyElements * sizeof(float));
+    std::memcpy(attentionValues_.data(), nextAttentionValues_.data(),
+                qualified_model::kAttentionValueElements * sizeof(float));
+    std::memcpy(specMemoryHidden_.data(), nextSpecMemoryHidden_.data(),
+                qualified_model::kSpecMemoryHiddenElements * sizeof(float));
+    std::memcpy(waveformMemoryHidden_.data(), nextWaveformMemoryHidden_.data(),
+                qualified_model::kWaveformMemoryHiddenElements * sizeof(float));
     std::memcpy(previousAlignedInput_.data(), audioChunkBuffer_.data(),
                 audioElements * sizeof(float));
     hasPreviousAlignedInput_ = true;

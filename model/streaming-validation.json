@@ -1,0 +1,728 @@
+{
+  "schema": "stemgenrt-independent-streaming-validation-v2",
+  "oracle": "Independent NumPy reconstruction of ten signed weight projections; PyTorch int32 products; FP64 quantizer ancestors; FP32 public audio and eight states. ONNX Runtime is the backend under test, never the reference.",
+  "graph_sha256": "d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa",
+  "tolerances": {
+    "waveform_max_abs": 0.0001,
+    "stem_callback_rms": 1e-05,
+    "state_max_abs_decoded_units": 0.0005,
+    "reconstruction_max_abs": 1e-06
+  },
+  "short": {
+    "status": "pass",
+    "strict_parity_passed": true,
+    "checkpoint": {
+      "path": "research/direct/runs/latency58/branch-pitch-ema-002/production-run/checkpoint/model.pt",
+      "sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0"
+    },
+    "model_state_sha256": "2b123695bb86e92ef26e8e4fdab06069aecc5a55e8e26b171be25473a33208d5",
+    "graph_sha256": "d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa",
+    "graph_bytes": 48754181,
+    "reports": [
+      {
+        "case": "multitone_noise_then_silence_partial",
+        "physical_samples": 9253,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+        "source": null,
+        "calls": 74,
+        "flush_hops": 1,
+        "physical_samples_recovered": 9253,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 7.310882210731506e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 6.332993507385254e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 3.5390257835388184e-08,
+          "bass": 5.21540641784668e-08,
+          "vocals": 1.83936208486557e-08,
+          "other": 7.310882210731506e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 1.1746889354984962e-08,
+          "bass": 1.7593506329953055e-08,
+          "vocals": 4.172832584340947e-09,
+          "other": 2.907254157191371e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 8.350985553008432e-09,
+          "bass": 1.098427501336697e-08,
+          "vocals": 2.851576434440439e-09,
+          "other": 1.8321570728903306e-08
+        },
+        "maximum_closure": {
+          "reference": 1.862645149230957e-09,
+          "ort": 1.862645149230957e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "7b0afc9fca7ef3c77fe730f9257b47e7537475eb5c09f88b003f3965b2baef18",
+          "ort": "056bf460ad04003a893940046fc99617ca6e0ec1bb078aa045c944e7fe6a0d96"
+        },
+        "passed": true,
+        "optimization": "disabled",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "silence_from_reset",
+        "physical_samples": 1041,
+        "partial_hop_padding": 111,
+        "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+        "source": null,
+        "calls": 10,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1041,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 4.001776687800884e-11,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 0.0,
+          "next_waveform_tail": 4.3655745685100555e-11,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 1.4551915228366852e-11,
+          "bass": 2.7284841053187847e-11,
+          "vocals": 1.2505552149377763e-11,
+          "other": 4.001776687800884e-11
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 4.94748545826636e-12,
+          "bass": 8.05296674522039e-12,
+          "vocals": 4.076497060593046e-12,
+          "other": 1.395545547760561e-11
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 4.18826911863402e-12,
+          "bass": 5.9395707596141025e-12,
+          "vocals": 3.137094032023008e-12,
+          "other": 7.991853228898682e-12
+        },
+        "maximum_closure": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "90b578f031d5f97bd15009a19cf2bc4bc2b3b440a3162e9b0f5adf46d20a323c",
+          "ort": "cc1f7242c7e5f04dfcdc318ef67c78a450907598bf3b651fe68fec7dfcb21c88"
+        },
+        "passed": true,
+        "optimization": "disabled",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "dc_nyquist_offgrid_partial",
+        "physical_samples": 8229,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+        "source": null,
+        "calls": 66,
+        "flush_hops": 1,
+        "physical_samples_recovered": 8229,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 4.470348358154297e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 3.3527612686157227e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 2.3283064365386963e-10,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.9802322387695312e-08,
+          "bass": 2.60770320892334e-08,
+          "vocals": 1.4901161193847656e-08,
+          "other": 4.470348358154297e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 8.399405303443877e-09,
+          "bass": 7.991370102721984e-09,
+          "vocals": 3.335448995037807e-09,
+          "other": 1.596108299317578e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 6.758829370038226e-09,
+          "bass": 5.59148397651124e-09,
+          "vocals": 2.5378673301845088e-09,
+          "other": 1.2387728396924856e-08
+        },
+        "maximum_closure": {
+          "reference": 7.450580596923828e-09,
+          "ort": 7.450580596923828e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "8687b2ee4f99bba78ab04d28a7ee4ca3c6b16423d2eef9536f26fa690480df24",
+          "ort": "a2cbc7fbbf0238921cc0572d90c46ac63dc4eb166c525f50c8966c8e69ce83d4"
+        },
+        "passed": true,
+        "optimization": "disabled",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "boundary_and_last_sample_impulses",
+        "physical_samples": 933,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+        "source": null,
+        "calls": 9,
+        "flush_hops": 1,
+        "physical_samples_recovered": 933,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 2.9802322387695312e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 1.3969838619232178e-09,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.9802322387695312e-08,
+          "bass": 2.7939677238464355e-09,
+          "vocals": 2.7939677238464355e-09,
+          "other": 2.9802322387695312e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 4.010469837417068e-09,
+          "bass": 8.306282543016491e-10,
+          "vocals": 6.019355575716901e-10,
+          "other": 3.973765277217236e-09
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 2.407706444908482e-09,
+          "bass": 4.5037471841221487e-10,
+          "vocals": 3.6115524552367867e-10,
+          "other": 2.2836264774610447e-09
+        },
+        "maximum_closure": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "451f5eb59940108f09047058330d0c2d964bcecf7edba546d44f68f420de1a91",
+          "ort": "1a2525778f8677dc84bc6dcadb64db59db96832daefc83571737fdaf5a40a8a8"
+        },
+        "passed": true,
+        "optimization": "disabled",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "nonzero_history_hidden_and_both_tails",
+        "physical_samples": 1055,
+        "partial_hop_padding": 97,
+        "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+        "source": null,
+        "calls": 10,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1055,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 6.146728992462158e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 4.842877388000488e-08,
+          "next_waveform_tail": 2.7939677238464355e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.7939677238464355e-08,
+          "bass": 4.0978193283081055e-08,
+          "vocals": 1.1641532182693481e-08,
+          "other": 6.146728992462158e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 1.187163012677898e-08,
+          "bass": 1.4838726567136882e-08,
+          "vocals": 3.7109881514975833e-09,
+          "other": 2.6190221537875658e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 8.265720043810904e-09,
+          "bass": 9.627859986800615e-09,
+          "vocals": 2.6790756214527386e-09,
+          "other": 1.756621256752833e-08
+        },
+        "maximum_closure": {
+          "reference": 3.725290298461914e-09,
+          "ort": 3.725290298461914e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "edaa9d9dd73223d26999929fb54aa5f5dee7719be7c673b96a8d568939cee5a1",
+          "ort": "542d371ea882030719815ab8875dbf6a2411cbbd19d37dc7e3a4c2f519c8adcc"
+        },
+        "passed": true,
+        "optimization": "disabled",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "multitone_noise_then_silence_partial",
+        "physical_samples": 9253,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+        "source": null,
+        "calls": 74,
+        "flush_hops": 1,
+        "physical_samples_recovered": 9253,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 7.217749953269958e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 5.960464477539063e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 3.702007234096527e-08,
+          "bass": 4.470348358154297e-08,
+          "vocals": 1.83936208486557e-08,
+          "other": 7.217749953269958e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 1.1735396750017868e-08,
+          "bass": 1.7746336935190717e-08,
+          "vocals": 4.134400608483418e-09,
+          "other": 2.9027142691847933e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 8.294020501206032e-09,
+          "bass": 1.0981971179605392e-08,
+          "vocals": 2.8379195691216595e-09,
+          "other": 1.827369528256637e-08
+        },
+        "maximum_closure": {
+          "reference": 1.862645149230957e-09,
+          "ort": 1.862645149230957e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "7b0afc9fca7ef3c77fe730f9257b47e7537475eb5c09f88b003f3965b2baef18",
+          "ort": "5dda9f36634dda3a83ff40e2d85e87b7caa2bd240a3b8dd47e0f8bab70583e0b"
+        },
+        "passed": true,
+        "optimization": "all",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "silence_from_reset",
+        "physical_samples": 1041,
+        "partial_hop_padding": 111,
+        "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+        "source": null,
+        "calls": 10,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1041,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 3.2741809263825417e-11,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 0.0,
+          "next_waveform_tail": 4.001776687800884e-11,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 1.8189894035458565e-11,
+          "bass": 2.546585164964199e-11,
+          "vocals": 1.2732925824820995e-11,
+          "other": 3.2741809263825417e-11
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 5.090907998979665e-12,
+          "bass": 7.68986906950945e-12,
+          "vocals": 4.05287248312629e-12,
+          "other": 1.3815293474914083e-11
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 4.247064324537621e-12,
+          "bass": 5.825261000641882e-12,
+          "vocals": 3.150996363977934e-12,
+          "other": 8.02071202518453e-12
+        },
+        "maximum_closure": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "90b578f031d5f97bd15009a19cf2bc4bc2b3b440a3162e9b0f5adf46d20a323c",
+          "ort": "7c546741b6c07a572afa667de49e78a2a1febd03c0c3981ae936ca5a92f4d29c"
+        },
+        "passed": true,
+        "optimization": "all",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "dc_nyquist_offgrid_partial",
+        "physical_samples": 8229,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+        "source": null,
+        "calls": 66,
+        "flush_hops": 1,
+        "physical_samples_recovered": 8229,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 4.470348358154297e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 2.9802322387695312e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 2.3283064365386963e-10,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.9802322387695312e-08,
+          "bass": 2.7939677238464355e-08,
+          "vocals": 1.3969838619232178e-08,
+          "other": 4.470348358154297e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 8.499875704637825e-09,
+          "bass": 7.95290458419485e-09,
+          "vocals": 3.365197049129229e-09,
+          "other": 1.594802276475037e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 6.743464106502495e-09,
+          "bass": 5.601313318427561e-09,
+          "vocals": 2.534665936284323e-09,
+          "other": 1.2381689452788266e-08
+        },
+        "maximum_closure": {
+          "reference": 7.450580596923828e-09,
+          "ort": 7.450580596923828e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "8687b2ee4f99bba78ab04d28a7ee4ca3c6b16423d2eef9536f26fa690480df24",
+          "ort": "4180fc100b1716e106c6ed8e8046feb008f426cb1ce316985b15febb89cb84fc"
+        },
+        "passed": true,
+        "optimization": "all",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "boundary_and_last_sample_impulses",
+        "physical_samples": 933,
+        "partial_hop_padding": 91,
+        "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+        "source": null,
+        "calls": 9,
+        "flush_hops": 1,
+        "physical_samples_recovered": 933,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 2.9802322387695312e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 5.960464477539063e-08,
+          "next_waveform_tail": 1.3969838619232178e-09,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.9802322387695312e-08,
+          "bass": 2.7939677238464355e-09,
+          "vocals": 2.7939677238464355e-09,
+          "other": 2.9802322387695312e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 4.0106809405941e-09,
+          "bass": 8.291146546466238e-10,
+          "vocals": 6.160077562466033e-10,
+          "other": 3.95510142050064e-09
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 2.4277892485621274e-09,
+          "bass": 4.5000385488699783e-10,
+          "vocals": 3.6233725454964843e-10,
+          "other": 2.303092368546988e-09
+        },
+        "maximum_closure": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "451f5eb59940108f09047058330d0c2d964bcecf7edba546d44f68f420de1a91",
+          "ort": "3c7bbd8ef7674fc9f1010d24b3ae838aa6ecc70ec65e67ae2e254bf9ebc44235"
+        },
+        "passed": true,
+        "optimization": "all",
+        "reset_replay_bit_exact": true
+      },
+      {
+        "case": "nonzero_history_hidden_and_both_tails",
+        "physical_samples": 1055,
+        "partial_hop_padding": 97,
+        "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+        "source": null,
+        "calls": 10,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1055,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 5.960464477539063e-08,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 4.842877388000488e-08,
+          "next_waveform_tail": 2.9802322387695312e-08,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.7008354663848877e-08,
+          "bass": 3.748573362827301e-08,
+          "vocals": 1.3271346688270569e-08,
+          "other": 5.960464477539063e-08
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 1.1864841079796694e-08,
+          "bass": 1.4594512276568302e-08,
+          "vocals": 3.746736590426568e-09,
+          "other": 2.615373909068111e-08
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 8.248743973628525e-09,
+          "bass": 9.612618471022376e-09,
+          "vocals": 2.699032321108842e-09,
+          "other": 1.7598230142021313e-08
+        },
+        "maximum_closure": {
+          "reference": 3.725290298461914e-09,
+          "ort": 3.725290298461914e-09
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "edaa9d9dd73223d26999929fb54aa5f5dee7719be7c673b96a8d568939cee5a1",
+          "ort": "d7a7b43646982d677e3454fe07ae7a547837f562cf68400d89e1437917ac8ab0"
+        },
+        "passed": true,
+        "optimization": "all",
+        "reset_replay_bit_exact": true
+      }
+    ],
+    "source_bindings_unchanged": true,
+    "tolerances_changed": false,
+    "gpu_used": false,
+    "quality_measured": false,
+    "native_host_qualified": false,
+    "elapsed_seconds": 136.0578427410219,
+    "original_result_sha256": "8464145dd60c7c956443936a998932d380278dccd5ffb111c9848ed1159a4a15",
+    "execution": {
+      "actual_exit_code": 0,
+      "actual_session_id": 67207,
+      "actual_tool_chunk_id": "a97049",
+      "timed_out": false,
+      "source_bindings_unchanged": true,
+      "completion_evidence": "Unified exec session 67207 returned actual exit 0 in tool chunk a97049.",
+      "stdout_log": "research/direct/runs/latency58/branch-plugin-screen-001-ort126.log"
+    }
+  },
+  "long": {
+    "status": "pass",
+    "repetitions": [
+      {
+        "case": "recorded_music_30_seconds_partial",
+        "physical_samples": 1323037,
+        "partial_hop_padding": 99,
+        "decoded_input_sha256": "9bafc121a4efa98f00ed98bc3d644f1c8fc316fc8cefa7e995e3ebb6d42a77c5",
+        "source": {
+          "path": "data/musdb18hq/train/Actions - One Minute Smile/mixture.wav",
+          "sha256": "0a12fe67897976b2e2457e39102bc5e3394e4344e69e6eeb9c88e8ebeaf4b9d8"
+        },
+        "calls": 10338,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1323037,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 3.5762786865234375e-07,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 3.0547380447387695e-07,
+          "next_waveform_tail": 2.980232238769531e-07,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.384185791015625e-07,
+          "bass": 1.6391277313232422e-07,
+          "vocals": 1.564621925354004e-07,
+          "other": 3.5762786865234375e-07
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 6.192898828679736e-08,
+          "bass": 5.74606322972685e-08,
+          "vocals": 3.70948215841067e-08,
+          "other": 1.0141996336760621e-07
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 1.5505557513510843e-08,
+          "bass": 1.3649402555078663e-08,
+          "vocals": 1.6252400980556753e-08,
+          "other": 3.093041711483032e-08
+        },
+        "maximum_closure": {
+          "reference": 1.4901161193847656e-08,
+          "ort": 1.4901161193847656e-08
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "fd8e3098f22210ff135c79790a329504bb62a7fb1806a12a8cbc9d0dd552c642",
+          "ort": "1ab76f6ea8c23fe8485db456d4a44a8d5dcf3fc776289a0720e770a6bac32dda"
+        },
+        "passed": true
+      },
+      {
+        "case": "recorded_music_30_seconds_partial",
+        "physical_samples": 1323037,
+        "partial_hop_padding": 99,
+        "decoded_input_sha256": "9bafc121a4efa98f00ed98bc3d644f1c8fc316fc8cefa7e995e3ebb6d42a77c5",
+        "source": {
+          "path": "data/musdb18hq/train/Actions - One Minute Smile/mixture.wav",
+          "sha256": "0a12fe67897976b2e2457e39102bc5e3394e4344e69e6eeb9c88e8ebeaf4b9d8"
+        },
+        "calls": 10338,
+        "flush_hops": 1,
+        "physical_samples_recovered": 1323037,
+        "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+        "maximum_errors_in_physical_units": {
+          "separated_chunk": 3.5762786865234375e-07,
+          "next_audio_history": 0.0,
+          "next_fusion_hidden": 0.0,
+          "next_spectral_numerator_tail": 3.0547380447387695e-07,
+          "next_waveform_tail": 2.980232238769531e-07,
+          "next_attention_keys": 0.0,
+          "next_attention_values": 0.0,
+          "next_spec_memory_hidden": 0.0,
+          "next_waveform_memory_hidden": 0.0
+        },
+        "maximum_audio_error_by_stem": {
+          "drums": 2.384185791015625e-07,
+          "bass": 1.6391277313232422e-07,
+          "vocals": 1.564621925354004e-07,
+          "other": 3.5762786865234375e-07
+        },
+        "maximum_stem_callback_rms_by_stem": {
+          "drums": 6.192898828679736e-08,
+          "bass": 5.74606322972685e-08,
+          "vocals": 3.70948215841067e-08,
+          "other": 1.0141996336760621e-07
+        },
+        "trajectory_rms_error_by_stem": {
+          "drums": 1.5505557513510843e-08,
+          "bass": 1.3649402555078663e-08,
+          "vocals": 1.6252400980556753e-08,
+          "other": 3.093041711483032e-08
+        },
+        "maximum_closure": {
+          "reference": 1.4901161193847656e-08,
+          "ort": 1.4901161193847656e-08
+        },
+        "last_real_sample_reconstruction_error": {
+          "reference": 0.0,
+          "ort": 0.0
+        },
+        "all_output_and_state_trajectory_sha256": {
+          "reference": "fd8e3098f22210ff135c79790a329504bb62a7fb1806a12a8cbc9d0dd552c642",
+          "ort": "1ab76f6ea8c23fe8485db456d4a44a8d5dcf3fc776289a0720e770a6bac32dda"
+        },
+        "passed": true
+      }
+    ],
+    "reset_replay_all_outputs_and_states_bit_exact": true,
+    "checkpoint": {
+      "path": "research/direct/runs/latency58/branch-pitch-ema-002/production-run/checkpoint/model.pt",
+      "sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0"
+    },
+    "graph_sha256": "d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa",
+    "graph_saved": true,
+    "tolerances_changed": false,
+    "source_bindings_unchanged": true,
+    "parity_to_unquantized_fp32_source_claimed": false,
+    "native_host_qualified": false,
+    "elapsed_seconds": 706.0999969260301,
+    "original_result_sha256": "3d84241d51dcf3ac19cd47ab4d90480accb734ec47d6df84b56e3849046c0d83",
+    "execution": {
+      "actual_exit_code": 0,
+      "actual_session_id": 43696,
+      "actual_tool_chunk_id": "dcdd16",
+      "timed_out": false,
+      "source_bindings_unchanged": true,
+      "completion_evidence": "Unified exec session 43696 returned actual exit 0 in tool chunk dcdd16."
+    }
+  }
+}

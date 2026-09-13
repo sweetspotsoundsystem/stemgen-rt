@@ -311,9 +311,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 5U);
-  ASSERT_EQ(contract::kOutputNames.size(), 5U);
-  ASSERT_EQ(contract::kMetadata.size(), 99U);
+  ASSERT_EQ(contract::kInputNames.size(), 9U);
+  ASSERT_EQ(contract::kOutputNames.size(), 9U);
+  ASSERT_EQ(contract::kMetadata.size(), 84U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }

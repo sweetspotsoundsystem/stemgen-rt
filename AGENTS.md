@@ -1,6 +1,6 @@
 # Working on StemgenRT
 
-StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The model uses a 128-sample hop at 44.1 kHz with four persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The model uses a 128-sample hop at 44.1 kHz with eight persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging.
 
 ## Commands
 
@@ -17,7 +17,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all five inputs, five outputs, float32 static shapes and 99 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 84 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |
@@ -26,8 +26,14 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 | `fusion_hidden` | `[2,1,1000]` | `next_fusion_hidden`: same shape |
 | `spectral_numerator_tail` | `[1,4,2,128]` | `next_spectral_numerator_tail`: same shape |
 | `waveform_tail` | `[1,4,2,128]` | `next_waveform_tail`: same shape |
+| `attention_keys` | `[1,31,64]` | `next_attention_keys`: same shape |
+| `attention_values` | `[1,31,128]` | `next_attention_values`: same shape |
+| `spec_memory_hidden` | `[1,1,500]` | `next_spec_memory_hidden`: same shape |
+| `waveform_memory_hidden` | `[1,1,500]` | `next_waveform_memory_hidden`: same shape |
 
-Initialize all four states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
+Initialize all eight states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
+
+The attention caches and two branch memories contain only received features and add no audio queue. Fusion and branch GRU hidden states use the public scale 2^-18; carry returned values without rescaling.
 
 Only the inference worker advances/resets model state. Audio-thread resets invalidate epochs in bounded time; an in-flight old-epoch run must never publish into the new stream. Input sequence gaps reset state and create one invalid pre-roll result.
 
@@ -46,6 +52,6 @@ Only the inference worker advances/resets model state. Audio-thread resets inval
 
 Use C++20, Chromium clang-format and warnings as errors. Keep ONNX compile definitions PUBLIC because `PluginProcessor.h` has conditional class members and tests must exercise the same runtime layout.
 
-Streaming changes require model identity/ABI checks; all-four-stem PyTorch parity; first-call invalid pre-roll; one-flush/partial-EOF recovery; reset determinism; queue gap/epoch races; exact PDC/Main alignment; non-finite input handling; fallback reconstruction; and variable offline callback coverage. Fixtures are synthetic CPU FP32 PyTorch outputs with portable identity and format metadata in `test/fixtures/cropped1024-pytorch.json`. Keep the independent PyTorch reference; never regenerate expected outputs from ORT.
+Streaming changes require model identity/ABI checks; all-four-stem PyTorch parity; first-call invalid pre-roll; one-flush/partial-EOF recovery; reset determinism; queue gap/epoch races; exact PDC/Main alignment; non-finite input handling; fallback reconstruction; and variable offline callback coverage. Fixtures are synthetic float32 audio from independent CPU PyTorch reconstruction of the declared integer inference, with portable identity and format metadata in `test/fixtures/cropped1024-pytorch.json`. Keep the independent PyTorch reference; never regenerate expected outputs from ORT. Record deployment-graph quality separately from the source checkpoint's FP32 score.
 
 Keep timing qualification separate from correctness. The disabled paced test measures the complete plugin callback/worker path; direct `Run` timings alone cannot establish DAW readiness. Keep the concise model quality and timing limitations in `model/README.md`. Distinguish user-reported machine results from independently inspected evidence.

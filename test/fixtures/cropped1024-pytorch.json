@@ -1,7 +1,148 @@
 {
   "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
-  "fixture_sha256": "dd2ed2bf592af4474c7e53ec2e9c6b41cb97c07489fab1ef68da68bbff6fc9e4",
-  "model_state_sha256": "c204b0fcb9627ca7fecd287db42fb869a1ae6783a1bc24cf2d8864c3b4a565fb",
+  "fixture_sha256": "7874987d4336363047e8cd7718f70793a44debfc892987f0b10c334fe7b2ac97",
+  "generator_sha256": "f3ebd5754d7ad49c2673d69e429cfaa93c377e548cfa157a78caef3783157a12",
+  "selection_review_sha256": "8690bcc37947a259d2e1a99c212ac08c78eec3bbe1f8b362130dfe9c4e81d360",
+  "checkpoint_sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0",
+  "source_checkpoint_quality_result_sha256": "d5086c7956341bc21df39c08ff2492734a44329730fbb34c9cd05013b39de551",
+  "deployment_graph_sha256": "d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa",
+  "independent_integer_projections": [
+    {
+      "module": "conv_encode",
+      "initializer": "model.conv_encode.weight",
+      "source_float_sha256": "b6205cb7dc90ae55f8ac38b37669f6dbe5bcbd7d98c8ac1ece90816bc74ad349",
+      "quantized_matrix_sha256": "360d753b7deda5c10df2c2ea3e526267a21c2f0c18734f7a8a03393e21ea3765",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "basis_to_embed",
+      "initializer": "model.basis_to_embed.weight",
+      "source_float_sha256": "24b84cf888cc72371830f27701456432025d69452853dae56b36b32d77ad23e9",
+      "quantized_matrix_sha256": "bfe2f64d3a7250b566b5f0e63e7fc13c572890e6ab62a3a59b23909159b6bcd5",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "fusion_branch.weight_ih_l0",
+      "initializer": "model.fusion_branch.weight_ih_l0",
+      "source_float_sha256": "acefea6450716868af43febc30de5cddd6dc2cba5c590e1aab8438c367c081f2",
+      "quantized_matrix_sha256": "b126bf97b5440b1b86ab99f6bf3ca8d11fe16327d5c9b14dcf99b49854d1fd2f",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "fusion_branch.weight_ih_l1",
+      "initializer": "model.fusion_branch.weight_ih_l1",
+      "source_float_sha256": "04aca8d66eda9bfd93719601704c7e62e534d6de0aa959e26d2205141ce2e1de",
+      "quantized_matrix_sha256": "8aae9f33ae44a3b77754ef406142201f462221da3a34fa9ec8c3ca36a1c18b87",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "fusion_branch.weight_hh_l0",
+      "initializer": "model.fusion_branch.weight_hh_l0",
+      "source_float_sha256": "30cb2e395cc286b9c3d2288bac13a741733363727dfde18db31f8c2f7b5f5326",
+      "quantized_matrix_sha256": "5986fede0cedc52c7fa3e86c039f09b9b34749a9f436d9343d98d3a8fd23b900",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "fusion_branch.weight_hh_l1",
+      "initializer": "model.fusion_branch.weight_hh_l1",
+      "source_float_sha256": "3c44d2f6481d29935770efcd2a5021e55e5f84c3dd8bcbaf5681f4080a24678b",
+      "quantized_matrix_sha256": "5764fb65d733b5dcd979634d680c81d2cf67954fb110c837bcc5bfa67bbde192",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "spec_encode",
+      "initializer": "onnx::MatMul_741",
+      "source_float_sha256": "9a0a86b98e5554b5773a25d4ad4cc55510d713e301437e0fa4c435e4618c5d47",
+      "quantized_matrix_sha256": "50b9ce70db920cb0b435478a6ac91dcde51cd5cf320893143255b218928e0474",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "spec_encode.magnitude_projection",
+      "initializer": "onnx::MatMul_744",
+      "source_float_sha256": "8c03c74f5e05d011dcedeeef89d71c0fbb66270b0d0c7db42490ddcf197bba49",
+      "quantized_matrix_sha256": "addd8f2f649154c8cb42d4765da9c82f041c5303ca823d55ed0b36d4e51ba306",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "to_spec_masks",
+      "initializer": "onnx::MatMul_773",
+      "source_float_sha256": "9129f1c3b0bb3d27d04a7a40d220a37b6f8c51a21fd1b8c86b76cf37c5e37254",
+      "quantized_matrix_sha256": "76a42f80fae954e6f519432e93e4aace1dda5f6a692e45e6106606d30a846a21",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "to_waveform_masks",
+      "initializer": "onnx::MatMul_799",
+      "source_float_sha256": "a93e49845e1184b1cc4c85f0dda751b5d2d1f49f5da19c34c2d2eabd9e9a5809",
+      "quantized_matrix_sha256": "5fedbd68fff94a4a03ab362fd8b32dec379448f4b15ecb39e2ab2742ab6ebe95",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    }
+  ],
+  "state_names": [
+    "audio_history",
+    "fusion_hidden",
+    "spectral_numerator_tail",
+    "waveform_tail",
+    "attention_keys",
+    "attention_values",
+    "spec_memory_hidden",
+    "waveform_memory_hidden"
+  ],
+  "state_shapes": [
+    [
+      1,
+      2,
+      896
+    ],
+    [
+      2,
+      1,
+      1000
+    ],
+    [
+      1,
+      4,
+      2,
+      128
+    ],
+    [
+      1,
+      4,
+      2,
+      128
+    ],
+    [
+      1,
+      31,
+      64
+    ],
+    [
+      1,
+      31,
+      128
+    ],
+    [
+      1,
+      1,
+      500
+    ],
+    [
+      1,
+      1,
+      500
+    ]
+  ],
+  "model_state_sha256": "2b123695bb86e92ef26e8e4fdab06069aecc5a55e8e26b171be25473a33208d5",
   "torch": "2.8.0+cu128",
   "numpy": "2.2.6",
   "sample_rate": 44100,
@@ -22,6 +163,5 @@
     "vocals",
     "other"
   ],
-  "reference": "Original CPU FP32 PyTorch deployed outputs, zero state, one zero flush, cropped to real length. No ONNX execution.",
-  "model_sha256": "b8574ac2e67bcd1df533e3fc7464c0659d4bfa6744cfbb4389c0967271594fe3"
+  "reference": "Independent CPU PyTorch declared signed integer inference, reconstructed from source checkpoint weights. Eight float32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing only authenticates independently reconstructed weights. No ONNX Runtime import or execution."
 }

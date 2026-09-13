@@ -59,7 +59,11 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 
 ## Model and checks
 
-The model combines spectrogram and waveform estimates with recurrent context.
+The model combines spectrogram and waveform estimates with causal attention
+and separate recurrent memories for the two branches. The exported graph scores
+4.455188 dB SDR on the development panel; its source EMA checkpoint scores
+4.465157 dB. The [deployment report](model/quality-deployment.json) records the
+exact graph separately from its source checkpoint.
 It consumes raw stereo samples and preserves their level. The plugin applies a
 linked near-silence confidence fade, then calculates
 `Other = Main - Drums - Bass - Vocals` to preserve the complete mix.
@@ -67,13 +71,14 @@ See the [model interface and validation](model/README.md) for details.
 
 Tests cover independent PyTorch waveform parity, streaming resets, partial
 final clips, sample alignment, queue recovery, output reconstruction, variable
-offline callbacks and C++ heap traffic in the audio callback. Build and test
-checks pass on macOS and Windows for this model and DSP implementation.
+offline callbacks and C++ heap traffic in the audio callback. This branch is
+a test candidate; new-model validation and target-Mac timing are documented
+in [model/README.md](model/README.md).
 
-Real-time performance depends on the machine and host load. Reported Apple M4
-runs passed correctness checks but recorded occasional missed deadlines; the
-strict zero-miss timing test remains unmet. Linux paced timing also failed.
-To measure a target Mac, run `./scripts/qualify-macos.sh ../stemgenrt-evidence`.
+Real-time performance depends on the machine and host load. Measurements of the
+previous model do not establish this model's deadlines. Follow the
+[M4 and M4 Pro test instructions](M4_TESTING.md) to collect timing and audition
+this candidate with the same single inference worker.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

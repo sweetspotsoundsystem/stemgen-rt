@@ -1,0 +1,191 @@
+Running main() from /home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms/libs/googletest/googletest/src/gtest_main.cc
+Note: Google Test filter = RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from RealtimeStemSanityTest
+[ RUN      ] RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced
+STEMGENRT_PACED_FAILURE_PHASES counter_scope=warmup_plus_measured warmup_due_boundary_misses=13 measured_due_boundary_misses=2925 warmup_underrun_samples=1664 measured_underrun_samples=374400 warmup_output_discard_events=13 measured_output_discard_events=2894 retained_events=64 omitted_events=3930
+STEMGENRT_PACED_FAILURE_EVENT callback_index=8 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2897.58 current_start_lateness_us=95.837 previous_start_lateness_us=100.753
+STEMGENRT_PACED_FAILURE_EVENT callback_index=9 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2905.93 current_start_lateness_us=99.273 previous_start_lateness_us=95.837
+STEMGENRT_PACED_FAILURE_EVENT callback_index=19 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2909.07 current_start_lateness_us=100.685 previous_start_lateness_us=94.112
+STEMGENRT_PACED_FAILURE_EVENT callback_index=20 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2955.53 current_start_lateness_us=153.717 previous_start_lateness_us=100.685
+STEMGENRT_PACED_FAILURE_EVENT callback_index=21 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2847.85 current_start_lateness_us=99.076 previous_start_lateness_us=153.717
+STEMGENRT_PACED_FAILURE_EVENT callback_index=22 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2908.39 current_start_lateness_us=104.967 previous_start_lateness_us=99.076
+STEMGENRT_PACED_FAILURE_EVENT callback_index=30 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2902.61 current_start_lateness_us=98.568 previous_start_lateness_us=98.451
+STEMGENRT_PACED_FAILURE_EVENT callback_index=31 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2901.78 current_start_lateness_us=97.853 previous_start_lateness_us=98.568
+STEMGENRT_PACED_FAILURE_EVENT callback_index=40 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2919.76 current_start_lateness_us=114.047 previous_start_lateness_us=96.786
+STEMGENRT_PACED_FAILURE_EVENT callback_index=41 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2887.72 current_start_lateness_us=99.276 previous_start_lateness_us=114.047
+STEMGENRT_PACED_FAILURE_EVENT callback_index=51 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2910.1 current_start_lateness_us=100.609 previous_start_lateness_us=93.003
+STEMGENRT_PACED_FAILURE_EVENT callback_index=52 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2907.73 current_start_lateness_us=105.841 previous_start_lateness_us=100.609
+STEMGENRT_PACED_FAILURE_EVENT callback_index=60 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2885.16 current_start_lateness_us=81.652 previous_start_lateness_us=98.981
+STEMGENRT_PACED_FAILURE_EVENT callback_index=61 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2918.5 current_start_lateness_us=97.662 previous_start_lateness_us=81.652
+STEMGENRT_PACED_FAILURE_EVENT callback_index=74 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2900.87 current_start_lateness_us=103.117 previous_start_lateness_us=104.745
+STEMGENRT_PACED_FAILURE_EVENT callback_index=75 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2886.67 current_start_lateness_us=87.293 previous_start_lateness_us=103.117
+STEMGENRT_PACED_FAILURE_EVENT callback_index=76 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2905.96 current_start_lateness_us=90.759 previous_start_lateness_us=87.293
+STEMGENRT_PACED_FAILURE_EVENT callback_index=78 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2903.91 current_start_lateness_us=105.251 previous_start_lateness_us=103.83
+STEMGENRT_PACED_FAILURE_EVENT callback_index=79 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2893.54 current_start_lateness_us=96.294 previous_start_lateness_us=105.251
+STEMGENRT_PACED_FAILURE_EVENT callback_index=86 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2896.87 current_start_lateness_us=89.024 previous_start_lateness_us=94.651
+STEMGENRT_PACED_FAILURE_EVENT callback_index=87 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2905.33 current_start_lateness_us=91.859 previous_start_lateness_us=89.024
+STEMGENRT_PACED_FAILURE_EVENT callback_index=90 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2916.42 current_start_lateness_us=109.234 previous_start_lateness_us=95.312
+STEMGENRT_PACED_FAILURE_EVENT callback_index=91 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2894.57 current_start_lateness_us=101.311 previous_start_lateness_us=109.234
+STEMGENRT_PACED_FAILURE_EVENT callback_index=95 phase=warmup due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2914.54 current_start_lateness_us=107.654 previous_start_lateness_us=95.607
+STEMGENRT_PACED_FAILURE_EVENT callback_index=96 phase=warmup due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2898.96 current_start_lateness_us=104.123 previous_start_lateness_us=107.654
+STEMGENRT_PACED_FAILURE_EVENT callback_index=111 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2913.81 current_start_lateness_us=109.627 previous_start_lateness_us=98.312
+STEMGENRT_PACED_FAILURE_EVENT callback_index=112 phase=measured due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2889.46 current_start_lateness_us=96.597 previous_start_lateness_us=109.627
+STEMGENRT_PACED_FAILURE_EVENT callback_index=122 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2910.06 current_start_lateness_us=111.367 previous_start_lateness_us=103.8
+STEMGENRT_PACED_FAILURE_EVENT callback_index=123 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2894.41 current_start_lateness_us=103.282 previous_start_lateness_us=111.367
+STEMGENRT_PACED_FAILURE_EVENT callback_index=124 phase=measured due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2899.63 current_start_lateness_us=100.415 previous_start_lateness_us=103.282
+STEMGENRT_PACED_FAILURE_EVENT callback_index=132 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2909.07 current_start_lateness_us=103.011 previous_start_lateness_us=96.43
+STEMGENRT_PACED_FAILURE_EVENT callback_index=133 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2911.83 current_start_lateness_us=112.347 previous_start_lateness_us=103.011
+STEMGENRT_PACED_FAILURE_EVENT callback_index=134 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2888.3 current_start_lateness_us=98.15 previous_start_lateness_us=112.347
+STEMGENRT_PACED_FAILURE_EVENT callback_index=135 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2905.18 current_start_lateness_us=100.839 previous_start_lateness_us=98.15
+STEMGENRT_PACED_FAILURE_EVENT callback_index=136 phase=measured due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2905.45 current_start_lateness_us=103.798 previous_start_lateness_us=100.839
+STEMGENRT_PACED_FAILURE_EVENT callback_index=143 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2910.44 current_start_lateness_us=102.636 previous_start_lateness_us=94.694
+STEMGENRT_PACED_FAILURE_EVENT callback_index=144 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2903.29 current_start_lateness_us=103.428 previous_start_lateness_us=102.636
+STEMGENRT_PACED_FAILURE_EVENT callback_index=145 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2889.36 current_start_lateness_us=90.292 previous_start_lateness_us=103.428
+STEMGENRT_PACED_FAILURE_EVENT callback_index=146 phase=measured due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2915.93 current_start_lateness_us=103.726 previous_start_lateness_us=90.292
+STEMGENRT_PACED_FAILURE_EVENT callback_index=147 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2899.24 current_start_lateness_us=100.467 previous_start_lateness_us=103.726
+STEMGENRT_PACED_FAILURE_EVENT callback_index=148 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2893.34 current_start_lateness_us=91.31 previous_start_lateness_us=100.467
+STEMGENRT_PACED_FAILURE_EVENT callback_index=149 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2903.7 current_start_lateness_us=92.52 previous_start_lateness_us=91.31
+STEMGENRT_PACED_FAILURE_EVENT callback_index=150 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2900.19 current_start_lateness_us=90.215 previous_start_lateness_us=92.52
+STEMGENRT_PACED_FAILURE_EVENT callback_index=151 phase=measured due_boundary_misses=0 underrun_samples=0 output_discard_events=1 preceding_callback_spacing_us=2904.48 current_start_lateness_us=92.204 previous_start_lateness_us=90.215
+STEMGENRT_PACED_FAILURE_EVENT callback_index=154 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=0 preceding_callback_spacing_us=2903.83 current_start_lateness_us=92.344 previous_start_lateness_us=91.009
+STEMGENRT_PACED_FAILURE_EVENT callback_index=155 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2906.64 current_start_lateness_us=96.491 previous_start_lateness_us=92.344
+STEMGENRT_PACED_FAILURE_EVENT callback_index=156 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2898.55 current_start_lateness_us=92.543 previous_start_lateness_us=96.491
+STEMGENRT_PACED_FAILURE_EVENT callback_index=157 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2902.96 current_start_lateness_us=93.012 previous_start_lateness_us=92.543
+STEMGENRT_PACED_FAILURE_EVENT callback_index=158 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2900.57 current_start_lateness_us=91.088 previous_start_lateness_us=93.012
+STEMGENRT_PACED_FAILURE_EVENT callback_index=159 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2920.32 current_start_lateness_us=108.91 previous_start_lateness_us=91.088
+STEMGENRT_PACED_FAILURE_EVENT callback_index=160 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2893.27 current_start_lateness_us=99.682 previous_start_lateness_us=108.91
+STEMGENRT_PACED_FAILURE_EVENT callback_index=161 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2899.52 current_start_lateness_us=96.705 previous_start_lateness_us=99.682
+STEMGENRT_PACED_FAILURE_EVENT callback_index=162 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2900.51 current_start_lateness_us=94.72 previous_start_lateness_us=96.705
+STEMGENRT_PACED_FAILURE_EVENT callback_index=163 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2903.36 current_start_lateness_us=95.59 previous_start_lateness_us=94.72
+STEMGENRT_PACED_FAILURE_EVENT callback_index=164 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2897.42 current_start_lateness_us=90.52 previous_start_lateness_us=95.59
+STEMGENRT_PACED_FAILURE_EVENT callback_index=165 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2910.17 current_start_lateness_us=98.193 previous_start_lateness_us=90.52
+STEMGENRT_PACED_FAILURE_EVENT callback_index=166 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2905.26 current_start_lateness_us=100.957 previous_start_lateness_us=98.193
+STEMGENRT_PACED_FAILURE_EVENT callback_index=167 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2893.29 current_start_lateness_us=91.749 previous_start_lateness_us=100.957
+STEMGENRT_PACED_FAILURE_EVENT callback_index=168 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2909.51 current_start_lateness_us=98.761 previous_start_lateness_us=91.749
+STEMGENRT_PACED_FAILURE_EVENT callback_index=169 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2896.86 current_start_lateness_us=93.129 previous_start_lateness_us=98.761
+STEMGENRT_PACED_FAILURE_EVENT callback_index=170 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2899.02 current_start_lateness_us=89.652 previous_start_lateness_us=93.129
+STEMGENRT_PACED_FAILURE_EVENT callback_index=171 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2915.22 current_start_lateness_us=102.374 previous_start_lateness_us=89.652
+STEMGENRT_PACED_FAILURE_EVENT callback_index=172 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2902.6 current_start_lateness_us=102.479 previous_start_lateness_us=102.374
+STEMGENRT_PACED_FAILURE_EVENT callback_index=173 phase=measured due_boundary_misses=1 underrun_samples=128 output_discard_events=1 preceding_callback_spacing_us=2904.75 current_start_lateness_us=104.735 previous_start_lateness_us=102.479
+STEMGENRT_QUALIFICATION_SUMMARY status=fail warmup_callbacks=100 measured_callbacks=10000 worker_trace=enabled ort_intra_op_threads_override=0 ort_intra_op_threads=1 callback_samples=128 sample_rate=44100 pdc_samples=256 deadline_us=2902.494 min_us=3.968 mean_us=8.216 p50_us=7.754 p95_us=10.595 p99_us=23.444 p99.9_us=52.978 max_us=390.294 deadline_misses=0 start_interarrival_min_us=2496.514 start_interarrival_mean_us=2902.493 start_interarrival_p50_us=2902.041 start_interarrival_p95_us=2925.084 start_interarrival_p99_us=2994.005 start_interarrival_p99.9_us=3260.518 start_interarrival_max_us=3318.644 start_lateness_min_us=44.433 start_lateness_mean_us=99.481 start_lateness_p50_us=94.822 start_lateness_p95_us=121.314 start_lateness_p99_us=189.788 start_lateness_p99.9_us=445.833 start_lateness_max_us=506.352 start_deadline_misses=0 start_catchup_intervals=0 due_boundary_misses=2938 last_wait_us=0 max_wait_us=0 wait_budget_us=0 underrun_samples_last_block=0 underrun_samples=376064 underrun_blocks=2938 underrun_active=0 queue_full_drops=31 ring_overflow_events=2907 ring_overflow_samples=372096 unsafe_realtime_current=0 unsafe_realtime_callbacks=0 callback_priority=failed worker_priority=failed finite_outputs=1 reconstruction_max_abs=1.192092896e-07 drums_max_abs=2.941112518e-01 bass_max_abs=2.586318254e-01 vocals_max_abs=8.447690308e-02 drums_bass_max_abs_diff=2.658880949e-01 drums_vocals_max_abs_diff=3.025165200e-01 bass_vocals_max_abs_diff=2.623102963e-01
+test/source/RealtimeStemSanityTest.cpp:720: Failure
+Expected equality of these values:
+  dueBoundaryMisses
+    Which is: 2938
+  0U
+    Which is: 0
+Exact due results missed their asynchronous callback boundary
+
+test/source/RealtimeStemSanityTest.cpp:726: Failure
+Expected equality of these values:
+  underrunSamples
+    Which is: 376064
+  0U
+    Which is: 0
+
+test/source/RealtimeStemSanityTest.cpp:727: Failure
+Expected equality of these values:
+  underrunBlocks
+    Which is: 2938
+  0U
+    Which is: 0
+
+test/source/RealtimeStemSanityTest.cpp:729: Failure
+Expected equality of these values:
+  queueFullDrops
+    Which is: 31
+  0U
+    Which is: 0
+
+test/source/RealtimeStemSanityTest.cpp:730: Failure
+Expected equality of these values:
+  ringOverflowEvents
+    Which is: 2907
+  0U
+    Which is: 0
+
+test/source/RealtimeStemSanityTest.cpp:731: Failure
+Expected equality of these values:
+  ringOverflowSamples
+    Which is: 372096
+  0U
+    Which is: 0
+
+test/source/RealtimeStemSanityTest.cpp:734: Failure
+Value of: callbackPriorityApplied
+  Actual: false
+Expected: true
+Callback/test thread QoS was not independently observed as QOS_CLASS_USER_INTERACTIVE
+
+test/source/RealtimeStemSanityTest.cpp:737: Failure
+Expected equality of these values:
+  workerPriorityStatus
+    Which is: 1-byte object <02>
+  audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied
+    Which is: 1-byte object <01>
+
+test/source/RealtimeStemSanityTest.cpp:748: Failure
+Value of: qualificationPassed
+  Actual: false
+Expected: true
+
+STEMGENRT_WORKER_TIMING scope=measured_due_requests traced_samples=10070 omitted_samples=0 matched_measured_requests=9969 missing_measured_requests=31 duplicate_sequences=0 published_after_due_callback=2845 run_mean_us=2644.684 run_p99_us=3862.091 run_max_us=14837.362 process_cpu_scope=all_process_threads process_cpu_samples=9969 missing_cpu_samples=0 process_cpu_mean_us=2659.320 process_cpu_p99_us=3951.160 process_cpu_max_us=14982.000 dispatch_lower_p99_us=43634.961 dispatch_upper_p99_us=43644.907 dispatch_lower_max_us=71418.976 dispatch_upper_max_us=71432.264
+STEMGENRT_WORKER_FAILURE callback_index=8 input_sequence=7 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=180.622 dispatch_upper_us=189.255 run_us=2842.504 process_cpu_us=2875.000 post_run_to_publish_upper_us=4.422 publish_relative_due_start_lower_us=140.789 publish_relative_due_start_upper_us=140.819 publish_relative_due_finish_lower_us=135.304
+STEMGENRT_WORKER_FAILURE callback_index=19 input_sequence=18 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=120.814 dispatch_upper_us=129.337 run_us=2860.612 process_cpu_us=2894.000 post_run_to_publish_upper_us=4.361 publish_relative_due_start_lower_us=87.198 publish_relative_due_start_upper_us=87.228 publish_relative_due_finish_lower_us=80.350
+STEMGENRT_WORKER_FAILURE callback_index=21 input_sequence=20 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=102.561 dispatch_upper_us=113.049 run_us=2754.614 process_cpu_us=2782.000 post_run_to_publish_upper_us=3.539 publish_relative_due_start_lower_us=25.465 publish_relative_due_start_upper_us=25.485 publish_relative_due_finish_lower_us=19.349
+STEMGENRT_WORKER_FAILURE callback_index=30 input_sequence=29 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=126.982 dispatch_upper_us=135.464 run_us=2777.192 process_cpu_us=2811.000 post_run_to_publish_upper_us=3.619 publish_relative_due_start_lower_us=15.529 publish_relative_due_start_upper_us=15.569 publish_relative_due_finish_lower_us=7.598
+STEMGENRT_WORKER_FAILURE callback_index=40 input_sequence=39 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=162.112 dispatch_upper_us=169.622 run_us=2751.797 process_cpu_us=2753.000 post_run_to_publish_upper_us=4.231 publish_relative_due_start_lower_us=8.181 publish_relative_due_start_upper_us=8.201 publish_relative_due_finish_lower_us=1.273
+STEMGENRT_WORKER_FAILURE callback_index=51 input_sequence=50 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=86.675 dispatch_upper_us=94.365 run_us=2902.772 process_cpu_us=2938.000 post_run_to_publish_upper_us=4.632 publish_relative_due_start_lower_us=93.524 publish_relative_due_start_upper_us=93.544 publish_relative_due_finish_lower_us=86.887
+STEMGENRT_WORKER_FAILURE callback_index=60 input_sequence=59 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=161.641 dispatch_upper_us=175.187 run_us=2804.715 process_cpu_us=2838.000 post_run_to_publish_upper_us=2.928 publish_relative_due_start_lower_us=99.620 publish_relative_due_start_upper_us=99.640 publish_relative_due_finish_lower_us=94.036
+STEMGENRT_WORKER_FAILURE callback_index=74 input_sequence=73 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=45.344 dispatch_upper_us=54.758 run_us=3373.122 process_cpu_us=3405.000 post_run_to_publish_upper_us=3.760 publish_relative_due_start_lower_us=532.708 publish_relative_due_start_upper_us=532.729 publish_relative_due_finish_lower_us=527.093
+STEMGENRT_WORKER_FAILURE callback_index=75 input_sequence=74 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=527.865 dispatch_upper_us=533.480 run_us=2497.151 process_cpu_us=2520.000 post_run_to_publish_upper_us=3.298 publish_relative_due_start_lower_us=148.112 publish_relative_due_start_upper_us=148.142 publish_relative_due_finish_lower_us=143.941
+STEMGENRT_WORKER_FAILURE callback_index=78 input_sequence=77 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=172.670 dispatch_upper_us=181.252 run_us=2893.598 process_cpu_us=2930.000 post_run_to_publish_upper_us=3.138 publish_relative_due_start_lower_us=176.399 publish_relative_due_start_upper_us=176.429 publish_relative_due_finish_lower_us=168.810
+STEMGENRT_WORKER_FAILURE callback_index=86 input_sequence=85 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=32.320 dispatch_upper_us=41.715 run_us=2942.666 process_cpu_us=2969.000 post_run_to_publish_upper_us=3.289 publish_relative_due_start_lower_us=92.868 publish_relative_due_start_upper_us=92.918 publish_relative_due_finish_lower_us=87.935
+STEMGENRT_WORKER_FAILURE callback_index=90 input_sequence=89 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=88.620 dispatch_upper_us=97.293 run_us=2832.728 process_cpu_us=2867.000 post_run_to_publish_upper_us=4.031 publish_relative_due_start_lower_us=19.541 publish_relative_due_start_upper_us=19.591 publish_relative_due_finish_lower_us=14.257
+STEMGENRT_WORKER_FAILURE callback_index=95 input_sequence=94 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=103.128 dispatch_upper_us=110.959 run_us=2830.493 process_cpu_us=2868.000 post_run_to_publish_upper_us=3.960 publish_relative_due_start_lower_us=33.337 publish_relative_due_start_upper_us=33.367 publish_relative_due_finish_lower_us=26.088
+STEMGENRT_WORKER_FAILURE callback_index=111 input_sequence=110 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=123.433 dispatch_upper_us=132.346 run_us=2859.346 process_cpu_us=2899.000 post_run_to_publish_upper_us=3.406 publish_relative_due_start_lower_us=83.054 publish_relative_due_start_upper_us=83.084 publish_relative_due_finish_lower_us=75.630
+STEMGENRT_WORKER_FAILURE callback_index=122 input_sequence=121 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=102.606 dispatch_upper_us=125.329 run_us=3140.626 process_cpu_us=3186.000 post_run_to_publish_upper_us=3.888 publish_relative_due_start_lower_us=362.206 publish_relative_due_start_upper_us=362.236 publish_relative_due_finish_lower_us=355.774
+STEMGENRT_WORKER_FAILURE callback_index=123 input_sequence=122 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=356.585 dispatch_upper_us=363.017 run_us=2540.403 process_cpu_us=2577.000 post_run_to_publish_upper_us=4.118 publish_relative_due_start_lower_us=14.011 publish_relative_due_start_upper_us=14.041 publish_relative_due_finish_lower_us=7.870
+STEMGENRT_WORKER_FAILURE callback_index=132 input_sequence=131 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=79.595 dispatch_upper_us=87.239 run_us=3513.900 process_cpu_us=3554.000 post_run_to_publish_upper_us=3.586 publish_relative_due_start_lower_us=698.064 publish_relative_due_start_upper_us=698.094 publish_relative_due_finish_lower_us=691.231
+STEMGENRT_WORKER_FAILURE callback_index=133 input_sequence=132 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=691.522 dispatch_upper_us=698.355 run_us=3197.827 process_cpu_us=3248.000 post_run_to_publish_upper_us=4.178 publish_relative_due_start_lower_us=989.371 publish_relative_due_start_upper_us=989.401 publish_relative_due_finish_lower_us=982.498
+STEMGENRT_WORKER_FAILURE callback_index=134 input_sequence=133 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=982.869 dispatch_upper_us=989.742 run_us=2600.497 process_cpu_us=2633.000 post_run_to_publish_upper_us=3.847 publish_relative_due_start_lower_us=706.610 publish_relative_due_start_upper_us=706.630 publish_relative_due_finish_lower_us=701.611
+STEMGENRT_WORKER_FAILURE callback_index=135 input_sequence=134 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=701.842 dispatch_upper_us=706.841 run_us=2620.544 process_cpu_us=2657.000 post_run_to_publish_upper_us=3.887 publish_relative_due_start_lower_us=426.870 publish_relative_due_start_upper_us=426.890 publish_relative_due_finish_lower_us=420.628
+STEMGENRT_WORKER_FAILURE callback_index=143 input_sequence=142 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=183.392 dispatch_upper_us=190.836 run_us=3462.429 process_cpu_us=3505.000 post_run_to_publish_upper_us=4.569 publish_relative_due_start_lower_us=749.252 publish_relative_due_start_upper_us=749.272 publish_relative_due_finish_lower_us=741.748
+STEMGENRT_WORKER_FAILURE callback_index=144 input_sequence=143 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=742.158 dispatch_upper_us=749.662 run_us=2738.174 process_cpu_us=2776.000 post_run_to_publish_upper_us=3.697 publish_relative_due_start_lower_us=589.400 publish_relative_due_start_upper_us=589.430 publish_relative_due_finish_lower_us=582.517
+STEMGENRT_WORKER_FAILURE callback_index=145 input_sequence=144 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=582.898 dispatch_upper_us=589.781 run_us=2485.732 process_cpu_us=2514.000 post_run_to_publish_upper_us=3.897 publish_relative_due_start_lower_us=190.843 publish_relative_due_start_upper_us=190.863 publish_relative_due_finish_lower_us=185.252
+STEMGENRT_WORKER_FAILURE callback_index=147 input_sequence=146 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=111.689 dispatch_upper_us=122.069 run_us=3139.167 process_cpu_us=3172.000 post_run_to_publish_upper_us=3.547 publish_relative_due_start_lower_us=367.681 publish_relative_due_start_upper_us=367.712 publish_relative_due_finish_lower_us=360.858
+STEMGENRT_WORKER_FAILURE callback_index=148 input_sequence=147 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=361.189 dispatch_upper_us=368.012 run_us=2800.482 process_cpu_us=2831.000 post_run_to_publish_upper_us=3.907 publish_relative_due_start_lower_us=279.896 publish_relative_due_start_upper_us=279.926 publish_relative_due_finish_lower_us=273.264
+STEMGENRT_WORKER_FAILURE callback_index=149 input_sequence=148 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=273.554 dispatch_upper_us=280.186 run_us=2850.706 process_cpu_us=2887.000 post_run_to_publish_upper_us=4.518 publish_relative_due_start_lower_us=232.518 publish_relative_due_start_upper_us=232.538 publish_relative_due_finish_lower_us=225.895
+STEMGENRT_WORKER_FAILURE callback_index=150 input_sequence=149 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=226.196 dispatch_upper_us=232.819 run_us=2773.020 process_cpu_us=2800.000 post_run_to_publish_upper_us=4.198 publish_relative_due_start_lower_us=110.699 publish_relative_due_start_upper_us=110.729 publish_relative_due_finish_lower_us=105.229
+STEMGENRT_WORKER_FAILURE callback_index=154 input_sequence=153 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=92.739 dispatch_upper_us=100.414 run_us=3882.050 process_cpu_us=3923.000 post_run_to_publish_upper_us=5.260 publish_relative_due_start_lower_us=1085.708 publish_relative_due_start_upper_us=1085.738 publish_relative_due_finish_lower_us=1075.839
+STEMGENRT_WORKER_FAILURE callback_index=155 input_sequence=154 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1076.480 dispatch_upper_us=1086.349 run_us=3303.686 process_cpu_us=3342.000 post_run_to_publish_upper_us=4.989 publish_relative_due_start_lower_us=1489.605 publish_relative_due_start_upper_us=1489.625 publish_relative_due_finish_lower_us=1481.820
+STEMGENRT_WORKER_FAILURE callback_index=156 input_sequence=155 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1482.171 dispatch_upper_us=1489.956 run_us=2812.504 process_cpu_us=2846.000 post_run_to_publish_upper_us=3.246 publish_relative_due_start_lower_us=1408.312 publish_relative_due_start_upper_us=1408.342 publish_relative_due_finish_lower_us=1400.418
+STEMGENRT_WORKER_FAILURE callback_index=157 input_sequence=156 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1400.708 dispatch_upper_us=1408.602 run_us=2672.672 process_cpu_us=2701.000 post_run_to_publish_upper_us=3.366 publish_relative_due_start_lower_us=1182.459 publish_relative_due_start_upper_us=1182.489 publish_relative_due_finish_lower_us=1176.528
+STEMGENRT_WORKER_FAILURE callback_index=158 input_sequence=157 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1176.799 dispatch_upper_us=1182.730 run_us=2912.923 process_cpu_us=2946.000 post_run_to_publish_upper_us=5.260 publish_relative_due_start_lower_us=1201.043 publish_relative_due_start_upper_us=1201.134 publish_relative_due_finish_lower_us=1194.060
+STEMGENRT_WORKER_FAILURE callback_index=159 input_sequence=158 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1194.441 dispatch_upper_us=1201.424 run_us=3085.035 process_cpu_us=3137.000 post_run_to_publish_upper_us=4.909 publish_relative_due_start_lower_us=1372.004 publish_relative_due_start_upper_us=1372.074 publish_relative_due_finish_lower_us=1351.736
+STEMGENRT_WORKER_FAILURE callback_index=160 input_sequence=159 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1352.107 dispatch_upper_us=1372.375 run_us=2929.013 process_cpu_us=2965.000 post_run_to_publish_upper_us=5.210 publish_relative_due_start_lower_us=1414.153 publish_relative_due_start_upper_us=1414.183 publish_relative_due_finish_lower_us=1407.421
+STEMGENRT_WORKER_FAILURE callback_index=161 input_sequence=160 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1407.752 dispatch_upper_us=1414.484 run_us=2780.785 process_cpu_us=2813.000 post_run_to_publish_upper_us=4.428 publish_relative_due_start_lower_us=1301.031 publish_relative_due_start_upper_us=1301.061 publish_relative_due_finish_lower_us=1294.479
+STEMGENRT_WORKER_FAILURE callback_index=162 input_sequence=161 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1294.780 dispatch_upper_us=1301.332 run_us=2751.980 process_cpu_us=2783.000 post_run_to_publish_upper_us=4.519 publish_relative_due_start_lower_us=1158.123 publish_relative_due_start_upper_us=1158.153 publish_relative_due_finish_lower_us=1151.641
+STEMGENRT_WORKER_FAILURE callback_index=163 input_sequence=162 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1151.992 dispatch_upper_us=1158.474 run_us=2859.182 process_cpu_us=2891.000 post_run_to_publish_upper_us=3.176 publish_relative_due_start_lower_us=1118.309 publish_relative_due_start_upper_us=1118.339 publish_relative_due_finish_lower_us=1110.935
+STEMGENRT_WORKER_FAILURE callback_index=164 input_sequence=163 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1111.766 dispatch_upper_us=1119.140 run_us=3038.768 process_cpu_us=3068.000 post_run_to_publish_upper_us=4.659 publish_relative_due_start_lower_us=1265.965 publish_relative_due_start_upper_us=1265.995 publish_relative_due_finish_lower_us=1259.674
+STEMGENRT_WORKER_FAILURE callback_index=165 input_sequence=164 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1259.915 dispatch_upper_us=1266.206 run_us=2824.928 process_cpu_us=2859.000 post_run_to_publish_upper_us=4.949 publish_relative_due_start_lower_us=1186.767 publish_relative_due_start_upper_us=1186.797 publish_relative_due_finish_lower_us=1180.455
+STEMGENRT_WORKER_FAILURE callback_index=166 input_sequence=165 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1180.695 dispatch_upper_us=1187.007 run_us=2886.062 process_cpu_us=2909.000 post_run_to_publish_upper_us=4.238 publish_relative_due_start_lower_us=1172.981 publish_relative_due_start_upper_us=1173.001 publish_relative_due_finish_lower_us=1165.597
+STEMGENRT_WORKER_FAILURE callback_index=167 input_sequence=166 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1165.877 dispatch_upper_us=1173.261 run_us=2807.165 process_cpu_us=2837.000 post_run_to_publish_upper_us=3.827 publish_relative_due_start_lower_us=1091.819 publish_relative_due_start_upper_us=1091.849 publish_relative_due_finish_lower_us=1085.337
+STEMGENRT_WORKER_FAILURE callback_index=168 input_sequence=167 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=1085.627 dispatch_upper_us=1092.109 run_us=2675.086 process_cpu_us=2710.000 post_run_to_publish_upper_us=3.767 publish_relative_due_start_lower_us=862.268 publish_relative_due_start_upper_us=862.288 publish_relative_due_finish_lower_us=856.067
+STEMGENRT_WORKER_FAILURE callback_index=169 input_sequence=168 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=856.578 dispatch_upper_us=862.779 run_us=2621.295 process_cpu_us=2654.000 post_run_to_publish_upper_us=3.837 publish_relative_due_start_lower_us=591.881 publish_relative_due_start_upper_us=591.901 publish_relative_due_finish_lower_us=585.780
+STEMGENRT_WORKER_FAILURE callback_index=170 input_sequence=169 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=586.021 dispatch_upper_us=592.122 run_us=2824.557 process_cpu_us=2859.000 post_run_to_publish_upper_us=4.879 publish_relative_due_start_lower_us=523.322 publish_relative_due_start_upper_us=523.352 publish_relative_due_finish_lower_us=516.179
+STEMGENRT_WORKER_FAILURE callback_index=171 input_sequence=170 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=516.680 dispatch_upper_us=523.823 run_us=2863.650 process_cpu_us=2899.000 post_run_to_publish_upper_us=5.219 publish_relative_due_start_lower_us=478.298 publish_relative_due_start_upper_us=478.328 publish_relative_due_finish_lower_us=472.196
+STEMGENRT_WORKER_FAILURE callback_index=172 input_sequence=171 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=472.557 dispatch_upper_us=478.659 run_us=2874.660 process_cpu_us=2914.000 post_run_to_publish_upper_us=4.619 publish_relative_due_start_lower_us=456.201 publish_relative_due_start_upper_us=456.231 publish_relative_due_finish_lower_us=447.895
+STEMGENRT_WORKER_FAILURE callback_index=173 input_sequence=172 trace_found=1 epoch=1 inference_ok=1 dispatch_lower_us=448.346 dispatch_upper_us=456.652 run_us=2754.054 process_cpu_us=2790.000 post_run_to_publish_upper_us=4.148 publish_relative_due_start_lower_us=310.905 publish_relative_due_start_upper_us=310.935 publish_relative_due_finish_lower_us=303.972
+[  FAILED  ] RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced (29968 ms)
+[----------] 1 test from RealtimeStemSanityTest (29968 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (29969 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced
+
+ 1 FAILED TEST
