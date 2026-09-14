@@ -1,11 +1,10 @@
 {
   "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
-  "fixture_sha256": "7874987d4336363047e8cd7718f70793a44debfc892987f0b10c334fe7b2ac97",
-  "generator_sha256": "f3ebd5754d7ad49c2673d69e429cfaa93c377e548cfa157a78caef3783157a12",
-  "selection_review_sha256": "8690bcc37947a259d2e1a99c212ac08c78eec3bbe1f8b362130dfe9c4e81d360",
+  "fixture_sha256": "375a4b7c5887f5535efb9c2ddb0f4fe2f7e498b0009d21f35451d46744ae45ef",
+  "generator_sha256": "46cfd6b08cef8c449def819ea7b52395ebbc8d90e4e9d9d0f1f7972ac70f3135",
+  "plan_sha256": "f9b6a61ffca3b7581409497ed57d13fbf0328e57c77f81f3524684f5b0c153ab",
   "checkpoint_sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0",
-  "source_checkpoint_quality_result_sha256": "d5086c7956341bc21df39c08ff2492734a44329730fbb34c9cd05013b39de551",
-  "deployment_graph_sha256": "d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa",
+  "deployment_graph_sha256": "878c74694fa4c558de1c5a75837893a0afeadcf57f6e3b860d5904cab04e9fc9",
   "independent_integer_projections": [
     {
       "module": "conv_encode",
@@ -86,6 +85,42 @@
       "quantized_matrix_sha256": "5fedbd68fff94a4a03ab362fd8b32dec379448f4b15ecb39e2ab2742ab6ebe95",
       "weight_scale_zero_point_bit_exact": true,
       "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle"
+    },
+    {
+      "module": "spec_memory.weight_ih_l0",
+      "initializer": "model.spec_memory.weight_ih_l0",
+      "source_float_sha256": "01e64761bfa4b81c03ab53de8685afc50954cced61a76325631b0f5042e0b1b9",
+      "quantized_matrix_sha256": "100e16b5d85ed9a10f4f9d7bcf39e171e25de4ed4f15194698ba5e84b4889618",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
+      "bias_added_separately_in_fp64": true
+    },
+    {
+      "module": "spec_memory.weight_hh_l0",
+      "initializer": "model.spec_memory.weight_hh_l0",
+      "source_float_sha256": "bb79b431033c842c782f7836c28bca86decd69900b838c456180d9ec5956acd2",
+      "quantized_matrix_sha256": "f8b08aedf03224511d391ab00dffe4beba9d4ddb0a199ec5b743c817dd72c709",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
+      "bias_added_separately_in_fp64": true
+    },
+    {
+      "module": "waveform_memory.weight_ih_l0",
+      "initializer": "model.waveform_memory.weight_ih_l0",
+      "source_float_sha256": "0f7fc3238366ce087dade7b92c454199bba2c126055f8b2f2fb8c9bcd19d290e",
+      "quantized_matrix_sha256": "ab477986b30bb4f0df3982cc45a7f6b160a40e0c11d5374785c6ff80c1a50465",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
+      "bias_added_separately_in_fp64": true
+    },
+    {
+      "module": "waveform_memory.weight_hh_l0",
+      "initializer": "model.waveform_memory.weight_hh_l0",
+      "source_float_sha256": "f0af918e348635071f702a63621e6f067fd56dbc4f51f9bbadee31173c3ce782",
+      "quantized_matrix_sha256": "3bc9699f3671556e0dbb6375500a346f0269d6895a5e51df20357a47cf644150",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
+      "bias_added_separately_in_fp64": true
     }
   ],
   "state_names": [
@@ -163,5 +198,5 @@
     "vocals",
     "other"
   ],
-  "reference": "Independent CPU PyTorch declared signed integer inference, reconstructed from source checkpoint weights. Eight float32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing only authenticates independently reconstructed weights. No ONNX Runtime import or execution."
+  "reference": "Independent CPU PyTorch declared fourteen-projection signed integer inference, reconstructed from source checkpoint weights. Eight FP32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing authenticates reconstructed weights; runtime imports are actively rejected."
 }
