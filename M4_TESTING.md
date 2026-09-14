@@ -21,6 +21,21 @@ directory and a new evidence directory. The extended runner repeats 30-minute
 paced tests and retains machine/model/source identities, raw logs and exits.
 It does not qualify installed-DAW playback by itself.
 
+For a separate diagnostic of late worker acquisition, inference or publication,
+append `--trace` and use another evidence directory. Worker and callback timing
+storage covers the full requested 30 minutes (about 60 MB on 64-bit platforms).
+The test rejects traced runs exceeding its 128 MiB collection budget before
+starting the worker. It reports omitted samples, matched and missing measured
+requests, and allocated collection bytes. Worker statistics describe matched
+requests; missing requests can also result from a queue gap. Detailed failure
+events retain their existing 64-entry limit and report omissions. Total process
+CPU time includes other threads and is not worker CPU time alone.
+
+Tracing changes memory use and adds clock reads. Keep both default untraced
+soaks as the timing evidence; traced diagnostics help investigate their failures.
+This change only affects the test harness and runner. No physical M4 execution
+of the extended trace has been verified yet.
+
 In the DAW, record sample rate, buffer, workload, duration and cumulative
 fallback counters. Separate startup/reset increments from steady playback;
 require zero new steady-playback fallback. Include start/stop, seeks and loops,

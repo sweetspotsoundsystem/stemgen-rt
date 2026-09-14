@@ -5,17 +5,27 @@ set -euo pipefail
 
 if [[ "${1:-}" == "--help" ]]; then
     cat <<'EOF'
-Usage: bash run_latency58_macos_extended_soak.sh STEMGENRT_SOURCE NEW_OUTPUT_DIRECTORY
+Usage: bash scripts/extended-soak-macos.sh STEMGENRT_SOURCE NEW_OUTPUT_DIRECTORY [--trace]
 
 Run the existing paced callback/worker test twice, each with at least 30 minutes
 of measured callbacks. Requires native arm64 macOS and an existing Release
 AudioPluginTest build. Preserve the build's correctness/identity evidence too.
 The raw logs retain startup and measured fallback counters separately.
+Use --trace for a separate diagnostic run with complete worker timing storage.
+Tracing adds memory and clock reads; retain the default untraced timing runs.
 This synthetic-host test does not establish installed-AU or DAW acceptance.
 EOF
     exit 0
 fi
-[[ $# -eq 2 ]] || { echo "Expected source and new output directories" >&2; exit 2; }
+[[ $# -eq 2 || ( $# -eq 3 && "$3" == --trace ) ]] || {
+    echo "Expected source, new output directory, and optional --trace" >&2; exit 2;
+}
+SOAK_TRACE=0
+SOAK_TRACE_NAME=disabled
+if [[ "${3:-}" == --trace ]]; then
+    SOAK_TRACE=1
+    SOAK_TRACE_NAME=enabled
+fi
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || {
     echo "This measurement requires a native arm64 Mac; no timing test was run." >&2
     exit 2
@@ -67,7 +77,7 @@ git -C "$SOAK_SOURCE" rev-parse HEAD > "$SOAK_OUTPUT/source-commit.txt"
     date -u '+observed_utc=%Y-%m-%dT%H:%M:%SZ'
     sw_vers
     sysctl machdep.cpu.brand_string hw.physicalcpu hw.logicalcpu
-    printf 'measured_callbacks_per_run=%s\nrepetitions=2\nworker_trace=disabled\n' "$SOAK_CALLBACKS"
+    printf 'measured_callbacks_per_run=%s\nrepetitions=2\nworker_trace=%s\n' "$SOAK_CALLBACKS" "$SOAK_TRACE_NAME"
     printf 'scope=synthetic_host_not_installed_AU_or_DAW\n'
 } > "$SOAK_OUTPUT/machine-and-scope.txt"
 (
@@ -75,6 +85,7 @@ git -C "$SOAK_SOURCE" rev-parse HEAD > "$SOAK_OUTPUT/source-commit.txt"
     shasum -a 256 build-release/test/AudioPluginTest model/model.onnx \
         cmake/QualifiedModelContract.cmake test/source/RealtimeStemSanityTest.cpp \
         test/source/PacedQualificationTrace.h plugin/source/InferenceQueue.cpp \
+        plugin/include/StemgenRT/WorkerTimingTrace.h scripts/extended-soak-macos.sh \
         plugin/source/OnnxRuntime.cpp libs/onnxruntime/lib/libonnxruntime.dylib
 ) > "$SOAK_OUTPUT/inputs.sha256"
 SOAK_RESULT=0
@@ -87,7 +98,7 @@ for SOAK_REPETITION in 1 2; do
     (
         cd "$SOAK_SOURCE"
         env STEMGENRT_QUALIFICATION_CALLBACKS="$SOAK_CALLBACKS" \
-            STEMGENRT_TRACE_WORKER=0 STEMGENRT_PACED_ORT_THREADS=0 \
+            STEMGENRT_TRACE_WORKER="$SOAK_TRACE" STEMGENRT_PACED_ORT_THREADS=0 \
             "$SOAK_BINARY" --gtest_also_run_disabled_tests \
             --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
             "--gtest_output=xml:$SOAK_PREFIX.xml"
@@ -105,11 +116,25 @@ for SOAK_REPETITION in 1 2; do
           "$SOAK_SUMMARY" != *" warmup_callbacks=100 "* ||
           "$SOAK_SUMMARY" != *" ort_intra_op_threads=1 "* ||
           "$SOAK_SUMMARY" != *" ort_intra_op_threads_override=0 "* ||
-          "$SOAK_SUMMARY" != *" worker_trace=disabled "* ||
+          "$SOAK_SUMMARY" != *" worker_trace=$SOAK_TRACE_NAME "* ||
           "$SOAK_SUMMARY" != *" callback_samples=128 sample_rate=44100 pdc_samples=256 "* ||
           "$SOAK_PHASES" != *" measured_underrun_samples=0 "* ||
           "$SOAK_PHASES" != *" measured_due_boundary_misses=0 "* ]]; then
         SOAK_RESULT=1
+    fi
+    if [[ "$SOAK_TRACE" -eq 1 ]]; then
+        SOAK_WORKER="$(awk '/^STEMGENRT_WORKER_TIMING /{print}' "$SOAK_PREFIX.log")"
+        if [[ "$SOAK_WORKER" == *$'\n'* ||
+              "$SOAK_WORKER" != *" scope=matched_measured_due_requests "* ||
+              "$SOAK_WORKER" != *" omitted_samples=0 "* ||
+              "$SOAK_WORKER" != *" storage_complete=1 "* ||
+              "$SOAK_WORKER" != *" measured_due_requests=$SOAK_CALLBACKS "* ||
+              "$SOAK_WORKER" != *" matched_measured_requests=$SOAK_CALLBACKS "* ||
+              "$SOAK_WORKER" != *" missing_measured_requests=0 "* ||
+              "$SOAK_WORKER" != *" duplicate_sequences=0 "* ]]; then
+            SOAK_RESULT=1
+        fi
+        printf '%s\n' "$SOAK_WORKER"
     fi
     printf 'repetition=%s exit_code=%s\n' "$SOAK_REPETITION" "$SOAK_CODE"
     printf '%s\n%s\n' "$SOAK_PHASES" "$SOAK_SUMMARY"
@@ -118,7 +143,11 @@ done
     cd "$SOAK_SOURCE"
     shasum -a 256 -c "$SOAK_OUTPUT/inputs.sha256"
 ) > "$SOAK_OUTPUT/inputs-after-check.txt" 2>&1 || SOAK_RESULT=1
-if [[ "$SOAK_RESULT" -eq 0 ]]; then
+if [[ "$SOAK_TRACE" -eq 1 && "$SOAK_RESULT" -eq 0 ]]; then
+    printf 'synthetic_host_traced_diagnostic_passed\n' > "$SOAK_OUTPUT/status.txt"
+elif [[ "$SOAK_TRACE" -eq 1 ]]; then
+    printf 'synthetic_host_traced_diagnostic_failed_or_incomplete\n' > "$SOAK_OUTPUT/status.txt"
+elif [[ "$SOAK_RESULT" -eq 0 ]]; then
     printf 'synthetic_host_soak_passed\n' > "$SOAK_OUTPUT/status.txt"
 else
     printf 'synthetic_host_soak_failed_or_incomplete\n' > "$SOAK_OUTPUT/status.txt"

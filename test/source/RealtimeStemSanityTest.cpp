@@ -93,6 +93,20 @@ struct CallbackTimingSample {
   std::chrono::steady_clock::time_point finished;
 };
 
+// Bound collection memory before playback, while retaining the entire
+// requested interval. The extra worker sample covers prepareToPlay's warmup.
+constexpr size_t kMaximumWorkerTraceBytes = 128U * 1024U * 1024U;
+constexpr size_t kMaximumWorkerTraceCallbacks =
+    (kMaximumWorkerTraceBytes - sizeof(audio_plugin::WorkerTimingSample)) /
+    (sizeof(audio_plugin::WorkerTimingSample) + sizeof(CallbackTimingSample));
+
+size_t workerTraceCapacity(size_t callbacks) noexcept {
+  if (callbacks > kMaximumWorkerTraceCallbacks) {
+    return 0U;
+  }
+  return callbacks + 1U;
+}
+
 double microsecondsBetween(std::chrono::steady_clock::time_point end,
                            std::chrono::steady_clock::time_point start) {
   return std::chrono::duration<double, std::micro>(end - start).count();
@@ -199,9 +213,12 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
   const auto dispatchLower = summarizeTiming(dispatchLowerBounds);
   const auto dispatchUpper = summarizeTiming(dispatchUpperBounds);
   std::cerr << std::fixed << std::setprecision(3)
-            << "STEMGENRT_WORKER_TIMING scope=measured_due_requests"
+            << "STEMGENRT_WORKER_TIMING scope=matched_measured_due_requests"
             << " traced_samples=" << trace.samples().size()
             << " omitted_samples=" << trace.omitted()
+            << " storage_complete=" << (trace.omitted() == 0U ? 1 : 0)
+            << " measured_due_requests="
+            << callbacks.size() - static_cast<size_t>(kWarmupBlocks)
             << " matched_measured_requests=" << runTimes.size()
             << " missing_measured_requests=" << missingMeasuredRequests
             << " duplicate_sequences=" << duplicateSequences
@@ -357,6 +374,71 @@ TEST(RealtimeStemSanityTest, ThreadOverrideMustPrecedeSessionCreation) {
 #endif
 }
 
+TEST(RealtimeStemSanityTest, WorkerTraceRetainsFailureBeyondOldPrefixLimit) {
+  using Clock = std::chrono::steady_clock;
+  using Microseconds = std::chrono::microseconds;
+  constexpr size_t totalCallbacks = 100102U;
+  constexpr size_t due = totalCallbacks - 1U;
+  std::vector<CallbackTimingSample> callbacks(totalCallbacks);
+  const auto start = Clock::time_point{} + std::chrono::seconds(1);
+  for (size_t index = 0U; index < callbacks.size(); ++index) {
+    callbacks[index].started =
+        start + Microseconds(3000 * static_cast<int64_t>(index));
+    callbacks[index].finished = callbacks[index].started + Microseconds(10);
+  }
+  audio_plugin::WorkerTimingTrace trace(workerTraceCapacity(totalCallbacks));
+  audio_plugin::WorkerTimingSample warmup;
+  warmup.acquired = start - Microseconds(1);
+  trace.record(warmup);
+  for (size_t index = 0U; index < totalCallbacks; ++index) {
+    audio_plugin::WorkerTimingSample sample;
+    sample.inputSequence = index;
+    sample.epoch = 7U;
+    sample.acquired = callbacks[index].finished + Microseconds(20);
+    sample.runStarted = sample.acquired;
+    sample.runFinished = sample.runStarted + Microseconds(1000);
+    if (index == due - 1U) {
+      sample.runFinished = callbacks[due].finished + Microseconds(20);
+    }
+    sample.publishStarted = sample.runFinished + Microseconds(5);
+    sample.publishFinished = sample.publishStarted + Microseconds(1);
+    sample.inferenceOk = true;
+    trace.record(sample);
+  }
+  EXPECT_EQ(trace.samples().size(), totalCallbacks + 1U);
+  EXPECT_EQ(trace.omitted(), 0U);
+  PacedQualificationTrace failures(kWarmupBlocks);
+  failures.observe(static_cast<int>(due), {1U, 128U, 0U}, 3000.0, 0.0, 0.0);
+  std::ostringstream output;
+  auto* previousBuffer = std::cerr.rdbuf(output.rdbuf());
+  printWorkerTiming(trace, callbacks, failures);
+  std::cerr.rdbuf(previousBuffer);
+  const auto text = output.str();
+  for (const auto expected :
+       {"scope=matched_measured_due_requests ", "omitted_samples=0 ",
+        "storage_complete=1 ", "measured_due_requests=100002 ",
+        "matched_measured_requests=100002 ", "missing_measured_requests=0 ",
+        "published_after_due_callback=1 ",
+        "callback_index=100101 input_sequence=100100 trace_found=1 ",
+        "publish_relative_due_finish_lower_us=25.000"}) {
+    EXPECT_NE(text.find(expected), std::string::npos) << text;
+  }
+}
+
+TEST(RealtimeStemSanityTest, WorkerTraceMemoryBoundAdmitsThirtyMinutes) {
+  constexpr size_t thirtyMinuteCallbacks = 620157U + kWarmupBlocks;
+  EXPECT_EQ(workerTraceCapacity(thirtyMinuteCallbacks),
+            thirtyMinuteCallbacks + 1U);
+  EXPECT_LE(workerTraceCapacity(thirtyMinuteCallbacks) *
+                    sizeof(audio_plugin::WorkerTimingSample) +
+                thirtyMinuteCallbacks * sizeof(CallbackTimingSample),
+            kMaximumWorkerTraceBytes);
+  EXPECT_EQ(workerTraceCapacity(kMaximumWorkerTraceCallbacks),
+            kMaximumWorkerTraceCallbacks + 1U);
+  EXPECT_EQ(workerTraceCapacity(kMaximumWorkerTraceCallbacks + 1U), 0U);
+  EXPECT_EQ(workerTraceCapacity(std::numeric_limits<size_t>::max()), 0U);
+}
+
 // Explicit production-style asynchronous qualification soak. This remains
 // disabled by default because 10,000 paced callbacks take about 29 seconds
 // at 44.1 kHz. Complete fallback routes the mixture only to Other, so every
@@ -379,10 +461,14 @@ TEST(RealtimeStemSanityTest,
                            << " must be 0 (automatic) or 1..4";
   const auto totalCallbacks =
       static_cast<size_t>(kWarmupBlocks + measureBlocks);
-  // Cap diagnostic storage even for an arbitrarily long requested soak.
-  // Omitted/missing counts explicitly disclose incomplete trace coverage.
-  audio_plugin::WorkerTimingTrace workerTrace(
-      traceWorker != 0 ? std::min(totalCallbacks + 1U, size_t{100000U}) : 0U);
+  const auto traceCapacity =
+      traceWorker != 0 ? workerTraceCapacity(totalCallbacks) : 0U;
+  ASSERT_TRUE(traceWorker == 0 || traceCapacity != 0U)
+      << "Worker and callback trace storage exceeds "
+      << kMaximumWorkerTraceBytes << " bytes; use at most "
+      << kMaximumWorkerTraceCallbacks - kWarmupBlocks
+      << " measured callbacks for a traced run";
+  audio_plugin::WorkerTimingTrace workerTrace(traceCapacity);
   std::vector<CallbackTimingSample> callbackTrace(
       traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
@@ -647,6 +733,10 @@ TEST(RealtimeStemSanityTest,
       << " warmup_callbacks=" << kWarmupBlocks
       << " measured_callbacks=" << measureBlocks
       << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")
+      << " worker_trace_capacity=" << traceCapacity
+      << " worker_callback_trace_storage_bytes="
+      << traceCapacity * sizeof(audio_plugin::WorkerTimingSample) +
+             callbackTrace.size() * sizeof(CallbackTimingSample)
       << " ort_intra_op_threads_override=" << ortThreads
       << " ort_intra_op_threads=" << processor.getConfiguredOrtIntraOpThreads()
       << " callback_samples=" << kBlockSize
@@ -750,6 +840,8 @@ TEST(RealtimeStemSanityTest,
   processor.releaseResources();
   if (traceWorker != 0) {
     printWorkerTiming(workerTrace, callbackTrace, failureTrace);
+    EXPECT_EQ(workerTrace.omitted(), 0U)
+        << "The worker trace did not retain the complete requested interval";
     ASSERT_TRUE(processor.setWorkerTimingTrace(nullptr));
   }
 }
