@@ -5,6 +5,9 @@ project(AudioPluginTest)
 # Signals to CMake that we want to run tests from this directory.
 enable_testing()
 
+include("${CMAKE_SOURCE_DIR}/cmake/VerifyParityFixture.cmake")
+stemgenrt_verify_parity_fixture("${CMAKE_SOURCE_DIR}")
+
 # Creates the test console application.
 set(SOURCE_FILES
   source/CroppedModelParityTest.cpp

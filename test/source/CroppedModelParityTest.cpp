@@ -1,6 +1,8 @@
 #include <StemgenRT/OnnxRuntime.h>
 #include <StemgenRT/PluginProcessor.h>
+#include <StemgenRT/QualifiedModelContract.h>
 #include <gtest/gtest.h>
+#include <juce_cryptography/juce_cryptography.h>
 
 #include <algorithm>
 #include <array>
@@ -23,6 +25,23 @@ struct Reference {
 std::vector<Reference> readReferences() {
   const juce::File fixture(juce::String(STEMGENRT_TEST_FIXTURE_DIR) +
                            "/cropped1024-pytorch.bin");
+  const auto metadata = fixture.getSiblingFile("cropped1024-pytorch.json");
+  juce::var identity;
+  const auto parsed = juce::JSON::parse(metadata.loadFileAsString(), identity);
+  EXPECT_TRUE(parsed.wasOk()) << metadata.getFullPathName().toStdString();
+  if (parsed.failed())
+    return {};
+  const auto expectedGraph = identity["deployment_graph_sha256"].toString();
+  const auto expectedFixture = identity["fixture_sha256"].toString();
+  const auto actualFixture = juce::SHA256(fixture).toHexString();
+  const juce::String compiledGraph(qualified_model::kModelSha256.data());
+  EXPECT_EQ(expectedGraph, compiledGraph)
+      << "Fixture metadata does not match this test binary; rebuild the tests.";
+  EXPECT_EQ(expectedFixture, actualFixture)
+      << "Fixture bytes do not match their metadata: "
+      << fixture.getFullPathName().toStdString();
+  if (expectedGraph != compiledGraph || expectedFixture != actualFixture)
+    return {};
   auto stream = fixture.createInputStream();
   EXPECT_NE(stream, nullptr);
   if (!stream)

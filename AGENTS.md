@@ -17,7 +17,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 88 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 90 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |

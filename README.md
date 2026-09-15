@@ -60,12 +60,13 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 ## Model and checks
 
 The model combines spectrogram and waveform estimates with causal attention
-and separate recurrent memories for the two branches. This development graph
-extends integer arithmetic to fourteen matrix products. It scores 4.455150 dB
-SDR on the development panel, versus 4.455188 dB for v0.4.0; its source EMA
-checkpoint scores 4.465157 dB. Instrumental vocal leakage is essentially
-unchanged. The [deployment report](model/quality-deployment.json) records the
-exact graph separately from its source checkpoint and includes all regressions.
+and separate recurrent memories for the two branches. This candidate converts
+the two branch output projections to integer products, bringing the total to
+sixteen. The exact graph scores 4.455153 dB SDR on the unchanged development
+panel, versus 4.455150 dB for PR #15 and 4.455188 dB for v0.4.0. Instrumental
+vocal leakage remains essentially unchanged. The [deployment report](model/quality-deployment.json)
+records all track/stem regressions and source-view windows, separately from
+the source checkpoint's 4.465157 dB score. The 5 dB goal remains unmet.
 It consumes raw stereo samples and preserves their level. The plugin applies a
 linked near-silence confidence fade, then calculates
 `Other = Main - Drums - Bass - Vocals` to preserve the complete mix.
@@ -76,19 +77,17 @@ final clips, sample alignment, queue recovery, output reconstruction, variable
 offline callbacks and C++ heap traffic in the audio callback. Model validation
 and target-Mac testing are documented in [model/README.md](model/README.md).
 
-Real-time performance depends on the machine and host load. The user reported
-1,408 fallback samples after a few minutes on M4 with released v0.4.0.
-This candidate passed 162 native Linux correctness tests and measured about
-40% lower local inference cost under concurrent load. The user reports that
-the installed PR #15 candidate works. That playback report does not establish
-zero-fallback M4 qualification. The local Mac correctness run passed 160 tests
-but failed both independent PyTorch parity tests; normal hosted macOS and
-Windows correctness runs passed. A separate hosted Apple M1 Virtual timing
-run failed, with substantial callback scheduling irregularity.
-Version v0.4.1-rc.1 is an M4 testing prerelease. Follow the
-[M4 test instructions](M4_TESTING.md) with the same single inference worker,
-and retain v0.4.0 for rollback. The [model report](model/README.md) retains the
-numerical and timing limitations.
+Real-time performance depends on the machine and host load. The candidate
+measured 9.4% lower local inference cost than the fourteen-projection graph
+under concurrent training. This does not establish sustained M4 timing. The
+user reported 3,072 cumulative fallback samples after ten minutes with PR #15,
+and its two local Mac parity failures remain under investigation.
+
+Follow the [M4 test instructions](M4_TESTING.md) for the runtime parity
+diagnostic, repeated extended soaks and installed-DAW checks. The traced soak
+now retains worker/callback timing throughout the requested duration. Keep one
+inference worker and retain the previous complete plugin bundle for rollback.
+See the [model report](model/README.md) for quality and timing limitations.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).
