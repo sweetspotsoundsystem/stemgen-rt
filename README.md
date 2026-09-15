@@ -79,10 +79,16 @@ and target-Mac testing are documented in [model/README.md](model/README.md).
 Real-time performance depends on the machine and host load. The user reported
 1,408 fallback samples after a few minutes on M4 with released v0.4.0.
 This candidate passed 162 native Linux correctness tests and measured about
-40% lower local inference cost under concurrent load. M4 correctness, paced
-timing and installed-DAW playback remain unmeasured. Follow the
-[M4 test instructions](M4_TESTING.md) with the same single inference worker.
-This checkout is a speed test candidate; no release replacement has been selected.
+40% lower local inference cost under concurrent load. The user reports that
+the installed PR #15 candidate works. That playback report does not establish
+zero-fallback M4 qualification. The local Mac correctness run passed 160 tests
+but failed both independent PyTorch parity tests; normal hosted macOS and
+Windows correctness runs passed. A separate hosted Apple M1 Virtual timing
+run failed, with substantial callback scheduling irregularity.
+Version v0.4.1-rc.1 is an M4 testing prerelease. Follow the
+[M4 test instructions](M4_TESTING.md) with the same single inference worker,
+and retain v0.4.0 for rollback. The [model report](model/README.md) retains the
+numerical and timing limitations.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

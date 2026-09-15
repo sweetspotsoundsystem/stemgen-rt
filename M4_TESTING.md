@@ -6,8 +6,12 @@ and 256 samples of graph-plus-host delay with a 128-sample host buffer.
 The Linux Release correctness suite passed 162 tests. Complete quality review
 measures 4.455150 dB full-band SDR versus v0.4.0's 4.455188 dB. Instrumental
 vocal leakage is essentially unchanged; Skelpolu Other SIR loses 0.196152 dB.
-Native Mac correctness and target-Mac playback are pending. This is a speed
-test candidate, with no quality or release selection.
+Normal hosted macOS and Windows correctness runs passed. The local Mac run
+passed 160 tests, failed both independent PyTorch parity checks and skipped
+one Windows-only test. The user reports that the installed PR #15 candidate
+works; formal zero-fallback M4 acceptance remains pending. A separate hosted
+Apple M1 Virtual paced run failed with substantial scheduling irregularity.
+Version v0.4.1-rc.1 is a speed and playback testing prerelease.
 See [the model report](model/README.md) for current evidence.
 
 After authenticating this checkout and building its native arm64 Release

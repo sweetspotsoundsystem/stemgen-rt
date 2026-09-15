@@ -82,9 +82,9 @@ to the mix. Its 0.001991 dB decrease from v0.4.0 leaves the reported leakage
 problem essentially unchanged. The same 17/420 active instrumental windows
 remain within 10 dB of the mix; Rockshow at 80–81 seconds remains only
 0.590990 dB below it. Isolated-vocal SDR is 22.502774 dB, signed gain 0.922522,
-and instrumental Other SDR is 5.484724 dB. No quality or release selection
-has been made. User listening and representative instrumental material remain
-necessary alongside these development-panel measurements.
+and instrumental Other SDR is 5.484724 dB. Version v0.4.1-rc.1 is for M4 speed
+and playback testing. User listening and representative instrumental material
+remain necessary alongside these development-panel measurements.
 
 ## Numerical and native checks
 
@@ -104,10 +104,27 @@ comparison measured about 40% lower median block p50
 than v0.4.0 under concurrent load; every measured call still exceeded the local
 hop budget. That x86 comparison establishes no M4 or complete-plugin timing.
 
+Normal hosted macOS and Windows correctness builds of PR #15 passed. The
+local Mac Release run of `95a5e6c` passed 160 tests, failed the two independent
+PyTorch waveform parity tests and skipped the Windows-only case. Maximum
+absolute stem error was 0.00123772398 against the unchanged 0.00001 tolerance.
+Both direct model inference and offline plugin rendering exhibited the
+mismatch; its cause remains unestablished. Model and fixture hashes matched
+the declared identities. A successful playback report does not clear these
+numerical failures.
+
 ## M4 playback
 
 The user reported 1,408 fallback samples after a few minutes on M4 with v0.4.0.
-No M4 test of this graph has run. The target remains zero additional fallback
-during repeated 30-minute steady-playback tests and the installed DAW workload,
-with startup/reset counters retained separately. Follow [M4 testing](../M4_TESTING.md).
+The user subsequently reported that the installed PR #15 candidate works.
+This is a user-reported playback result without a recorded soak duration or
+counter trace. The target remains zero additional fallback during repeated
+30-minute steady-playback tests and the installed DAW workload, with
+startup/reset counters retained separately. Follow [M4 testing](../M4_TESTING.md).
+
+The separate [hosted qualification run](https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/34795259568)
+on Apple M1 Virtual failed: the paced run recorded 1,074,816 measured fallback
+samples, 6,956 callback-start deadline misses and 7,247 catch-up intervals.
+Those scheduling irregularities do not establish physical M4 behavior or
+isolate the cause of fallback. Formal target-Mac qualification remains open.
 The original v0.4.0, earlier attention model and C204 remain rollback baselines.
