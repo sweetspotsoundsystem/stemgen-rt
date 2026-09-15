@@ -313,7 +313,7 @@ TEST(QualifiedModelContractTest,
 
   ASSERT_EQ(contract::kInputNames.size(), 9U);
   ASSERT_EQ(contract::kOutputNames.size(), 9U);
-  ASSERT_EQ(contract::kMetadata.size(), 84U);
+  ASSERT_EQ(contract::kMetadata.size(), 88U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }

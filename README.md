@@ -60,10 +60,12 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 ## Model and checks
 
 The model combines spectrogram and waveform estimates with causal attention
-and separate recurrent memories for the two branches. The exported graph scores
-4.455188 dB SDR on the development panel; its source EMA checkpoint scores
-4.465157 dB. The [deployment report](model/quality-deployment.json) records the
-exact graph separately from its source checkpoint.
+and separate recurrent memories for the two branches. This development graph
+extends integer arithmetic to fourteen matrix products. It scores 4.455150 dB
+SDR on the development panel, versus 4.455188 dB for v0.4.0; its source EMA
+checkpoint scores 4.465157 dB. Instrumental vocal leakage is essentially
+unchanged. The [deployment report](model/quality-deployment.json) records the
+exact graph separately from its source checkpoint and includes all regressions.
 It consumes raw stereo samples and preserves their level. The plugin applies a
 linked near-silence confidence fade, then calculates
 `Other = Main - Drums - Bass - Vocals` to preserve the complete mix.
@@ -74,12 +76,13 @@ final clips, sample alignment, queue recovery, output reconstruction, variable
 offline callbacks and C++ heap traffic in the audio callback. Model validation
 and target-Mac testing are documented in [model/README.md](model/README.md).
 
-Real-time performance depends on the machine and host load. Measurements of the
-previous model do not establish this model's deadlines. The user reported
-successful M4 Pro testing of PR #13; released-AU testing on M4 and formal paced
-timing evidence remain pending. Follow the
-[M4 and M4 Pro test instructions](M4_TESTING.md) to collect timing and audition
-this release with the same single inference worker.
+Real-time performance depends on the machine and host load. The user reported
+1,408 fallback samples after a few minutes on M4 with released v0.4.0.
+This candidate passed 162 native Linux correctness tests and measured about
+40% lower local inference cost under concurrent load. M4 correctness, paced
+timing and installed-DAW playback remain unmeasured. Follow the
+[M4 test instructions](M4_TESTING.md) with the same single inference worker.
+This checkout is a speed test candidate; no release replacement has been selected.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

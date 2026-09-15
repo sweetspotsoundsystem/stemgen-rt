@@ -9,8 +9,8 @@ plugin delay **256 samples / 5.80 ms** with a 128-sample host buffer.
 ## Artifact and state
 
 The model is tracked with Git LFS and needs no external weights file.
-SHA-256: `d2945742d27fe23469614aef4f5b79e46fb1a11696ee2c8e6055c494163bcffa`.
-Size: **48,754,181 bytes**. Runtime: **ONNX Runtime 1.26.0 CPU**.
+SHA-256: `878c74694fa4c558de1c5a75837893a0afeadcf57f6e3b860d5904cab04e9fc9`.
+Size: **39,789,914 bytes**. Runtime: **ONNX Runtime 1.26.0 CPU**.
 
 | Input | Shape | Output |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ hop, then drain the plugin queue. Reset every state after a discontinuity.
 
 The [CMake contract](../cmake/QualifiedModelContract.cmake) owns identity,
 geometry and metadata. Configuration verifies the graph hash and size; loading
-checks nine inputs, nine outputs and 84 metadata entries. Its `QUALIFIED`
+checks nine inputs, nine outputs and 88 metadata entries. Its `QUALIFIED`
 variable prefix denotes this identity lock, without a timing guarantee.
 
 The attention cache and two branch memories use only received features. The
@@ -51,90 +51,63 @@ Complete fallback routes Main to Other.
 The confidence envelope opens immediately, holds for 50 ms, releases by
 60 dB per 100 ms, and smoothly opens between -96 and -72 dBFS peak.
 
-## Quality
+## Quality and current scope
 
-The exact saved deployment graph scores **4.455188 dB full-band SDR** on
-the unchanged development panel: 14 tracks, two 15-second excerpts per track,
-four stems. This is **+0.166700 dB** versus the prior PR graph
-(4.288488 dB) and **+0.386109 dB** versus C204
-(4.069079 dB). Its difference from the source FP32 checkpoint is
-**-0.009969 dB**.
+This development graph adds signed integer weights and dynamic unsigned
+activations to four branch-memory GRU matrix products. Fourteen projections
+now use integer products; GRU biases, nonlinearities and output projections
+retain their previous floating arithmetic. The source EMA checkpoint still
+scores 4.465157 dB full-band SDR. That is not this changed graph's score.
 
-| Deployment metric, dB | Drums | Bass | Vocals | Other |
+The exact graph scores **4.455150 dB full-band SDR** on the unchanged 14-track /
+28-excerpt panel, versus **4.455188 dB** for v0.4.0. The difference is
+-0.000038 dB, with a paired-track 95% interval of -0.000244 to +0.000132 dB.
+This is a runtime cost experiment; the 5 dB target remains unmet.
+
+| Full-band SDR, dB | Drums | Bass | Vocals | Other |
 | --- | ---: | ---: | ---: | ---: |
-| Full-band SDR | 4.403 | 4.996 | 5.308 | 3.114 |
-| SDR change vs prior PR | +0.153 | +0.191 | +0.217 | +0.106 |
-| SIR change vs prior PR | +0.624 | +0.603 | +0.529 | +0.377 |
-| SDR change vs C204 | +0.262 | +0.346 | +0.389 | +0.547 |
-| Absent-source output change vs prior PR (lower is better) | +2.617 | +1.808 | +1.847 | +1.214 |
-| Absent-source output change vs C204 (lower is better) | -1.567 | -0.551 | +0.855 | -3.526 |
+| Candidate | 4.403024 | 4.995858 | 5.307915 | 3.113803 |
+| Change from v0.4.0 | +0.000070 | -0.000126 | +0.000046 | -0.000143 |
 
-Against the prior PR, 14 tracks improve and 0 regress in mean SDR.
-The paired track-bootstrap interval for the average gain is +0.1323 to
-+0.2026 dB. An average gain can still include individual stem or
-absence regressions; the linked report includes every cell.
-Of the 56 track/stem SDR cells, 9 regress versus the prior PR.
+Twenty-five of 56 track/stem SDR cells regress; the largest loss is
+0.003876 dB on Triviul Other. SIR shows a larger local change: Skelpolu Other
+loses **0.196152 dB**, from -5.469816 to -5.665968 dB. Eight of 23 eligible
+natural-absence cells have higher unwanted output. All cells and raw source-view
+windows are retained in [deployment quality](quality-deployment.json).
+Embedded graph metadata retains its export-time quality status; completed
+deployment measurements are recorded in that report against the exact graph hash.
 
-Mean absent-source output rises for drums, bass, vocals, other versus the prior PR. Lower is better for this metric; include instrumental and quiet passages in listening tests.
-
-Tracks with lower mean SDR than C204: Skelpolu - Human Mistakes (-0.547 dB).
-
-The source is the selected EMA checkpoint after a cumulative training lineage
-of **39,250 updates**. Its last stage adds 4,000 updates with pitch/tempo
-augmentation and parameter averaging. Parameters introduced later in the
-lineage have fewer updates. The source checkpoint's FP32 score is **4.465157 dB**;
-the **5 dB research target remains unmet**.
-
-The deployment graph quantizes ten large projections to signed 8-bit weights
-with unsigned 8-bit dynamic activations. Floating arithmetic feeding those
-projections uses double precision; dequantization, audio decoding and public
-states use float32. Phase factors, fusion refinement, attention and the two
-branch memories remain unquantized. Deployment quality is measured from the
-exact saved ONNX bytes, with the existing final residual reconstruction.
-
-These 14 development tracks have informed repeated model selection. They are
-not an unseen test set, and track-bootstrap intervals do not include training
-seed or selection uncertainty. The [deployment report](quality-deployment.json)
-retains every track, stem, band and absence comparison against the source
-checkpoint, prior PR graph and C204. [Source quality](quality-development.json)
-records the separate FP32 checkpoint and its saved-state audit identities.
+Instrumental vocal output averages -47.257578 dBFS, or -26.661028 dB relative
+to the mix. Its 0.001991 dB decrease from v0.4.0 leaves the reported leakage
+problem essentially unchanged. The same 17/420 active instrumental windows
+remain within 10 dB of the mix; Rockshow at 80–81 seconds remains only
+0.590990 dB below it. Isolated-vocal SDR is 22.502774 dB, signed gain 0.922522,
+and instrumental Other SDR is 5.484724 dB. No quality or release selection
+has been made. User listening and representative instrumental material remain
+necessary alongside these development-panel measurements.
 
 ## Numerical and native checks
 
-Five synthetic cases pass with ORT optimizations disabled and enabled, each
-with exact reset replay. They cover silence, tones, noise, boundary impulses,
-nonzero states and partial final hops. A 30-second music clip plus 37 samples
-also passes twice: **10,338 graph calls per run**, including one final flush.
-All three GRU state tensors and both attention caches match the independently
-reconstructed reference exactly; maximum waveform difference is **3.5763e-7**.
+The saved graph passed ten short cases and 8,216 longer graph calls per
+implementation, with exact reset replay and maximum waveform error 8.381903e-8
+against its independent fourteen-projection reference. Existing tolerances
+remain fixed. The portable fixture covers eight clip lengths, including
+partial EOF, with expectations derived in PyTorch and runtime imports blocked.
+See [streaming evidence](streaming-validation.json).
 
-The reference independently derives signed weight bytes with NumPy and uses
-PyTorch integer products. It never uses ORT outputs as expected audio. Parity
-is to this declared integer inference; the source FP32 score is measured
-separately. [Streaming evidence](streaming-validation.json) retains the original
-thresholds, callback errors and output/state hashes.
+The native Release suite passed 162 tests, with one Windows-only test skipped
+and seven disabled by default. All-four-stem parity, partial EOF, queue/reset
+races, Main/PDC alignment, fallback reconstruction and callback allocation
+checks passed. [Linux evidence](linux-validation.json) retains actual exits
+and source/model/binary identities. The separate local preallocated inference
+comparison measured about 40% lower median block p50
+than v0.4.0 under concurrent load; every measured call still exceeded the local
+hop budget. That x86 comparison establishes no M4 or complete-plugin timing.
 
-The [native fixture](../test/fixtures/cropped1024-pytorch.json) uses the same
-independent CPU reference. Eight clip lengths cover one sample, partial hops
-and a 16,521-sample trajectory beyond the attention window. Its generator does
-not import or execute ONNX Runtime.
+## M4 playback
 
-The Release native suite passes **162 tests**, with one Windows-only test
-skipped on Linux and seven tests disabled by default. Coverage includes all
-four outputs, pre-roll/reset/EOF, queue races, PDC/Main alignment, non-finite
-input, fallback reconstruction, variable offline callbacks and callback heap
-traffic. [Linux evidence](linux-validation.json) records the model, binaries,
-source hashes and test results. Training and CPU scoring ran concurrently.
-
-## M4 and M4 Pro testing
-
-The user reported successful M4 Pro testing of PR #13 and approved its release.
-Testing the released AU on M4 remains pending. This report contains no inspected
-target-Mac timing capture or quiet Linux timing qualification for this revision.
-CI builds and tests the macOS and Windows bundles. Earlier attention-model and
-C204 timings do not qualify this larger graph.
-
-Use the [M4/M4 Pro instructions](../M4_TESTING.md) to collect evidence and audition
-with one inference worker. The runtime retains aligned fallback for late
-results. C204 at `6fc2382` and the prior attention candidate at `c848050` remain
-available for comparison and rollback.
+The user reported 1,408 fallback samples after a few minutes on M4 with v0.4.0.
+No M4 test of this graph has run. The target remains zero additional fallback
+during repeated 30-minute steady-playback tests and the installed DAW workload,
+with startup/reset counters retained separately. Follow [M4 testing](../M4_TESTING.md).
+The original v0.4.0, earlier attention model and C204 remain rollback baselines.
