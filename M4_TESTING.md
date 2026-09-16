@@ -9,7 +9,9 @@ platform-specific skip and seven performance tests disabled. Full-panel quality
 review is complete: 4.455153 dB SDR versus PR #15's 4.455150 dB. Instrumental
 vocal leakage remains essentially unchanged.
 The local native comparison measured 9.4% lower median block p50 than PR #15
-under concurrent training. Physical M4 testing remains pending.
+under concurrent training. Version **v0.4.1-rc.2** is a testing prerelease of
+this graph. The user reports that the installed PR #17 candidate works;
+recorded sustained M4 playback acceptance remains pending.
 See [the model report](model/README.md) for the evidence and limitations.
 
 The earlier PR #15 candidate produced a user-reported 3,072 cumulative fallback
@@ -36,10 +38,17 @@ compiler and execution exits, and per-stem errors. `diagnostic-exit.txt = 0`
 means all measurements completed; each `parity_pass` reports the unchanged
 `1e-5` accuracy check. Inspect `results.jsonl`, `stderr.log` and `identity.txt`.
 
-If the default session fails and disabling KleidiAI passes, that isolates the
-backend choice as the cause of the numerical mismatch. This remains an M4
-hypothesis: [ORT's SME dispatch](https://github.com/microsoft/onnxruntime/blob/v1.26.0/onnxruntime/core/mlas/lib/platform.cpp)
-can select a [different input quantizer](https://github.com/ARM-software/kleidiai/blob/v1.20.0/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c).
+On the local Apple M4 Pro, default settings failed all eight reference cases
+(maximum error 0.000960826873779); disabling KleidiAI passed all eight
+(maximum error 1.78813934326e-7). Disabling graph optimizations also passed all
+eight (maximum error 1.63912773132e-7). The ordinary suite passed 162 tests,
+failed both parity tests and skipped the platform-specific test.
+The [recorded diagnostic](model/macos-runtime-parity-diagnostic.json) ties these
+results to PR #17's exact graph, fixture and loaded runtime. This isolates a
+backend-setting-dependent numerical difference on this machine; it does not
+yet identify the first divergent operator. [ORT's SME dispatch](https://github.com/microsoft/onnxruntime/blob/v1.26.0/onnxruntime/core/mlas/lib/platform.cpp)
+and its [input quantizer](https://github.com/ARM-software/kleidiai/blob/v1.20.0/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c)
+remain relevant implementation references.
 The diagnostic does not change production kernel settings. Its short Run
 averages do not qualify sustained plugin timing. Retain the evidence from the
 failing checkout when comparing a later graph or runtime.

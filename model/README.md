@@ -57,7 +57,7 @@ This graph converts the two branch-memory output projections to signed integer
 weights and dynamic unsigned activations. Sixteen matrix products now use this
 arithmetic. The previous fourteen integer projections, nonlinearities and
 remaining floating operations retain their previous graph definitions.
-The source EMA checkpoint still scores 4.465157 dB full-band SDR. The current
+The source EMA checkpoint still scores 4.465157 dB full-band SDR. The previous
 fourteen-projection deployment scores 4.455150 dB; v0.4.0 scores 4.455188 dB.
 These are separate endpoints from this candidate.
 
@@ -118,15 +118,26 @@ acceptance. The graph file is 1,491,894 bytes smaller.
 The user reported 3,072 cumulative fallback samples after ten minutes with the
 PR #15 fourteen-projection candidate. Earlier local Mac tests also failed both
 independent PyTorch parity checks, while hosted macOS and Windows correctness
-runs passed. Those results belong to the previous graph; the new candidate has
-not been tested on a physical M4.
+runs passed. Those results belong to the previous graph. The user now reports
+that the installed PR #17 candidate works. Version v0.4.1-rc.2 is a testing
+prerelease of that candidate; no recorded playback duration or counter trace
+was supplied with the report.
 
 [The diagnostic instructions](../M4_TESTING.md) compare default ORT execution,
 KleidiAI disabled and graph optimizations disabled against the same independent
-fixture. Alternate quantization kernels are a hypothesis for the M4 mismatch;
-production settings and accuracy tolerances are unchanged. All 24 diagnostic
-comparisons passed locally for this candidate. A passing Linux result does not
-resolve the reported Mac failures.
+fixture. All 24 comparisons passed on the Linux host. On the local Apple M4
+Pro, the Release suite passed 162 tests, failed both independent parity tests
+and skipped one platform-specific test. Maximum waveform error was
+0.000960826874 against the unchanged 0.00001 tolerance.
+
+The [M4 Pro diagnostic evidence](macos-runtime-parity-diagnostic.json) records
+all 24 case results and their model/fixture/runtime identities. Default settings
+failed all eight cases (maximum error 0.000960826873779); disabling KleidiAI
+passed all eight (1.78813934326e-7), and disabling graph optimizations passed
+all eight (1.63912773132e-7). These measurements isolate a numerical difference
+dependent on backend settings on this machine, without identifying its first
+divergent operator. Production kernel settings and accuracy tolerances remain
+unchanged; the successful playback report does not clear the numerical gate.
 
 The extended soak now retains complete callback/worker timing for the requested
 30 minutes when tracing is enabled. Untraced repeated soaks and installed-DAW

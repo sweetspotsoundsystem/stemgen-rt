@@ -81,7 +81,15 @@ Real-time performance depends on the machine and host load. The candidate
 measured 9.4% lower local inference cost than the fourteen-projection graph
 under concurrent training. This does not establish sustained M4 timing. The
 user reported 3,072 cumulative fallback samples after ten minutes with PR #15,
-and its two local Mac parity failures remain under investigation.
+then reported that the installed PR #17 candidate works. Version
+**v0.4.1-rc.2** makes that candidate available as a testing prerelease.
+
+The local M4 Pro suite passed 162 tests, failed two PyTorch parity tests and
+skipped one platform-specific test. In the new diagnostic, all eight reference
+cases failed with default settings and all eight passed with KleidiAI disabled.
+Production settings remain unchanged. The [numerical evidence](model/macos-runtime-parity-diagnostic.json)
+records the tested graph and runtime; successful playback does not establish
+formal parity or sustained timing qualification.
 
 Follow the [M4 test instructions](M4_TESTING.md) for the runtime parity
 diagnostic, repeated extended soaks and installed-DAW checks. The traced soak
