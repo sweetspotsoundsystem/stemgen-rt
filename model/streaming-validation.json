@@ -1,706 +1,1839 @@
 {
-  "schema": "stemgenrt-sixteen-projection-streaming-v1",
-  "graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
+  "schema": "stemgenrt-seventeen-projection-streaming-v1",
+  "graph_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
   "short": {
-    "result_sha256": "b0c84bcff11512fa4e8e560b420db794412100ade68e577c2c798fba8dae697e",
+    "result_sha256": "d25aab9dc321bea6190b74569c507be7a7757a953f3c0928be84b2183ff88f54",
     "result": {
       "status": "pass",
       "strict_parity_passed": true,
       "reports": [
         {
+          "optimization": "disabled",
           "case": "multitone_noise_then_silence_partial",
-          "physical_samples": 9253,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
-          "source": null,
-          "calls": 74,
-          "flush_hops": 1,
-          "physical_samples_recovered": 9253,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 8.195638656616211e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 6.705522537231445e-08,
-            "next_waveform_tail": 5.587935447692871e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "multitone_noise_then_silence_partial",
+            "physical_samples": 9253,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+            "source": null,
+            "calls": 74,
+            "flush_hops": 1,
+            "physical_samples_recovered": 9253,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.450580596923828e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 6.705522537231445e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 4.0512531995773315e-08,
+              "bass": 5.21540641784668e-08,
+              "vocals": 1.9470462575554848e-08,
+              "other": 7.450580596923828e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.2021327063429644e-08,
+              "bass": 1.763428647069172e-08,
+              "vocals": 4.258435501164643e-09,
+              "other": 2.869074220652417e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.322462299921143e-09,
+              "bass": 1.1046146578202726e-08,
+              "vocals": 2.87198623873203e-09,
+              "other": 1.8239291541626905e-08
+            },
+            "maximum_closure": {
+              "reference": 1.862645149230957e-09,
+              "ort": 1.862645149230957e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "0112b0ebdaeca27fb0a7110d523c0223ce7d40633da0107a6da4d6ddbdcb82c2",
+              "ort": "cd62ddbcc524f00999463d5cb034efbe9b65eaf1ef5300bdcba5e57809f9e597"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 3.632158041000366e-08,
-            "bass": 5.960464477539063e-08,
-            "vocals": 1.6065314412117004e-08,
-            "other": 8.195638656616211e-08
+          "replay": {
+            "case": "multitone_noise_then_silence_partial",
+            "physical_samples": 9253,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+            "source": null,
+            "calls": 74,
+            "flush_hops": 1,
+            "physical_samples_recovered": 9253,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.450580596923828e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 6.705522537231445e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 4.0512531995773315e-08,
+              "bass": 5.21540641784668e-08,
+              "vocals": 1.9470462575554848e-08,
+              "other": 7.450580596923828e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.2021327063429644e-08,
+              "bass": 1.763428647069172e-08,
+              "vocals": 4.258435501164643e-09,
+              "other": 2.869074220652417e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.322462299921143e-09,
+              "bass": 1.1046146578202726e-08,
+              "vocals": 2.87198623873203e-09,
+              "other": 1.8239291541626905e-08
+            },
+            "maximum_closure": {
+              "reference": 1.862645149230957e-09,
+              "ort": 1.862645149230957e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "0112b0ebdaeca27fb0a7110d523c0223ce7d40633da0107a6da4d6ddbdcb82c2",
+              "ort": "cd62ddbcc524f00999463d5cb034efbe9b65eaf1ef5300bdcba5e57809f9e597"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 1.2443580873517463e-08,
-            "bass": 1.8268455791505317e-08,
-            "vocals": 4.21443193791434e-09,
-            "other": 3.0139134858152974e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 8.373417542658587e-09,
-            "bass": 1.1135986610474021e-08,
-            "vocals": 2.8694538777326845e-09,
-            "other": 1.8440516296993373e-08
-          },
-          "maximum_closure": {
-            "reference": 1.862645149230957e-09,
-            "ort": 1.862645149230957e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "5572842ddc5ff313a896602d155b76aa1792cc02d3945a56997ea80073437776",
-            "ort": "92d87d9da08c6023eaf3ff1eebeada2a29f1b5f7db5818cebb0368f10b33cd22"
-          },
-          "passed": true,
-          "optimization": "disabled",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "disabled",
           "case": "silence_from_reset",
-          "physical_samples": 1041,
-          "partial_hop_padding": 111,
-          "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
-          "source": null,
-          "calls": 10,
-          "flush_hops": 1,
-          "physical_samples_recovered": 1041,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 4.001776687800884e-11,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 0.0,
-            "next_waveform_tail": 4.3655745685100555e-11,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "silence_from_reset",
+            "physical_samples": 1041,
+            "partial_hop_padding": 111,
+            "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1041,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.547473508864641e-11,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 0.0,
+              "next_waveform_tail": 4.3655745685100555e-11,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 1.8189894035458565e-11,
+              "bass": 3.2741809263825417e-11,
+              "vocals": 1.1823431123048067e-11,
+              "other": 4.547473508864641e-11
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 6.6718714318667905e-12,
+              "bass": 9.171893046791886e-12,
+              "vocals": 6.248557822922781e-12,
+              "other": 1.825987002168537e-11
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 4.7253041289211354e-12,
+              "bass": 6.151249362895651e-12,
+              "vocals": 4.381884164079979e-12,
+              "other": 9.43034690585827e-12
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "afb6343480af4e0bacacb2a08a832d58225c72b81bf0896124767584cc10c7a7",
+              "ort": "300548269976937c453510cc2a2e944492253f9b1533b3626b4bf791f2e3eaa0"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 1.8189894035458565e-11,
-            "bass": 2.9103830456733704e-11,
-            "vocals": 1.2505552149377763e-11,
-            "other": 4.001776687800884e-11
+          "replay": {
+            "case": "silence_from_reset",
+            "physical_samples": 1041,
+            "partial_hop_padding": 111,
+            "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1041,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.547473508864641e-11,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 0.0,
+              "next_waveform_tail": 4.3655745685100555e-11,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 1.8189894035458565e-11,
+              "bass": 3.2741809263825417e-11,
+              "vocals": 1.1823431123048067e-11,
+              "other": 4.547473508864641e-11
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 6.6718714318667905e-12,
+              "bass": 9.171893046791886e-12,
+              "vocals": 6.248557822922781e-12,
+              "other": 1.825987002168537e-11
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 4.7253041289211354e-12,
+              "bass": 6.151249362895651e-12,
+              "vocals": 4.381884164079979e-12,
+              "other": 9.43034690585827e-12
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "afb6343480af4e0bacacb2a08a832d58225c72b81bf0896124767584cc10c7a7",
+              "ort": "300548269976937c453510cc2a2e944492253f9b1533b3626b4bf791f2e3eaa0"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 5.571017558367987e-12,
-            "bass": 7.93021719588465e-12,
-            "vocals": 5.548667758666361e-12,
-            "other": 1.396957377070611e-11
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 4.606338263553508e-12,
-            "bass": 5.987328492688289e-12,
-            "vocals": 4.221781052551934e-12,
-            "other": 8.883185560939979e-12
-          },
-          "maximum_closure": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "95fb113e325d1e2cd008bb97e57023d362557bb4d4ef066b04daac7fb5d07f92",
-            "ort": "54ac9506cc3e3f1e701c01a6a587ee9725c6cb0a232d4735c852e7e8af5ef4ed"
-          },
-          "passed": true,
-          "optimization": "disabled",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "disabled",
           "case": "dc_nyquist_offgrid_partial",
-          "physical_samples": 8229,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
-          "source": null,
-          "calls": 66,
-          "flush_hops": 1,
-          "physical_samples_recovered": 8229,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 5.21540641784668e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 5.960464477539063e-08,
-            "next_waveform_tail": 3.3527612686157227e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 2.3283064365386963e-10,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "dc_nyquist_offgrid_partial",
+            "physical_samples": 8229,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+            "source": null,
+            "calls": 66,
+            "flush_hops": 1,
+            "physical_samples_recovered": 8229,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.470348358154297e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 2.9802322387695312e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.60770320892334e-08,
+              "bass": 2.2351741790771484e-08,
+              "vocals": 1.4901161193847656e-08,
+              "other": 4.470348358154297e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 9.286002369280572e-09,
+              "bass": 7.59537229284559e-09,
+              "vocals": 3.6851748545555507e-09,
+              "other": 1.6837270232278706e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.734093527663947e-09,
+              "bass": 5.668479785709043e-09,
+              "vocals": 2.5836446189929067e-09,
+              "other": 1.2453475327100111e-08
+            },
+            "maximum_closure": {
+              "reference": 7.450580596923828e-09,
+              "ort": 7.450580596923828e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4f8642bfc9b35c2a03fcf53f8306e760201ef1ab055f22784490f3581047ee8f",
+              "ort": "a22572a57e2939422734cf38495a7fb223cfb146870feae60aa98217ca73a347"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 3.3527612686157227e-08,
-            "bass": 2.2351741790771484e-08,
-            "vocals": 1.4901161193847656e-08,
-            "other": 5.21540641784668e-08
+          "replay": {
+            "case": "dc_nyquist_offgrid_partial",
+            "physical_samples": 8229,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+            "source": null,
+            "calls": 66,
+            "flush_hops": 1,
+            "physical_samples_recovered": 8229,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.470348358154297e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 2.9802322387695312e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.60770320892334e-08,
+              "bass": 2.2351741790771484e-08,
+              "vocals": 1.4901161193847656e-08,
+              "other": 4.470348358154297e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 9.286002369280572e-09,
+              "bass": 7.59537229284559e-09,
+              "vocals": 3.6851748545555507e-09,
+              "other": 1.6837270232278706e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.734093527663947e-09,
+              "bass": 5.668479785709043e-09,
+              "vocals": 2.5836446189929067e-09,
+              "other": 1.2453475327100111e-08
+            },
+            "maximum_closure": {
+              "reference": 7.450580596923828e-09,
+              "ort": 7.450580596923828e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4f8642bfc9b35c2a03fcf53f8306e760201ef1ab055f22784490f3581047ee8f",
+              "ort": "a22572a57e2939422734cf38495a7fb223cfb146870feae60aa98217ca73a347"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 9.306412346476719e-09,
-            "bass": 7.327273155738607e-09,
-            "vocals": 3.6951381615034374e-09,
-            "other": 1.6857783002510683e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 6.789545229466733e-09,
-            "bass": 5.6687157463449334e-09,
-            "vocals": 2.5709037790240768e-09,
-            "other": 1.2483426969117867e-08
-          },
-          "maximum_closure": {
-            "reference": 7.450580596923828e-09,
-            "ort": 7.450580596923828e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "fdb6ed81ee47cad0fa6ee366b18ab40b7f14378017d0ad70f6f4c7d2f526b291",
-            "ort": "a777082525b15fdfdbaef4305d1a216af698ba21e8454e2a70860f77ef1b1394"
-          },
-          "passed": true,
-          "optimization": "disabled",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "disabled",
           "case": "boundary_and_last_sample_impulses",
-          "physical_samples": 933,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
-          "source": null,
-          "calls": 9,
-          "flush_hops": 1,
-          "physical_samples_recovered": 933,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 2.9802322387695312e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 5.960464477539063e-08,
-            "next_waveform_tail": 1.1641532182693481e-09,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "boundary_and_last_sample_impulses",
+            "physical_samples": 933,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+            "source": null,
+            "calls": 9,
+            "flush_hops": 1,
+            "physical_samples_recovered": 933,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 2.9802322387695312e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 1.1641532182693481e-09,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.3283064365386963e-09,
+              "vocals": 2.7939677238464355e-09,
+              "other": 2.9802322387695312e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 3.9193654948380605e-09,
+              "bass": 7.982902180373325e-10,
+              "vocals": 6.277140509328929e-10,
+              "other": 3.6297278653250546e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.4443411795395013e-09,
+              "bass": 4.4353750645509114e-10,
+              "vocals": 3.7653016977633845e-10,
+              "other": 2.2672246268715236e-09
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4fa57acb5d062be7b97e64e4c0442918ea69b967ec97d96eb6410ce24d7b921b",
+              "ort": "d390229603b8c011dbcea89a562ccbbd81b9f0f7d564b7ed4d35e8700bf36c1a"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 2.9802322387695312e-08,
-            "bass": 2.3283064365386963e-09,
-            "vocals": 2.7939677238464355e-09,
-            "other": 2.9802322387695312e-08
+          "replay": {
+            "case": "boundary_and_last_sample_impulses",
+            "physical_samples": 933,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+            "source": null,
+            "calls": 9,
+            "flush_hops": 1,
+            "physical_samples_recovered": 933,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 2.9802322387695312e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 1.1641532182693481e-09,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.3283064365386963e-09,
+              "vocals": 2.7939677238464355e-09,
+              "other": 2.9802322387695312e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 3.9193654948380605e-09,
+              "bass": 7.982902180373325e-10,
+              "vocals": 6.277140509328929e-10,
+              "other": 3.6297278653250546e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.4443411795395013e-09,
+              "bass": 4.4353750645509114e-10,
+              "vocals": 3.7653016977633845e-10,
+              "other": 2.2672246268715236e-09
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4fa57acb5d062be7b97e64e4c0442918ea69b967ec97d96eb6410ce24d7b921b",
+              "ort": "d390229603b8c011dbcea89a562ccbbd81b9f0f7d564b7ed4d35e8700bf36c1a"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 3.920135394200597e-09,
-            "bass": 8.141152570998858e-10,
-            "vocals": 6.283120090004744e-10,
-            "other": 3.6328068417982704e-09
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 2.4404313712005895e-09,
-            "bass": 4.4454550984201045e-10,
-            "vocals": 3.7484396526670366e-10,
-            "other": 2.2606810879549947e-09
-          },
-          "maximum_closure": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "5cc34bcc9fa3d6c3b9bd059633ed4cfcb897d688a42c06f5c28e4899a708bec2",
-            "ort": "cc30f27aede58108e6c6d89f4ede5e5efb3539847c676afd4a090d779beafc17"
-          },
-          "passed": true,
-          "optimization": "disabled",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "disabled",
           "case": "nonzero_history_hidden_and_both_tails",
-          "physical_samples": 1055,
-          "partial_hop_padding": 97,
-          "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
-          "source": null,
-          "calls": 10,
-          "flush_hops": 1,
-          "physical_samples_recovered": 1055,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 7.450580596923828e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 4.470348358154297e-08,
-            "next_waveform_tail": 3.725290298461914e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "nonzero_history_hidden_and_both_tails",
+            "physical_samples": 1055,
+            "partial_hop_padding": 97,
+            "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1055,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.729977369308472e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.21540641784668e-08,
+              "next_waveform_tail": 3.725290298461914e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.8870999813079834e-08,
+              "bass": 4.563480615615845e-08,
+              "vocals": 1.1641532182693481e-08,
+              "other": 7.729977369308472e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.1660157377455823e-08,
+              "bass": 1.4023498541202822e-08,
+              "vocals": 4.01882014252753e-09,
+              "other": 2.6385282935983224e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.539814903943413e-09,
+              "bass": 9.647461595848166e-09,
+              "vocals": 2.8227170485918357e-09,
+              "other": 1.7844157328397656e-08
+            },
+            "maximum_closure": {
+              "reference": 3.725290298461914e-09,
+              "ort": 3.725290298461914e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "5f24518efaebbab4334eceecbb259640b8dd888452bdbf9264249f50f97e75b0",
+              "ort": "64cdc6141e8e2891f271b8e68ea558afcd0fb4c47de310cbc1a35597cdfacd00"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 3.026798367500305e-08,
-            "bass": 4.377216100692749e-08,
-            "vocals": 1.1641532182693481e-08,
-            "other": 7.450580596923828e-08
+          "replay": {
+            "case": "nonzero_history_hidden_and_both_tails",
+            "physical_samples": 1055,
+            "partial_hop_padding": 97,
+            "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1055,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.729977369308472e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.21540641784668e-08,
+              "next_waveform_tail": 3.725290298461914e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.8870999813079834e-08,
+              "bass": 4.563480615615845e-08,
+              "vocals": 1.1641532182693481e-08,
+              "other": 7.729977369308472e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.1660157377455823e-08,
+              "bass": 1.4023498541202822e-08,
+              "vocals": 4.01882014252753e-09,
+              "other": 2.6385282935983224e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.539814903943413e-09,
+              "bass": 9.647461595848166e-09,
+              "vocals": 2.8227170485918357e-09,
+              "other": 1.7844157328397656e-08
+            },
+            "maximum_closure": {
+              "reference": 3.725290298461914e-09,
+              "ort": 3.725290298461914e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "5f24518efaebbab4334eceecbb259640b8dd888452bdbf9264249f50f97e75b0",
+              "ort": "64cdc6141e8e2891f271b8e68ea558afcd0fb4c47de310cbc1a35597cdfacd00"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 1.1812534553005006e-08,
-            "bass": 1.3519749820283636e-08,
-            "vocals": 4.120520381196605e-09,
-            "other": 2.6567461561996597e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 8.54312677539873e-09,
-            "bass": 9.470377672642898e-09,
-            "vocals": 2.7465497626763006e-09,
-            "other": 1.7433985184983477e-08
-          },
-          "maximum_closure": {
-            "reference": 3.725290298461914e-09,
-            "ort": 3.725290298461914e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "3a1148c41bef2db647772432ddf99d30bee447d8a52fded4487cae8f14443836",
-            "ort": "d73276d57b314cbe0538ce362f64f7b1f93bbad13b453b5663f3715d58a09a36"
-          },
-          "passed": true,
-          "optimization": "disabled",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "all",
           "case": "multitone_noise_then_silence_partial",
-          "physical_samples": 9253,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
-          "source": null,
-          "calls": 74,
-          "flush_hops": 1,
-          "physical_samples_recovered": 9253,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 7.450580596923828e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 6.705522537231445e-08,
-            "next_waveform_tail": 5.960464477539063e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "multitone_noise_then_silence_partial",
+            "physical_samples": 9253,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+            "source": null,
+            "calls": 74,
+            "flush_hops": 1,
+            "physical_samples_recovered": 9253,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.450580596923828e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 6.705522537231445e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 3.67872416973114e-08,
+              "bass": 4.842877388000488e-08,
+              "vocals": 1.9470462575554848e-08,
+              "other": 7.450580596923828e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.2008215846421015e-08,
+              "bass": 1.7518926051029297e-08,
+              "vocals": 4.309148009219229e-09,
+              "other": 2.8654871642511687e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.308892297928234e-09,
+              "bass": 1.0993833713125641e-08,
+              "vocals": 2.8934921185684916e-09,
+              "other": 1.819719820648263e-08
+            },
+            "maximum_closure": {
+              "reference": 1.862645149230957e-09,
+              "ort": 1.862645149230957e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "0112b0ebdaeca27fb0a7110d523c0223ce7d40633da0107a6da4d6ddbdcb82c2",
+              "ort": "6fadf6d67ec5d3cc680bbb0a86f4fe6a6874ca9350d6f1df29433b38baef0f69"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 3.213062882423401e-08,
-            "bass": 5.21540641784668e-08,
-            "vocals": 1.5599653124809265e-08,
-            "other": 7.450580596923828e-08
+          "replay": {
+            "case": "multitone_noise_then_silence_partial",
+            "physical_samples": 9253,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "719c1ef94c425d0a3dba8e5271088e7b54f88deeaa0838209aa2b40a905cc4d4",
+            "source": null,
+            "calls": 74,
+            "flush_hops": 1,
+            "physical_samples_recovered": 9253,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.450580596923828e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 6.705522537231445e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 3.67872416973114e-08,
+              "bass": 4.842877388000488e-08,
+              "vocals": 1.9470462575554848e-08,
+              "other": 7.450580596923828e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.2008215846421015e-08,
+              "bass": 1.7518926051029297e-08,
+              "vocals": 4.309148009219229e-09,
+              "other": 2.8654871642511687e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.308892297928234e-09,
+              "bass": 1.0993833713125641e-08,
+              "vocals": 2.8934921185684916e-09,
+              "other": 1.819719820648263e-08
+            },
+            "maximum_closure": {
+              "reference": 1.862645149230957e-09,
+              "ort": 1.862645149230957e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "0112b0ebdaeca27fb0a7110d523c0223ce7d40633da0107a6da4d6ddbdcb82c2",
+              "ort": "6fadf6d67ec5d3cc680bbb0a86f4fe6a6874ca9350d6f1df29433b38baef0f69"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 1.2444970777345626e-08,
-            "bass": 1.8195508752991132e-08,
-            "vocals": 4.218264762644962e-09,
-            "other": 3.017165131425627e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 8.364402993656688e-09,
-            "bass": 1.1136187558750769e-08,
-            "vocals": 2.8663743026437847e-09,
-            "other": 1.843678389953735e-08
-          },
-          "maximum_closure": {
-            "reference": 1.862645149230957e-09,
-            "ort": 1.862645149230957e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "5572842ddc5ff313a896602d155b76aa1792cc02d3945a56997ea80073437776",
-            "ort": "1e723abff20abfa67de2ae207e38b457c6b6265a75ac61d3a86273a3f3f3d83a"
-          },
-          "passed": true,
-          "optimization": "all",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "all",
           "case": "silence_from_reset",
-          "physical_samples": 1041,
-          "partial_hop_padding": 111,
-          "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
-          "source": null,
-          "calls": 10,
-          "flush_hops": 1,
-          "physical_samples_recovered": 1041,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 3.637978807091713e-11,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 0.0,
-            "next_waveform_tail": 5.093170329928398e-11,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "silence_from_reset",
+            "physical_samples": 1041,
+            "partial_hop_padding": 111,
+            "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1041,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.001776687800884e-11,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 0.0,
+              "next_waveform_tail": 5.093170329928398e-11,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.000888343900442e-11,
+              "bass": 2.9103830456733704e-11,
+              "vocals": 1.2732925824820995e-11,
+              "other": 4.001776687800884e-11
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 6.785679406388902e-12,
+              "bass": 8.828864481690254e-12,
+              "vocals": 6.369797664465917e-12,
+              "other": 1.8325523931941454e-11
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 4.700957725664e-12,
+              "bass": 5.974602718765861e-12,
+              "vocals": 4.412873260066217e-12,
+              "other": 9.322907197423185e-12
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "afb6343480af4e0bacacb2a08a832d58225c72b81bf0896124767584cc10c7a7",
+              "ort": "588892977d400dd00632e826f5f9aa6a3065903ae94d908df4509fce3ba28f12"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 1.8189894035458565e-11,
-            "bass": 2.1827872842550278e-11,
-            "vocals": 1.2732925824820995e-11,
-            "other": 3.637978807091713e-11
+          "replay": {
+            "case": "silence_from_reset",
+            "physical_samples": 1041,
+            "partial_hop_padding": 111,
+            "decoded_input_sha256": "15ac6aff90154c65cf4d4f71cc7c70bc0f8f4b235a329965e51e95869bd3c588",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1041,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 4.001776687800884e-11,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 0.0,
+              "next_waveform_tail": 5.093170329928398e-11,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.000888343900442e-11,
+              "bass": 2.9103830456733704e-11,
+              "vocals": 1.2732925824820995e-11,
+              "other": 4.001776687800884e-11
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 6.785679406388902e-12,
+              "bass": 8.828864481690254e-12,
+              "vocals": 6.369797664465917e-12,
+              "other": 1.8325523931941454e-11
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 4.700957725664e-12,
+              "bass": 5.974602718765861e-12,
+              "vocals": 4.412873260066217e-12,
+              "other": 9.322907197423185e-12
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "afb6343480af4e0bacacb2a08a832d58225c72b81bf0896124767584cc10c7a7",
+              "ort": "588892977d400dd00632e826f5f9aa6a3065903ae94d908df4509fce3ba28f12"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 5.819083643474661e-12,
-            "bass": 7.467719644423315e-12,
-            "vocals": 5.571928260694781e-12,
-            "other": 1.3937465563044989e-11
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 4.623358373058167e-12,
-            "bass": 5.7981075477407945e-12,
-            "vocals": 4.243824517439158e-12,
-            "other": 8.79788896649265e-12
-          },
-          "maximum_closure": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "95fb113e325d1e2cd008bb97e57023d362557bb4d4ef066b04daac7fb5d07f92",
-            "ort": "a0eae66b12e4b9af90fe7442d9a1f20aa644f180c0f2eb954aa81e22db4a5f83"
-          },
-          "passed": true,
-          "optimization": "all",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "all",
           "case": "dc_nyquist_offgrid_partial",
-          "physical_samples": 8229,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
-          "source": null,
-          "calls": 66,
-          "flush_hops": 1,
-          "physical_samples_recovered": 8229,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 5.21540641784668e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 5.960464477539063e-08,
-            "next_waveform_tail": 3.725290298461914e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 2.3283064365386963e-10,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "dc_nyquist_offgrid_partial",
+            "physical_samples": 8229,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+            "source": null,
+            "calls": 66,
+            "flush_hops": 1,
+            "physical_samples_recovered": 8229,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 5.21540641784668e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 2.60770320892334e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.421438694000244e-08,
+              "vocals": 1.5133991837501526e-08,
+              "other": 5.21540641784668e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 9.201510857446542e-09,
+              "bass": 7.423130614221432e-09,
+              "vocals": 3.6819823215032024e-09,
+              "other": 1.6926129491822792e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.724195856978234e-09,
+              "bass": 5.668539878998021e-09,
+              "vocals": 2.569479699947573e-09,
+              "other": 1.2474904756082449e-08
+            },
+            "maximum_closure": {
+              "reference": 7.450580596923828e-09,
+              "ort": 7.450580596923828e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4f8642bfc9b35c2a03fcf53f8306e760201ef1ab055f22784490f3581047ee8f",
+              "ort": "d477eab547d0a16c3c9ca4e064f4fecf5fcbfac045538d7be8e0ab227a20e20d"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 2.9802322387695312e-08,
-            "bass": 2.421438694000244e-08,
-            "vocals": 1.4202669262886047e-08,
-            "other": 5.21540641784668e-08
+          "replay": {
+            "case": "dc_nyquist_offgrid_partial",
+            "physical_samples": 8229,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "228bc3a2acd285513598b96fe9290c65189dca3d0951629c6252f08dadcdea52",
+            "source": null,
+            "calls": 66,
+            "flush_hops": 1,
+            "physical_samples_recovered": 8229,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 5.21540641784668e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 2.60770320892334e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.421438694000244e-08,
+              "vocals": 1.5133991837501526e-08,
+              "other": 5.21540641784668e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 9.201510857446542e-09,
+              "bass": 7.423130614221432e-09,
+              "vocals": 3.6819823215032024e-09,
+              "other": 1.6926129491822792e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 6.724195856978234e-09,
+              "bass": 5.668539878998021e-09,
+              "vocals": 2.569479699947573e-09,
+              "other": 1.2474904756082449e-08
+            },
+            "maximum_closure": {
+              "reference": 7.450580596923828e-09,
+              "ort": 7.450580596923828e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4f8642bfc9b35c2a03fcf53f8306e760201ef1ab055f22784490f3581047ee8f",
+              "ort": "d477eab547d0a16c3c9ca4e064f4fecf5fcbfac045538d7be8e0ab227a20e20d"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 9.221924131562107e-09,
-            "bass": 7.416877042833318e-09,
-            "vocals": 3.7060863077485205e-09,
-            "other": 1.6930932930580822e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 6.773706800273702e-09,
-            "bass": 5.673786191681982e-09,
-            "vocals": 2.5620220024254255e-09,
-            "other": 1.247767666273967e-08
-          },
-          "maximum_closure": {
-            "reference": 7.450580596923828e-09,
-            "ort": 7.450580596923828e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "fdb6ed81ee47cad0fa6ee366b18ab40b7f14378017d0ad70f6f4c7d2f526b291",
-            "ort": "8ab4b0540f34e0e15a195dcc7e6217e5e4dede921bf6e77e303b71acdbb2494d"
-          },
-          "passed": true,
-          "optimization": "all",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
+          "optimization": "all",
           "case": "boundary_and_last_sample_impulses",
-          "physical_samples": 933,
-          "partial_hop_padding": 91,
-          "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
-          "source": null,
-          "calls": 9,
-          "flush_hops": 1,
-          "physical_samples_recovered": 933,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 2.9802322387695312e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 5.960464477539063e-08,
-            "next_waveform_tail": 1.1641532182693481e-09,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
+          "first": {
+            "case": "boundary_and_last_sample_impulses",
+            "physical_samples": 933,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+            "source": null,
+            "calls": 9,
+            "flush_hops": 1,
+            "physical_samples_recovered": 933,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 2.9802322387695312e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 1.1641532182693481e-09,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.3283064365386963e-09,
+              "vocals": 2.7939677238464355e-09,
+              "other": 2.9802322387695312e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 3.916257559367531e-09,
+              "bass": 7.983187147868679e-10,
+              "vocals": 6.271889361548318e-10,
+              "other": 3.6306054796102088e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.4414887416587856e-09,
+              "bass": 4.4308077391421406e-10,
+              "vocals": 3.774076453159133e-10,
+              "other": 2.2625123110477426e-09
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4fa57acb5d062be7b97e64e4c0442918ea69b967ec97d96eb6410ce24d7b921b",
+              "ort": "c9f3cf4f906b644fb3d0383e5af1c91e817b559ac00b2040174bb7846a9782ad"
+            },
+            "passed": true
           },
-          "maximum_audio_error_by_stem": {
-            "drums": 2.9802322387695312e-08,
-            "bass": 2.3283064365386963e-09,
-            "vocals": 2.7939677238464355e-09,
-            "other": 2.9802322387695312e-08
+          "replay": {
+            "case": "boundary_and_last_sample_impulses",
+            "physical_samples": 933,
+            "partial_hop_padding": 91,
+            "decoded_input_sha256": "1e9bcd303f77d546c0e5a3de736334465a9a8b3c121972212ecce052ab235af4",
+            "source": null,
+            "calls": 9,
+            "flush_hops": 1,
+            "physical_samples_recovered": 933,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 2.9802322387695312e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.960464477539063e-08,
+              "next_waveform_tail": 1.1641532182693481e-09,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.9802322387695312e-08,
+              "bass": 2.3283064365386963e-09,
+              "vocals": 2.7939677238464355e-09,
+              "other": 2.9802322387695312e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 3.916257559367531e-09,
+              "bass": 7.983187147868679e-10,
+              "vocals": 6.271889361548318e-10,
+              "other": 3.6306054796102088e-09
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 2.4414887416587856e-09,
+              "bass": 4.4308077391421406e-10,
+              "vocals": 3.774076453159133e-10,
+              "other": 2.2625123110477426e-09
+            },
+            "maximum_closure": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "4fa57acb5d062be7b97e64e4c0442918ea69b967ec97d96eb6410ce24d7b921b",
+              "ort": "c9f3cf4f906b644fb3d0383e5af1c91e817b559ac00b2040174bb7846a9782ad"
+            },
+            "passed": true
           },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 3.917049220096277e-09,
-            "bass": 8.12367943574066e-10,
-            "vocals": 6.266570173370731e-10,
-            "other": 3.6329583427857353e-09
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 2.440091197347871e-09,
-            "bass": 4.4495845685647244e-10,
-            "vocals": 3.757289031089645e-10,
-            "other": 2.261752131783012e-09
-          },
-          "maximum_closure": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "5cc34bcc9fa3d6c3b9bd059633ed4cfcb897d688a42c06f5c28e4899a708bec2",
-            "ort": "4f5d9604728a5ab8d9dffd1c045f31eee2e75cdaeb357136e398bcf9c9c6e3f7"
-          },
-          "passed": true,
-          "optimization": "all",
-          "reset_replay_bit_exact": true
+          "reset_replay_bit_exact": true,
+          "passed": true
         },
         {
-          "case": "nonzero_history_hidden_and_both_tails",
-          "physical_samples": 1055,
-          "partial_hop_padding": 97,
-          "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
-          "source": null,
-          "calls": 10,
-          "flush_hops": 1,
-          "physical_samples_recovered": 1055,
-          "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
-          "maximum_errors_in_physical_units": {
-            "separated_chunk": 7.450580596923828e-08,
-            "next_audio_history": 0.0,
-            "next_fusion_hidden": 0.0,
-            "next_spectral_numerator_tail": 4.470348358154297e-08,
-            "next_waveform_tail": 4.0978193283081055e-08,
-            "next_attention_keys": 0.0,
-            "next_attention_values": 0.0,
-            "next_spec_memory_hidden": 0.0,
-            "next_waveform_memory_hidden": 0.0
-          },
-          "maximum_audio_error_by_stem": {
-            "drums": 2.9336661100387573e-08,
-            "bass": 4.3888576328754425e-08,
-            "vocals": 1.1641532182693481e-08,
-            "other": 7.450580596923828e-08
-          },
-          "maximum_stem_callback_rms_by_stem": {
-            "drums": 1.177944505594062e-08,
-            "bass": 1.3368803911255967e-08,
-            "vocals": 4.1946134505767655e-09,
-            "other": 2.64328800814315e-08
-          },
-          "trajectory_rms_error_by_stem": {
-            "drums": 8.528098617286747e-09,
-            "bass": 9.428130355040954e-09,
-            "vocals": 2.7528415869178006e-09,
-            "other": 1.742759347065906e-08
-          },
-          "maximum_closure": {
-            "reference": 3.725290298461914e-09,
-            "ort": 3.725290298461914e-09
-          },
-          "last_real_sample_reconstruction_error": {
-            "reference": 0.0,
-            "ort": 0.0
-          },
-          "all_output_and_state_trajectory_sha256": {
-            "reference": "3a1148c41bef2db647772432ddf99d30bee447d8a52fded4487cae8f14443836",
-            "ort": "5513ba3a8913d3ef69d07dd8338568d667e7685d62aea2e9d9be4b6771962e89"
-          },
-          "passed": true,
           "optimization": "all",
-          "reset_replay_bit_exact": true
+          "case": "nonzero_history_hidden_and_both_tails",
+          "first": {
+            "case": "nonzero_history_hidden_and_both_tails",
+            "physical_samples": 1055,
+            "partial_hop_padding": 97,
+            "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1055,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.636845111846924e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.21540641784668e-08,
+              "next_waveform_tail": 4.0978193283081055e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.7939677238464355e-08,
+              "bass": 4.5693013817071915e-08,
+              "vocals": 1.30385160446167e-08,
+              "other": 7.636845111846924e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.1674958147731427e-08,
+              "bass": 1.4091438422163478e-08,
+              "vocals": 4.142151436473349e-09,
+              "other": 2.6477416699115487e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.538374023372794e-09,
+              "bass": 9.672658012102266e-09,
+              "vocals": 2.830744981353725e-09,
+              "other": 1.789093964806293e-08
+            },
+            "maximum_closure": {
+              "reference": 3.725290298461914e-09,
+              "ort": 3.725290298461914e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "5f24518efaebbab4334eceecbb259640b8dd888452bdbf9264249f50f97e75b0",
+              "ort": "d810d4cf0b70c44b7df2dde249a2b45785aea1ac81151dc4391b55fd3cecfd0c"
+            },
+            "passed": true
+          },
+          "replay": {
+            "case": "nonzero_history_hidden_and_both_tails",
+            "physical_samples": 1055,
+            "partial_hop_padding": 97,
+            "decoded_input_sha256": "db6a96c4a6c0c3a39e23d7f81e66c0114d78a7f365bb583f2729c084ed300878",
+            "source": null,
+            "calls": 10,
+            "flush_hops": 1,
+            "physical_samples_recovered": 1055,
+            "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
+            "maximum_errors_in_physical_units": {
+              "separated_chunk": 7.636845111846924e-08,
+              "next_audio_history": 0.0,
+              "next_fusion_hidden": 0.0,
+              "next_spectral_numerator_tail": 5.21540641784668e-08,
+              "next_waveform_tail": 4.0978193283081055e-08,
+              "next_attention_keys": 0.0,
+              "next_attention_values": 0.0,
+              "next_spec_memory_hidden": 0.0,
+              "next_waveform_memory_hidden": 0.0
+            },
+            "maximum_audio_error_by_stem": {
+              "drums": 2.7939677238464355e-08,
+              "bass": 4.5693013817071915e-08,
+              "vocals": 1.30385160446167e-08,
+              "other": 7.636845111846924e-08
+            },
+            "maximum_stem_callback_rms_by_stem": {
+              "drums": 1.1674958147731427e-08,
+              "bass": 1.4091438422163478e-08,
+              "vocals": 4.142151436473349e-09,
+              "other": 2.6477416699115487e-08
+            },
+            "trajectory_rms_error_by_stem": {
+              "drums": 8.538374023372794e-09,
+              "bass": 9.672658012102266e-09,
+              "vocals": 2.830744981353725e-09,
+              "other": 1.789093964806293e-08
+            },
+            "maximum_closure": {
+              "reference": 3.725290298461914e-09,
+              "ort": 3.725290298461914e-09
+            },
+            "last_real_sample_reconstruction_error": {
+              "reference": 0.0,
+              "ort": 0.0
+            },
+            "all_output_and_state_trajectory_sha256": {
+              "reference": "5f24518efaebbab4334eceecbb259640b8dd888452bdbf9264249f50f97e75b0",
+              "ort": "d810d4cf0b70c44b7df2dde249a2b45785aea1ac81151dc4391b55fd3cecfd0c"
+            },
+            "passed": true
+          },
+          "reset_replay_bit_exact": true,
+          "passed": true
         }
       ],
-      "graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
-      "graph_bytes": 38298020,
-      "saved_graph_path": "research/direct/runs/latency58/branch-output-int8-screen-001/model.onnx",
-      "parent_graph": {
-        "path": "research/direct/runs/latency58/branch-gru-int8-plugin-001/model/model.onnx",
-        "bytes": 39789914,
-        "sha256": "878c74694fa4c558de1c5a75837893a0afeadcf57f6e3b860d5904cab04e9fc9"
-      },
+      "saved_graph_path": "research/m4_followup_20260916/attention-qkv-int8-screen-001/model.onnx",
+      "graph_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
+      "graph_bytes": 37532574,
+      "parent_graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
       "source_checkpoint": {
         "path": "research/direct/runs/latency58/branch-pitch-ema-002/production-run/checkpoint/model.pt",
         "sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0"
       },
+      "source_model_state_sha256": "2b123695bb86e92ef26e8e4fdab06069aecc5a55e8e26b171be25473a33208d5",
       "source_bindings_unchanged": true,
-      "tolerances_changed": false,
-      "gpu_used": false,
-      "quality_measured": false,
-      "quality_selected": false,
-      "native_host_qualified": false,
-      "graph_plus_host_delay_samples": 256,
       "local_abba_timing_blocks": [
         {
           "repeat": 0,
           "label": "parent",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 5.3198941458333335,
-          "median_ms": 4.5904785,
-          "maximum_ms": 11.154479
+          "durations_ms": [
+            4.139424,
+            4.491997,
+            4.400722,
+            4.273738,
+            4.114379,
+            3.112816,
+            3.019418,
+            2.986814,
+            3.283031,
+            3.205834,
+            3.190323,
+            3.159972,
+            3.031385,
+            3.045936,
+            3.349588,
+            3.330158,
+            3.105727,
+            3.110864,
+            2.999031,
+            3.132454,
+            3.061326,
+            3.037083,
+            3.026309,
+            2.992542,
+            3.182112,
+            3.366584,
+            3.131702,
+            3.100619,
+            3.008784,
+            3.171236,
+            3.182012,
+            3.122049,
+            3.084238,
+            3.047007,
+            3.004278,
+            3.011518,
+            2.978954,
+            2.979614,
+            3.429422,
+            3.752124,
+            3.545549,
+            3.287737,
+            3.147394,
+            3.211291,
+            3.178487,
+            3.273968,
+            3.170977,
+            3.088223
+          ],
+          "mean_ms": 3.272015625,
+          "median_ms": 3.1399239999999997,
+          "p95_ms": 4.2267281,
+          "p99_ms": 4.44909775,
+          "maximum_ms": 4.491997,
+          "over_hop_budget": 48
         },
         {
           "repeat": 0,
           "label": "candidate",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 4.090787958333333,
-          "median_ms": 4.123792,
-          "maximum_ms": 5.778761
+          "durations_ms": [
+            2.735049,
+            2.792347,
+            3.619373,
+            3.379671,
+            3.030935,
+            2.884844,
+            2.835727,
+            2.828236,
+            2.817732,
+            2.948532,
+            3.222818,
+            2.96899,
+            2.959316,
+            2.964283,
+            2.953038,
+            2.876652,
+            2.855874,
+            2.793048,
+            2.842666,
+            2.816441,
+            2.88205,
+            2.923658,
+            2.895849,
+            2.870084,
+            2.807509,
+            2.770608,
+            2.787131,
+            3.034569,
+            3.098647,
+            2.916277,
+            2.959337,
+            3.197753,
+            3.314824,
+            3.016996,
+            2.916728,
+            2.88192,
+            2.8889,
+            2.797144,
+            2.795853,
+            2.741999,
+            2.785828,
+            2.910169,
+            2.821437,
+            2.816961,
+            2.75758,
+            2.836318,
+            2.7944,
+            2.833134
+          ],
+          "mean_ms": 2.9204007291666665,
+          "median_ms": 2.879286,
+          "p95_ms": 3.2826219,
+          "p99_ms": 3.5067130600000005,
+          "maximum_ms": 3.619373,
+          "over_hop_budget": 19
         },
         {
           "repeat": 0,
           "label": "candidate",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 3.8305973333333334,
-          "median_ms": 3.6833780000000003,
-          "maximum_ms": 5.520733
+          "durations_ms": [
+            2.899544,
+            2.975077,
+            3.277974,
+            3.184786,
+            3.084468,
+            3.01236,
+            2.826454,
+            2.887177,
+            2.838801,
+            2.84582,
+            2.793469,
+            2.775687,
+            2.883956,
+            2.757369,
+            2.797876,
+            2.73629,
+            2.757599,
+            2.759272,
+            3.499466,
+            3.198356,
+            3.726382,
+            3.813723,
+            3.787056,
+            3.620303,
+            3.178036,
+            3.834293,
+            3.795998,
+            3.551197,
+            3.486318,
+            3.615887,
+            3.532291,
+            3.550246,
+            3.592775,
+            3.550296,
+            3.458247,
+            3.423919,
+            3.440943,
+            3.406666,
+            3.444588,
+            3.480957,
+            3.348765,
+            3.384244,
+            3.162304,
+            3.067351,
+            3.060562,
+            3.086619,
+            3.105184,
+            2.946734
+          ],
+          "mean_ms": 3.2342434375,
+          "median_ms": 3.1915709999999997,
+          "p95_ms": 3.7928683,
+          "p99_ms": 3.8246251,
+          "maximum_ms": 3.834293,
+          "over_hop_budget": 35
         },
         {
           "repeat": 0,
           "label": "parent",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 5.056817208333333,
-          "median_ms": 4.597298,
-          "maximum_ms": 26.253746
+          "durations_ms": [
+            2.963316,
+            3.305621,
+            3.352981,
+            3.475337,
+            3.422898,
+            3.88948,
+            3.543136,
+            3.608377,
+            4.060237,
+            4.11183,
+            4.422162,
+            4.186124,
+            4.093174,
+            3.62498,
+            3.555093,
+            3.469633,
+            3.408458,
+            3.235767,
+            3.361853,
+            3.297603,
+            4.014434,
+            3.962842,
+            3.892684,
+            3.827012,
+            3.834963,
+            3.765275,
+            3.748513,
+            3.741883,
+            3.724349,
+            3.485765,
+            4.77053,
+            4.582196,
+            4.487224,
+            4.336678,
+            3.369516,
+            3.294338,
+            3.272137,
+            3.244019,
+            3.33815,
+            3.43822,
+            3.269303,
+            3.252149,
+            3.22365,
+            3.277344,
+            3.259379,
+            3.378195,
+            3.409189,
+            3.363306
+          ],
+          "mean_ms": 3.6448188125,
+          "median_ms": 3.480551,
+          "p95_ms": 4.4644523000000005,
+          "p99_ms": 4.68201302,
+          "maximum_ms": 4.77053,
+          "over_hop_budget": 48
         },
         {
           "repeat": 1,
           "label": "parent",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 20.139288020833334,
-          "median_ms": 7.966630500000001,
-          "maximum_ms": 69.174449
+          "durations_ms": [
+            3.692294,
+            3.75362,
+            3.897881,
+            3.585165,
+            3.576481,
+            3.341975,
+            3.186648,
+            3.198775,
+            3.199706,
+            3.153341,
+            3.153192,
+            3.033344,
+            3.04424,
+            3.034345,
+            2.981923,
+            3.027856,
+            2.93776,
+            3.748643,
+            3.489461,
+            3.516118,
+            3.401048,
+            3.355884,
+            3.364937,
+            3.43186,
+            3.132232,
+            3.155573,
+            3.085517,
+            3.101139,
+            3.192346,
+            3.083023,
+            3.14555,
+            3.071598,
+            3.117622,
+            3.130089,
+            3.045681,
+            3.140694,
+            3.082512,
+            3.035888,
+            2.977126,
+            2.996092,
+            3.040564,
+            3.01572,
+            3.016402,
+            3.22368,
+            3.207379,
+            3.098285,
+            3.158419,
+            3.076304
+          ],
+          "mean_ms": 3.21741525,
+          "median_ms": 3.143122,
+          "p95_ms": 3.7289208499999997,
+          "p99_ms": 3.83007833,
+          "maximum_ms": 3.897881,
+          "over_hop_budget": 48
         },
         {
           "repeat": 1,
           "label": "candidate",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 5.022162270833333,
-          "median_ms": 5.114033,
-          "maximum_ms": 8.676397
+          "durations_ms": [
+            3.178087,
+            2.938122,
+            2.912946,
+            2.852622,
+            2.891256,
+            3.813601,
+            3.838007,
+            3.029779,
+            2.812846,
+            2.94399,
+            2.902042,
+            2.891976,
+            2.782645,
+            2.813518,
+            2.823582,
+            2.958069,
+            2.917963,
+            2.809812,
+            3.097563,
+            3.277495,
+            3.061053,
+            2.997204,
+            2.927166,
+            2.848536,
+            2.838352,
+            2.859592,
+            2.854144,
+            2.813357,
+            2.789363,
+            2.834496,
+            2.813858,
+            2.747065,
+            2.803123,
+            3.252738,
+            3.112554,
+            2.981392,
+            2.946823,
+            2.90136,
+            3.020115,
+            3.081852,
+            3.069335,
+            3.272498,
+            2.970267,
+            2.939232,
+            2.840615,
+            2.81558,
+            2.806938,
+            2.778288
+          ],
+          "mean_ms": 2.9679753541666667,
+          "median_ms": 2.907494,
+          "p95_ms": 3.27574605,
+          "p99_ms": 3.82653618,
+          "maximum_ms": 3.838007,
+          "over_hop_budget": 24
         },
         {
           "repeat": 1,
           "label": "candidate",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 9.152681,
-          "median_ms": 3.8886355,
-          "maximum_ms": 56.76269
+          "durations_ms": [
+            3.149487,
+            3.106687,
+            3.14487,
+            3.010241,
+            3.14497,
+            3.272788,
+            3.1665,
+            3.181911,
+            3.003432,
+            3.054213,
+            2.954624,
+            3.240053,
+            3.307807,
+            3.230155,
+            3.152003,
+            3.194819,
+            3.008419,
+            3.185016,
+            3.256235,
+            3.71139,
+            3.371125,
+            3.733012,
+            3.750104,
+            3.476573,
+            3.122749,
+            3.099757,
+            2.955866,
+            2.935368,
+            3.005655,
+            2.953192,
+            2.962275,
+            2.8655,
+            3.222678,
+            3.571055,
+            3.284645,
+            3.283303,
+            3.171817,
+            3.764185,
+            3.262163,
+            3.188791,
+            3.408979,
+            3.47412,
+            3.350949,
+            3.059439,
+            2.867012,
+            3.164217,
+            2.999096,
+            3.042818
+          ],
+          "mean_ms": 3.2046263125,
+          "median_ms": 3.1691585,
+          "p95_ms": 3.7254443,
+          "p99_ms": 3.75756693,
+          "maximum_ms": 3.764185,
+          "over_hop_budget": 46
         },
         {
           "repeat": 1,
           "label": "parent",
           "warmup_hops": 16,
           "measured_hops": 48,
-          "mean_ms": 4.915260729166667,
-          "median_ms": 4.373019,
-          "maximum_ms": 16.746849
+          "durations_ms": [
+            3.303282,
+            3.264426,
+            3.215074,
+            3.159513,
+            3.114598,
+            3.066708,
+            3.109981,
+            3.052307,
+            3.451314,
+            3.2537,
+            3.225158,
+            3.096813,
+            3.125894,
+            3.26768,
+            3.22606,
+            3.272728,
+            3.555937,
+            3.31536,
+            3.37879,
+            3.214212,
+            3.140655,
+            3.134566,
+            3.103552,
+            3.63226,
+            3.368386,
+            3.701439,
+            3.230426,
+            3.42698,
+            3.28826,
+            3.236455,
+            3.201333,
+            3.332995,
+            3.34408,
+            3.270844,
+            3.300989,
+            3.206562,
+            3.132183,
+            3.165462,
+            3.08861,
+            3.139875,
+            3.078986,
+            3.044345,
+            3.048412,
+            3.06115,
+            3.524993,
+            3.326635,
+            3.415655,
+            3.411239
+          ],
+          "mean_ms": 3.250559625,
+          "median_ms": 3.228243,
+          "p95_ms": 3.5451066,
+          "p99_ms": 3.66892487,
+          "maximum_ms": 3.701439,
+          "over_hop_budget": 48
         }
       ],
-      "concurrent_training_and_validation": true,
-      "budget_before": {
-        "observed_utc": "2026-09-15T04:38:36.926600+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64533695383,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19018816779,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+      "local_speed_gate": {
+        "evaluated": true,
+        "median_of_block_p50_ms": {
+          "parent": 3.1856825,
+          "candidate": 3.03832625
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88144069410,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1855930590
+        "reduction_fraction": 0.04625578663284868,
+        "faster_pairs": 4,
+        "total_pairs": 4,
+        "passed": true
+      },
+      "graph_plus_host_delay_samples": 256,
+      "tolerances_changed": false,
+      "gpu_used": false,
+      "quality_measured": false,
+      "quality_selected": false,
+      "native_host_qualified": false,
+      "elapsed_seconds": 24.05979286704678,
+      "peak_rss_kib": 1624764,
+      "budget_before": {
+        "observed_utc": "2026-09-16T05:28:21.615301+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88406279058,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 101434988,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 178565012,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:28:21.605760+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64641733290,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915362069,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 8718561,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 90384268
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
+        },
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 132484491,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3867515509
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       },
       "budget_after": {
-        "observed_utc": "2026-09-15T04:39:03.815776+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64533789485,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19018941041,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+        "observed_utc": "2026-09-16T05:28:46.480956+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88406372874,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 101528804,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 178471196,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:28:46.470717+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64641827106,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915362069,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 8718561,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 90478084
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88144287774,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1855712226
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 170159838,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3829840162
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       },
-      "elapsed_seconds": 25.006203986995388,
-      "limitations": "Short synthetic strict parity to independently reconstructed sixteen-projection inference. This is not parity to the unquantized source or the PR #15 fourteen-projection graph. Full-mixture quality, counterfactual leakage, long-stream parity and target-Mac timing remain unmeasured."
+      "limitations": "Independent seventeen-product synthetic parity only. Quantization changes model arithmetic. Long-stream numerical checks, full14 and source-view quality, native timing and physical M4 acceptance remain required. Linux Python timings include allocation and concurrent GPU training load."
     },
     "execution": {
+      "actual_session_id": 76833,
+      "actual_tool_chunk_id": "9a13fa",
       "actual_exit_code": 0,
-      "actual_exec_session_id": 82365,
-      "actual_terminal_chunk_id": "e8aff9",
       "timed_out": false,
       "source_bindings_unchanged": true,
-      "observed_utc": "2026-09-15T04:40:38.345667+00:00",
-      "result_sha256": "b0c84bcff11512fa4e8e560b420db794412100ade68e577c2c798fba8dae697e"
+      "command": "attention-qkv-int8-command.json",
+      "result": "attention-qkv-int8-screen-001/result.json",
+      "strict_parity_passed": true,
+      "local_speed_gate_passed": true,
+      "selected_for_native_comparison": true
     }
   },
   "long": {
-    "result_sha256": "5f16ee2c25dff72e1bbec5d29816a56833b3355145dee68e6d720a07517245fa",
+    "result_sha256": "731f0fb16ee12d05df3e0b4fbc83f4904441eb18153057c4820a1c54dd9dc5e2",
     "result": {
       "status": "pass",
       "reports": [
@@ -717,33 +1850,33 @@
             "physical_samples_recovered": 263205,
             "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
             "maximum_errors_in_physical_units": {
-              "separated_chunk": 8.940696716308594e-08,
+              "separated_chunk": 8.195638656616211e-08,
               "next_audio_history": 0.0,
               "next_fusion_hidden": 0.0,
               "next_spectral_numerator_tail": 7.450580596923828e-08,
-              "next_waveform_tail": 9.685754776000977e-08,
+              "next_waveform_tail": 8.940696716308594e-08,
               "next_attention_keys": 0.0,
               "next_attention_values": 0.0,
               "next_spec_memory_hidden": 0.0,
               "next_waveform_memory_hidden": 0.0
             },
             "maximum_audio_error_by_stem": {
-              "drums": 5.820766091346741e-08,
+              "drums": 5.494803190231323e-08,
               "bass": 5.960464477539063e-08,
-              "vocals": 2.403976395726204e-08,
-              "other": 8.940696716308594e-08
+              "vocals": 2.2264430299401283e-08,
+              "other": 8.195638656616211e-08
             },
             "maximum_stem_callback_rms_by_stem": {
-              "drums": 1.2926881374994314e-08,
-              "bass": 2.0585435814017957e-08,
-              "vocals": 4.717969253832127e-09,
-              "other": 3.111988228496704e-08
+              "drums": 1.253152300531047e-08,
+              "bass": 1.984253593238495e-08,
+              "vocals": 4.611416976238559e-09,
+              "other": 3.096233131519308e-08
             },
             "trajectory_rms_error_by_stem": {
-              "drums": 8.82231737224092e-09,
-              "bass": 1.2827207136927031e-08,
-              "vocals": 2.886455098256214e-09,
-              "other": 1.9708363490164305e-08
+              "drums": 8.800349660290138e-09,
+              "bass": 1.2840463397936037e-08,
+              "vocals": 2.894584163804053e-09,
+              "other": 1.971173299716921e-08
             },
             "maximum_closure": {
               "reference": 1.862645149230957e-09,
@@ -754,8 +1887,8 @@
               "ort": 0.0
             },
             "all_output_and_state_trajectory_sha256": {
-              "reference": "5ce878a8755ca2513d176d02f7d1ee427d1f9877982774942a7a728f3a3544cd",
-              "ort": "87efaaaf14221410532c4b8f11fcdb80d1a0cc25d672c32fd403b8484f00fd52"
+              "reference": "f1e99a77bf78dfb646aab4f3a53dc2695bf1f0dedf11bf515e20bfd47f3d9136",
+              "ort": "2e90c4f9473b739cd3391254cfabc759fe6c3205dd00be1bd6dea063201e2edd"
             },
             "passed": true
           },
@@ -770,33 +1903,33 @@
             "physical_samples_recovered": 263205,
             "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
             "maximum_errors_in_physical_units": {
-              "separated_chunk": 8.940696716308594e-08,
+              "separated_chunk": 8.195638656616211e-08,
               "next_audio_history": 0.0,
               "next_fusion_hidden": 0.0,
               "next_spectral_numerator_tail": 7.450580596923828e-08,
-              "next_waveform_tail": 9.685754776000977e-08,
+              "next_waveform_tail": 8.940696716308594e-08,
               "next_attention_keys": 0.0,
               "next_attention_values": 0.0,
               "next_spec_memory_hidden": 0.0,
               "next_waveform_memory_hidden": 0.0
             },
             "maximum_audio_error_by_stem": {
-              "drums": 5.820766091346741e-08,
+              "drums": 5.494803190231323e-08,
               "bass": 5.960464477539063e-08,
-              "vocals": 2.403976395726204e-08,
-              "other": 8.940696716308594e-08
+              "vocals": 2.2264430299401283e-08,
+              "other": 8.195638656616211e-08
             },
             "maximum_stem_callback_rms_by_stem": {
-              "drums": 1.2926881374994314e-08,
-              "bass": 2.0585435814017957e-08,
-              "vocals": 4.717969253832127e-09,
-              "other": 3.111988228496704e-08
+              "drums": 1.253152300531047e-08,
+              "bass": 1.984253593238495e-08,
+              "vocals": 4.611416976238559e-09,
+              "other": 3.096233131519308e-08
             },
             "trajectory_rms_error_by_stem": {
-              "drums": 8.82231737224092e-09,
-              "bass": 1.2827207136927031e-08,
-              "vocals": 2.886455098256214e-09,
-              "other": 1.9708363490164305e-08
+              "drums": 8.800349660290138e-09,
+              "bass": 1.2840463397936037e-08,
+              "vocals": 2.894584163804053e-09,
+              "other": 1.971173299716921e-08
             },
             "maximum_closure": {
               "reference": 1.862645149230957e-09,
@@ -807,8 +1940,8 @@
               "ort": 0.0
             },
             "all_output_and_state_trajectory_sha256": {
-              "reference": "5ce878a8755ca2513d176d02f7d1ee427d1f9877982774942a7a728f3a3544cd",
-              "ort": "87efaaaf14221410532c4b8f11fcdb80d1a0cc25d672c32fd403b8484f00fd52"
+              "reference": "f1e99a77bf78dfb646aab4f3a53dc2695bf1f0dedf11bf515e20bfd47f3d9136",
+              "ort": "2e90c4f9473b739cd3391254cfabc759fe6c3205dd00be1bd6dea063201e2edd"
             },
             "passed": true
           },
@@ -828,7 +1961,7 @@
             "physical_samples_recovered": 262181,
             "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
             "maximum_errors_in_physical_units": {
-              "separated_chunk": 5.960464477539063e-08,
+              "separated_chunk": 5.21540641784668e-08,
               "next_audio_history": 0.0,
               "next_fusion_hidden": 0.0,
               "next_spectral_numerator_tail": 5.960464477539063e-08,
@@ -841,20 +1974,20 @@
             "maximum_audio_error_by_stem": {
               "drums": 2.9802322387695312e-08,
               "bass": 2.9802322387695312e-08,
-              "vocals": 1.4901161193847656e-08,
-              "other": 5.960464477539063e-08
+              "vocals": 1.7695128917694092e-08,
+              "other": 5.21540641784668e-08
             },
             "maximum_stem_callback_rms_by_stem": {
-              "drums": 8.881733177112328e-09,
-              "bass": 7.791652310231325e-09,
-              "vocals": 3.76483703185772e-09,
-              "other": 1.742483541310892e-08
+              "drums": 9.27839517969915e-09,
+              "bass": 8.207222942035577e-09,
+              "vocals": 4.04583849594783e-09,
+              "other": 1.8724781175080688e-08
             },
             "trajectory_rms_error_by_stem": {
-              "drums": 6.589660929764782e-09,
-              "bass": 5.648871247237164e-09,
-              "vocals": 2.6359202155117067e-09,
-              "other": 1.2383682700810265e-08
+              "drums": 6.5695094004832466e-09,
+              "bass": 5.658397067524485e-09,
+              "vocals": 2.63606774818738e-09,
+              "other": 1.2372936659035831e-08
             },
             "maximum_closure": {
               "reference": 7.450580596923828e-09,
@@ -865,8 +1998,8 @@
               "ort": 0.0
             },
             "all_output_and_state_trajectory_sha256": {
-              "reference": "d3f2f071714ad8f66e03f23f97a2952fc2fdf70c267125dedb0b1f29a45acc0d",
-              "ort": "4515bbf5891f248cb64c35d7eaff07138604c4eeb58dcd4405ab43e59742cc22"
+              "reference": "9aed5d2822a1e4294346d49e856980dc91c140d20572093abec5107a358894b8",
+              "ort": "e9655a026fbaf6ffa0545d86c90feaf494d6a01929884b7ba9f87c656ae86eba"
             },
             "passed": true
           },
@@ -881,7 +2014,7 @@
             "physical_samples_recovered": 262181,
             "every_callback_shapes_dtypes_finite_and_exact_history_verified": true,
             "maximum_errors_in_physical_units": {
-              "separated_chunk": 5.960464477539063e-08,
+              "separated_chunk": 5.21540641784668e-08,
               "next_audio_history": 0.0,
               "next_fusion_hidden": 0.0,
               "next_spectral_numerator_tail": 5.960464477539063e-08,
@@ -894,20 +2027,20 @@
             "maximum_audio_error_by_stem": {
               "drums": 2.9802322387695312e-08,
               "bass": 2.9802322387695312e-08,
-              "vocals": 1.4901161193847656e-08,
-              "other": 5.960464477539063e-08
+              "vocals": 1.7695128917694092e-08,
+              "other": 5.21540641784668e-08
             },
             "maximum_stem_callback_rms_by_stem": {
-              "drums": 8.881733177112328e-09,
-              "bass": 7.791652310231325e-09,
-              "vocals": 3.76483703185772e-09,
-              "other": 1.742483541310892e-08
+              "drums": 9.27839517969915e-09,
+              "bass": 8.207222942035577e-09,
+              "vocals": 4.04583849594783e-09,
+              "other": 1.8724781175080688e-08
             },
             "trajectory_rms_error_by_stem": {
-              "drums": 6.589660929764782e-09,
-              "bass": 5.648871247237164e-09,
-              "vocals": 2.6359202155117067e-09,
-              "other": 1.2383682700810265e-08
+              "drums": 6.5695094004832466e-09,
+              "bass": 5.658397067524485e-09,
+              "vocals": 2.63606774818738e-09,
+              "other": 1.2372936659035831e-08
             },
             "maximum_closure": {
               "reference": 7.450580596923828e-09,
@@ -918,8 +2051,8 @@
               "ort": 0.0
             },
             "all_output_and_state_trajectory_sha256": {
-              "reference": "d3f2f071714ad8f66e03f23f97a2952fc2fdf70c267125dedb0b1f29a45acc0d",
-              "ort": "4515bbf5891f248cb64c35d7eaff07138604c4eeb58dcd4405ab43e59742cc22"
+              "reference": "9aed5d2822a1e4294346d49e856980dc91c140d20572093abec5107a358894b8",
+              "ort": "e9655a026fbaf6ffa0545d86c90feaf494d6a01929884b7ba9f87c656ae86eba"
             },
             "passed": true
           },
@@ -927,77 +2060,209 @@
           "passed": true
         }
       ],
-      "graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
-      "saved_graph_path": "research/direct/runs/latency58/branch-output-int8-screen-001/model.onnx",
+      "graph_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
+      "saved_graph_path": "research/m4_followup_20260916/attention-qkv-int8-screen-001/model.onnx",
       "source_checkpoint": {
         "path": "research/direct/runs/latency58/branch-pitch-ema-002/production-run/checkpoint/model.pt",
         "sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0"
       },
       "source_model_state_sha256": "2b123695bb86e92ef26e8e4fdab06069aecc5a55e8e26b171be25473a33208d5",
       "source_bindings_unchanged": true,
+      "runtime": "1.26.0",
       "tolerances_changed": false,
       "quality_measured": false,
       "native_host_qualified": false,
       "gpu_used": false,
       "graph_plus_host_delay_samples": 256,
-      "elapsed_seconds": 207.15111624496058,
+      "peak_rss_kib": 1455920,
+      "elapsed_seconds": 179.5236431499943,
       "budget_before": {
-        "observed_utc": "2026-09-15T04:40:46.071152+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64534146876,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19019070809,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+        "observed_utc": "2026-09-16T05:37:13.639511+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88408288214,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 103444144,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 176555856,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:37:13.624661+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64643613549,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915490966,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 8847458,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 92264527
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88144774933,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1855225067
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 170380585,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3829619415
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       },
       "budget_after": {
-        "observed_utc": "2026-09-15T04:44:17.473276+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64534870726,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19023102864,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+        "observed_utc": "2026-09-16T05:40:17.870067+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88408973648,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 104129578,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 175870422,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:40:17.859323+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64644252894,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915537055,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 8893547,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 92903872
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88149530838,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1850469162
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 170478786,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3829521214
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       }
     },
     "execution": {
+      "actual_session_id": 20262,
+      "actual_tool_chunk_id": "37fce7",
       "actual_exit_code": 0,
-      "actual_exec_session_id": 72214,
-      "actual_terminal_chunk_id": "ca20ae",
       "timed_out": false,
       "source_bindings_unchanged": true,
-      "observed_utc": "2026-09-15T04:45:41.692078+00:00",
-      "result_sha256": "5f16ee2c25dff72e1bbec5d29816a56833b3355145dee68e6d720a07517245fa"
+      "command": "attention-qkv-long-command.json",
+      "result": "attention-qkv-int8-long-001/result.json",
+      "quality_measured": false,
+      "physical_m4_qualified": false
     }
   },
   "fixture": {
-    "result_sha256": "b995527a0784a5f8d87d93432b3c53af5f402da6a390c877a4ca0a0058bdbb9b",
+    "result_sha256": "2cf8298d40cf011bfed36caf6499089b4ccccd035fe022ec05a88ace47053685",
     "result": {
       "status": "pass",
-      "plan_sha256": "b52cc4bf0d049bf1ff3d3fb9c5f3b218d789550e8e611339e985fbbdfbeaa16e",
-      "fixture_sha256": "569a496ec39fcb7a024f9d371504fcf3dbb8ea8ce47233d52389c479be6537da",
+      "plan_sha256": "465af12629adc77dfb5922a1d802f784759f8ac0c3daa4bb0e132b565767520d",
+      "fixture_sha256": "e9553a3821b6b7a356a881498683b16b454593c9cdefd9edfa5230d4526bbc8f",
       "fixture_bytes": 707004,
       "checkpoint": {
         "path": "research/direct/runs/latency58/branch-pitch-ema-002/production-run/checkpoint/model.pt",
         "sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0"
       },
-      "graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
+      "graph_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
       "source_model_state_sha256": "2b123695bb86e92ef26e8e4fdab06069aecc5a55e8e26b171be25473a33208d5",
       "source_bindings_unchanged": true,
       "maximum_reconstruction_error": 2.9802322387695312e-08,
@@ -1005,51 +2270,197 @@
       "onnxruntime_imported": false,
       "runtime_imports_actively_blocked": true,
       "budget_before": {
-        "observed_utc": "2026-09-15T04:45:49.089600+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64535190307,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19023258983,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+        "observed_utc": "2026-09-16T05:49:20.947501+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88411010839,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 106166769,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 173833231,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:49:20.931272+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64646152027,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915675113,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 9031605,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 94803005
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88150006538,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1849993462
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 170713113,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3829286887
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       },
       "budget_after": {
-        "observed_utc": "2026-09-15T04:45:57.379066+00:00",
-        "counted_roots": {
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64535218732,
-          "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 19024092174,
-          "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
-          "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 497883977
+        "observed_utc": "2026-09-16T05:49:29.578291+00:00",
+        "authorized_cap_bytes": 100000000000,
+        "policy_sha256": "16a9d007cbcf53c050758b927a98ccec7136eea7c1e98badef48116953e428ba",
+        "frozen_training_forecast": {
+          "actual_counted_and_external_git_bytes": 88411039099,
+          "occupied_permanent_generation_bytes": 368001741,
+          "occupied_transient_save_bytes": 0,
+          "occupied_trial_diagnostic_bytes": 106195029,
+          "remaining_reserved_bytes": {
+            "permanent_generation": 11998259,
+            "transient_save": 600000000,
+            "diagnostics": 173804971,
+            "other_outside": 800000000
+          },
+          "projected_peak_bytes": 89996842329,
+          "authorized_cap_bytes": 90000000000,
+          "headroom_after_complete_peak_bytes": 3157671,
+          "observed_utc": "2026-09-16T05:49:29.564876+00:00",
+          "counted_roots": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11": 64646180287,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58": 20915675113,
+            "/home/axel/autoresearch/codex/stemgen-rt-cropped1024-11ms": 547482425,
+            "/home/axel/autoresearch/codex/stemgen-rt-hop128-5ms": 365725361
+          },
+          "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
+          "external_git_common_bytes": 1935975913,
+          "allocated_diagnostic_roots_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014": 9031605,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource": 2332159,
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production": 94831265
+          },
+          "allocated_permanent_files_bytes": {
+            "/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt": 368001741
+          },
+          "allocation": {
+            "schema": "latency58-quarter-vocal-explicit-storage-allocation-v1",
+            "trial": "branch-weighted-vocal-014",
+            "permanent_packed_generation_bytes": 380000000,
+            "standing_transient_save_bytes": 600000000,
+            "standing_diagnostic_reservation_bytes": 250000000,
+            "additional_diagnostic_reservation_bytes": 30000000,
+            "maximum_trial_diagnostic_bytes": 280000000,
+            "other_outside_allowance_bytes": 800000000,
+            "authorized_cap_bytes": 90000000000,
+            "diagnostic_roots": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014",
+              "research/direct/runs/latency58/paired-vocal-weighted-014",
+              "research/direct/runs/latency58/weighted-vocal-review-014",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-resource",
+              "research/direct/runs/latency11/smoke/gpu-crash-followup/branch-weighted-vocal-014-production"
+            ],
+            "permanent_paths": [
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pt",
+              "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/checkpoint.packed.pt"
+            ],
+            "transient_path": "research/direct/runs/latency58/branch-weighted-vocal-014/production-run/recovery.packed.pending.pt",
+            "metadata_suffixes": [
+              ".json",
+              ".jsonl",
+              ".lock",
+              ".log",
+              ".md",
+              ".py",
+              ".txt"
+            ],
+            "allocation_rule": "Actual occupants plus unused capacity; prior artifacts never consume this trial's reservations",
+            "quality_or_precision_change": false
+          }
         },
-        "external_git_common_directory": "/home/axel/autoresearch/codex/stemgen-rt/.git",
-        "external_git_common_bytes": 1896190846,
-        "other_outside_allowance_bytes": 800000000,
-        "live_training_save_reservation_bytes": 600000000,
-        "diagnostic_artifact_allowance_bytes": 250000000,
-        "conservative_total_with_reservations": 88150868154,
-        "authorized_cap_bytes": 90000000000,
-        "headroom_bytes": 1849131846
+        "additional_allocations": [
+          {
+            "root": "research/m4_followup_20260916",
+            "actual_bytes": 171509613,
+            "reserved_peak_bytes": 4000000000,
+            "unused_bytes": 3828490387
+          }
+        ],
+        "combined_peak_bytes": 93996842329,
+        "headroom_bytes": 6003157671
       },
       "native_tests_executed": false,
       "quality_selected": false,
       "native_host_qualified": false
     },
     "execution": {
+      "actual_session_id": 64389,
+      "actual_tool_chunk_id": "bcba69",
       "actual_exit_code": 0,
-      "actual_exec_session_id": 1858,
-      "actual_terminal_chunk_id": "5854ca",
       "timed_out": false,
       "source_bindings_unchanged": true,
-      "observed_utc": "2026-09-15T04:46:38.063268+00:00",
-      "result_sha256": "b995527a0784a5f8d87d93432b3c53af5f402da6a390c877a4ca0a0058bdbb9b"
+      "command": [
+        "env",
+        "CUDA_VISIBLE_DEVICES=",
+        "OMP_NUM_THREADS=1",
+        "MKL_NUM_THREADS=1",
+        "OPENBLAS_NUM_THREADS=1",
+        "PYTHONDONTWRITEBYTECODE=1",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "600s",
+        "/home/axel/miniforge3/bin/python",
+        "-u",
+        "-m",
+        "research.direct.generate_latency58_attention_qkv_int8_fixture"
+      ],
+      "plan_sha256": "465af12629adc77dfb5922a1d802f784759f8ac0c3daa4bb0e132b565767520d",
+      "result_sha256": "2cf8298d40cf011bfed36caf6499089b4ccccd035fe022ec05a88ace47053685",
+      "fixture_sha256": "e9553a3821b6b7a356a881498683b16b454593c9cdefd9edfa5230d4526bbc8f",
+      "onnxruntime_imported": false
     }
   },
   "native_host_qualified": false

@@ -17,7 +17,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 
 ## Model identity and ABI
 
-`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 90 metadata entries.
+`cmake/QualifiedModelContract.cmake` is the authoritative identity, geometry and metadata source. CMake generates the C++ contract; shell tools obtain it through `cmake/PrintModelContract.cmake`. Do not duplicate identities in packaging scripts. `model/model.onnx` is self-contained and tracked by Git LFS. Configuration verifies SHA/size; loading validates all nine inputs, nine outputs, float32 static shapes and 94 metadata entries.
 
 | Input | Shape | Output |
 | --- | --- | --- |
@@ -46,6 +46,7 @@ Only the inference worker advances/resets model state. Audio-thread resets inval
 - Keep raw input levels unchanged. Do not add per-hop normalization, external context/reflection padding, crossover reinjection, bass processing, input gates or output clipping.
 - Preserve all four graph outputs in `OnnxRuntime`. After the existing output confidence/recovery fade, `Other = Main - Drums - Bass - Vocals`. Complete fallback is zero Drums/Bass/Vocals and Main in Other.
 - Preserve the linked confidence envelope: instantaneous open, 50 ms hold, 60 dB/100 ms release, smoothstep from -96 to -72 dBFS peak. Changes need new numerical/listening evidence.
+- Keep `mlas.disable_kleidiai=1` in production sessions. The retained exact-parent M4 Pro diagnostic fails independent numerical parity with backend defaults and passes with this setting. A new graph still requires its own physical M4 parity and timing evidence.
 - Production inference uses one dedicated worker on every platform: ORT sequential execution, intra-op 1, inter-op 1, and spinning disabled. Explicit overrides are for measurement only; qualification must report an actual configured count of one. A previous model's timing does not qualify this one.
 
 ## Verification

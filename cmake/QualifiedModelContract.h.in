@@ -300,6 +300,14 @@ inline constexpr auto kMetadata = std::to_array<MetadataEntry>({
      R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_FOURTEEN_EXPORTER_SHA256@)meta"},
     {"hs_tasnet.additional_branch_output_integer_projections",
      R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_BRANCH_OUTPUT_INTEGER_PROJECTIONS@)meta"},
+    {"hs_tasnet.attention_fusion_exporter_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ATTENTION_FUSION_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.attention_projection_fusion",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ATTENTION_PROJECTION_FUSION@)meta"},
+    {"hs_tasnet.parent_sixteen_exporter_sha256",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_PARENT_SIXTEEN_EXPORTER_SHA256@)meta"},
+    {"hs_tasnet.additional_attention_integer_products",
+     R"meta(@STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_ATTENTION_INTEGER_PRODUCTS@)meta"},
 });
 
 static_assert(kInputAudioShape == std::array<std::int64_t, 3>{1, 2, 128});
