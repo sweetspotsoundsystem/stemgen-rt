@@ -1,0 +1,659 @@
+{
+  "kind": "observed_local_runtime_parity_diagnostic",
+  "observed_at_utc": "2026-09-16T03:46:07Z",
+  "source_commit": "df02fc643a235e86569e75ae1bd66ffa053c93a0",
+  "model_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
+  "fixture_sha256": "569a496ec39fcb7a024f9d371504fcf3dbb8ea8ce47233d52389c479be6537da",
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "kernel": "Darwin 27.0.0 arm64",
+    "FEAT_SME": true,
+    "FEAT_SME2": true
+  },
+  "compiler": "Apple clang 17.0.0 (clang-1700.3.19.1)",
+  "runtime": {
+    "version": "1.26.0",
+    "build_info": "ORT Build Info: git-branch=HEAD, git-commit-id=8c546c37b4, fp8-kv-cache=1, build type=Release",
+    "requested_binary_sha256": "cb0462c3fd35ad722e8772313030a33c182f3d4c6b33f4e5e1fcb2ce3199b86c",
+    "loaded_binary_sha256": "30afadcfc3c704f7671f8430d6252956651c1972373901d2be629da2e6a4d8ee"
+  },
+  "diagnostic_source_sha256": "3d4cc737dfabf1da3a028323497fe95d7e38aad3b3223a593f51114000918de8",
+  "diagnostic_binary_sha256": "26edaa7a009a0b9837530fe36eeaf0801c7ee66e3bf4ddad4bc8ca052a59f2bb",
+  "source_order": [
+    "drums",
+    "bass",
+    "vocals",
+    "other"
+  ],
+  "max_abs_tolerance": 1e-05,
+  "diagnostic_exit": 0,
+  "correctness_suite": {
+    "passed": 162,
+    "failed": 2,
+    "skipped": 1,
+    "disabled": 7,
+    "max_parity_error": 0.000960826874
+  },
+  "production_settings_changed": false,
+  "timing_qualified": false,
+  "timing_note": "Short diagnostic Run averages are not paced callback, sustained soak, or installed-DAW timing qualification.",
+  "summary": {
+    "default": {
+      "cases": 8,
+      "passed": 0,
+      "max_error": 0.000960826873779
+    },
+    "kleidiai_disabled": {
+      "cases": 8,
+      "passed": 8,
+      "max_error": 1.78813934326e-07
+    },
+    "optimizations_disabled": {
+      "cases": 8,
+      "passed": 8,
+      "max_error": 1.63912773132e-07
+    }
+  },
+  "cases": [
+    {
+      "mode": "default",
+      "frames": 1,
+      "max_error": 0.00022853910923,
+      "parity_pass": false,
+      "mean_run_ms": 1.3186245,
+      "stems": [
+        {
+          "max_error": 0.00022853910923,
+          "rmse": 0.000196143116228
+        },
+        {
+          "max_error": 9.46968793869e-06,
+          "rmse": 8.77231846366e-06
+        },
+        {
+          "max_error": 1.54171139002e-05,
+          "rmse": 1.14171129757e-05
+        },
+        {
+          "max_error": 0.000222608447075,
+          "rmse": 0.000194024470819
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 127,
+      "max_error": 0.000130631029606,
+      "parity_pass": false,
+      "mean_run_ms": 0.9093965,
+      "stems": [
+        {
+          "max_error": 0.000130631029606,
+          "rmse": 4.76220843219e-05
+        },
+        {
+          "max_error": 5.15021383762e-05,
+          "rmse": 2.89709622528e-05
+        },
+        {
+          "max_error": 5.27249649167e-05,
+          "rmse": 1.62200410386e-05
+        },
+        {
+          "max_error": 6.71893358231e-05,
+          "rmse": 2.8363772268e-05
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 128,
+      "max_error": 0.00015227496624,
+      "parity_pass": false,
+      "mean_run_ms": 0.894521,
+      "stems": [
+        {
+          "max_error": 0.000106558203697,
+          "rmse": 7.63933192493e-05
+        },
+        {
+          "max_error": 3.08137387037e-05,
+          "rmse": 1.33266953169e-05
+        },
+        {
+          "max_error": 3.67354368791e-05,
+          "rmse": 1.84278730376e-05
+        },
+        {
+          "max_error": 0.00015227496624,
+          "rmse": 0.000103292553982
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 129,
+      "max_error": 0.000172585248947,
+      "parity_pass": false,
+      "mean_run_ms": 1.00116666667,
+      "stems": [
+        {
+          "max_error": 9.60230827332e-05,
+          "rmse": 3.83156515535e-05
+        },
+        {
+          "max_error": 3.45828011632e-05,
+          "rmse": 1.31908890857e-05
+        },
+        {
+          "max_error": 6.09122216702e-05,
+          "rmse": 1.2975085483e-05
+        },
+        {
+          "max_error": 0.000172585248947,
+          "rmse": 4.5175152078e-05
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 255,
+      "max_error": 0.000178501009941,
+      "parity_pass": false,
+      "mean_run_ms": 0.910014,
+      "stems": [
+        {
+          "max_error": 0.000115185976028,
+          "rmse": 4.73763838389e-05
+        },
+        {
+          "max_error": 8.70161456987e-05,
+          "rmse": 4.38998591756e-05
+        },
+        {
+          "max_error": 0.000163869932294,
+          "rmse": 3.71612831873e-05
+        },
+        {
+          "max_error": 0.000178501009941,
+          "rmse": 7.36103002174e-05
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 256,
+      "max_error": 0.00018385052681,
+      "parity_pass": false,
+      "mean_run_ms": 0.896791666667,
+      "stems": [
+        {
+          "max_error": 0.00018385052681,
+          "rmse": 8.52029215486e-05
+        },
+        {
+          "max_error": 7.92983919382e-05,
+          "rmse": 4.46651694987e-05
+        },
+        {
+          "max_error": 8.67638736963e-05,
+          "rmse": 4.038296212e-05
+        },
+        {
+          "max_error": 0.000178173184395,
+          "rmse": 8.91927383056e-05
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 257,
+      "max_error": 0.000181561335921,
+      "parity_pass": false,
+      "mean_run_ms": 0.9021355,
+      "stems": [
+        {
+          "max_error": 0.000181561335921,
+          "rmse": 8.80013015887e-05
+        },
+        {
+          "max_error": 7.92983919382e-05,
+          "rmse": 4.68293568407e-05
+        },
+        {
+          "max_error": 8.68029892445e-05,
+          "rmse": 3.94800036426e-05
+        },
+        {
+          "max_error": 0.000179007649422,
+          "rmse": 9.00323947037e-05
+        }
+      ]
+    },
+    {
+      "mode": "default",
+      "frames": 16521,
+      "max_error": 0.000960826873779,
+      "parity_pass": false,
+      "mean_run_ms": 0.931867954198,
+      "stems": [
+        {
+          "max_error": 0.000929497182369,
+          "rmse": 0.00020272429715
+        },
+        {
+          "max_error": 0.000637985765934,
+          "rmse": 0.000153593324186
+        },
+        {
+          "max_error": 0.000262848567218,
+          "rmse": 5.56701118728e-05
+        },
+        {
+          "max_error": 0.000960826873779,
+          "rmse": 0.000167612223074
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 1,
+      "max_error": 7.45058059692e-09,
+      "parity_pass": true,
+      "mean_run_ms": 1.3523955,
+      "stems": [
+        {
+          "max_error": 7.45058059692e-09,
+          "rmse": 5.26835606386e-09
+        },
+        {
+          "max_error": 4.65661287308e-10,
+          "rmse": 3.29272253991e-10
+        },
+        {
+          "max_error": 9.31322574615e-10,
+          "rmse": 9.31322574615e-10
+        },
+        {
+          "max_error": 7.45058059692e-09,
+          "rmse": 5.26835606386e-09
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 127,
+      "max_error": 6.70552253723e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.0619375,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.0295421417e-08
+        },
+        {
+          "max_error": 3.81842255592e-08,
+          "rmse": 1.03378308757e-08
+        },
+        {
+          "max_error": 1.86264514923e-08,
+          "rmse": 4.93531553775e-09
+        },
+        {
+          "max_error": 6.70552253723e-08,
+          "rmse": 1.82875047884e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 128,
+      "max_error": 7.45058059692e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.0633125,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.11649516247e-08
+        },
+        {
+          "max_error": 3.44589352608e-08,
+          "rmse": 1.16131942173e-08
+        },
+        {
+          "max_error": 2.23517417908e-08,
+          "rmse": 5.40890683528e-09
+        },
+        {
+          "max_error": 7.45058059692e-08,
+          "rmse": 2.17593908169e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 129,
+      "max_error": 7.45058059692e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.057236,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.02769849665e-08
+        },
+        {
+          "max_error": 4.28408384323e-08,
+          "rmse": 1.24104013863e-08
+        },
+        {
+          "max_error": 1.8859282136e-08,
+          "rmse": 5.01045486631e-09
+        },
+        {
+          "max_error": 7.45058059692e-08,
+          "rmse": 2.04003006009e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 255,
+      "max_error": 1.08033418655e-07,
+      "parity_pass": true,
+      "mean_run_ms": 1.065417,
+      "stems": [
+        {
+          "max_error": 5.21540641785e-08,
+          "rmse": 1.54072380111e-08
+        },
+        {
+          "max_error": 5.77419996262e-08,
+          "rmse": 1.81373918355e-08
+        },
+        {
+          "max_error": 2.25845724344e-08,
+          "rmse": 5.89072572255e-09
+        },
+        {
+          "max_error": 1.08033418655e-07,
+          "rmse": 2.93049186691e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 256,
+      "max_error": 1.06170773506e-07,
+      "parity_pass": true,
+      "mean_run_ms": 0.974722666667,
+      "stems": [
+        {
+          "max_error": 4.842877388e-08,
+          "rmse": 1.59168619939e-08
+        },
+        {
+          "max_error": 1.06170773506e-07,
+          "rmse": 1.91876314292e-08
+        },
+        {
+          "max_error": 2.04890966415e-08,
+          "rmse": 5.58780092405e-09
+        },
+        {
+          "max_error": 1.04308128357e-07,
+          "rmse": 3.15625640477e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 257,
+      "max_error": 1.06170773506e-07,
+      "parity_pass": true,
+      "mean_run_ms": 1.0057085,
+      "stems": [
+        {
+          "max_error": 4.09781932831e-08,
+          "rmse": 1.43217975917e-08
+        },
+        {
+          "max_error": 1.06170773506e-07,
+          "rmse": 1.8427035426e-08
+        },
+        {
+          "max_error": 2.04890966415e-08,
+          "rmse": 5.49543042117e-09
+        },
+        {
+          "max_error": 1.04308128357e-07,
+          "rmse": 2.8543938364e-08
+        }
+      ]
+    },
+    {
+      "mode": "kleidiai_disabled",
+      "frames": 16521,
+      "max_error": 1.78813934326e-07,
+      "parity_pass": true,
+      "mean_run_ms": 1.0470680687,
+      "stems": [
+        {
+          "max_error": 1.04308128357e-07,
+          "rmse": 1.99969433413e-08
+        },
+        {
+          "max_error": 1.56462192535e-07,
+          "rmse": 2.50566118422e-08
+        },
+        {
+          "max_error": 5.33182173967e-08,
+          "rmse": 7.77141074714e-09
+        },
+        {
+          "max_error": 1.78813934326e-07,
+          "rmse": 4.06664352516e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 1,
+      "max_error": 7.45058059692e-09,
+      "parity_pass": true,
+      "mean_run_ms": 1.7411665,
+      "stems": [
+        {
+          "max_error": 7.45058059692e-09,
+          "rmse": 5.26835606386e-09
+        },
+        {
+          "max_error": 0,
+          "rmse": 0
+        },
+        {
+          "max_error": 9.31322574615e-10,
+          "rmse": 9.31322574615e-10
+        },
+        {
+          "max_error": 7.45058059692e-09,
+          "rmse": 5.26835606386e-09
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 127,
+      "max_error": 6.70552253723e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.2633335,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.07427612136e-08
+        },
+        {
+          "max_error": 3.25962901115e-08,
+          "rmse": 1.01666278845e-08
+        },
+        {
+          "max_error": 1.67638063431e-08,
+          "rmse": 4.99430269462e-09
+        },
+        {
+          "max_error": 6.70552253723e-08,
+          "rmse": 1.80408528059e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 128,
+      "max_error": 6.70552253723e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.239958,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.08378850733e-08
+        },
+        {
+          "max_error": 3.632158041e-08,
+          "rmse": 1.13459034997e-08
+        },
+        {
+          "max_error": 2.60770320892e-08,
+          "rmse": 5.22216366657e-09
+        },
+        {
+          "max_error": 6.70552253723e-08,
+          "rmse": 2.05459026537e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 129,
+      "max_error": 7.45058059692e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.249583,
+      "stems": [
+        {
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.01975132399e-08
+        },
+        {
+          "max_error": 4.842877388e-08,
+          "rmse": 1.26209932391e-08
+        },
+        {
+          "max_error": 1.86264514923e-08,
+          "rmse": 4.81794116641e-09
+        },
+        {
+          "max_error": 7.45058059692e-08,
+          "rmse": 2.01054945801e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 255,
+      "max_error": 1.00582838058e-07,
+      "parity_pass": true,
+      "mean_run_ms": 1.30445833333,
+      "stems": [
+        {
+          "max_error": 4.842877388e-08,
+          "rmse": 1.54017601042e-08
+        },
+        {
+          "max_error": 6.23986124992e-08,
+          "rmse": 1.83751141001e-08
+        },
+        {
+          "max_error": 2.44472175837e-08,
+          "rmse": 5.78355101077e-09
+        },
+        {
+          "max_error": 1.00582838058e-07,
+          "rmse": 2.90829942427e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 256,
+      "max_error": 9.87201929092e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.17875033333,
+      "stems": [
+        {
+          "max_error": 5.21540641785e-08,
+          "rmse": 1.61740233665e-08
+        },
+        {
+          "max_error": 9.87201929092e-08,
+          "rmse": 1.89706778338e-08
+        },
+        {
+          "max_error": 2.04890966415e-08,
+          "rmse": 5.54002510762e-09
+        },
+        {
+          "max_error": 8.94069671631e-08,
+          "rmse": 3.17201578683e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 257,
+      "max_error": 9.87201929092e-08,
+      "parity_pass": true,
+      "mean_run_ms": 1.2373855,
+      "stems": [
+        {
+          "max_error": 4.47034835815e-08,
+          "rmse": 1.48476206921e-08
+        },
+        {
+          "max_error": 9.87201929092e-08,
+          "rmse": 1.80928492774e-08
+        },
+        {
+          "max_error": 2.04890966415e-08,
+          "rmse": 5.49042249362e-09
+        },
+        {
+          "max_error": 8.94069671631e-08,
+          "rmse": 2.90863112461e-08
+        }
+      ]
+    },
+    {
+      "mode": "optimizations_disabled",
+      "frames": 16521,
+      "max_error": 1.63912773132e-07,
+      "parity_pass": true,
+      "mean_run_ms": 1.25503725954,
+      "stems": [
+        {
+          "max_error": 1.04308128357e-07,
+          "rmse": 2.00085383132e-08
+        },
+        {
+          "max_error": 1.49011611938e-07,
+          "rmse": 2.50157622553e-08
+        },
+        {
+          "max_error": 5.58793544769e-08,
+          "rmse": 7.75096621274e-09
+        },
+        {
+          "max_error": 1.63912773132e-07,
+          "rmse": 4.07179379928e-08
+        }
+      ]
+    }
+  ]
+}
