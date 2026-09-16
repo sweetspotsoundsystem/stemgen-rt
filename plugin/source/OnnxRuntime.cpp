@@ -540,6 +540,17 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
     return false;
   }
 
+  // The retained M4 Pro diagnostic fails the independent integer reference
+  // with KleidiAI and passes with it disabled. Keep the declared quantization
+  // arithmetic on that backend; this setting does not qualify M4 timing.
+  // See model/macos-runtime-parity-diagnostic.json for the parent evidence.
+  if (!applySessionOption(
+          api->AddSessionConfigEntry(sessionOptions, "mlas.disable_kleidiai",
+                                     "1"),
+          "DisableKleidiAi")) {
+    return false;
+  }
+
   // One calling worker, no ORT helper pool in production. Positive overrides
   // remain available only for controlled comparisons in fresh sessions.
   const int numHardwareThreads =
