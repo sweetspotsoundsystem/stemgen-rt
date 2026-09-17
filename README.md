@@ -10,7 +10,7 @@ one dedicated CPU worker, and the audio callback never waits for it.
 
 ## Download
 
-[StemgenRT 0.5.0](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.5.0)
+[StemgenRT 0.6.0](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.6.0)
 includes macOS AU and VST3 for Apple Silicon (macOS 14+) and Windows x86-64 VST3.
 The model and ONNX Runtime are bundled. Replace the complete plugin bundle and
 restart the DAW. macOS downloads are ad-hoc signed, without Developer ID signing
