@@ -54,10 +54,11 @@ void fillInput(juce::AudioBuffer<float>& buffer, int start) {
 }
 void checkMainAndReconstruction(const juce::AudioBuffer<float>& buffer,
                                 int start,
-                                bool fallback) {
+                                bool fallback,
+                                int latency) {
   for (int ch = 0; ch < 2; ++ch) {
     for (int i = 0; i < kBlockSize; ++i) {
-      const int source = start + i - kPdc;
+      const int source = start + i - latency;
       const float expected = source < 0 ? 0.0f : sampleAt(source, ch);
       EXPECT_FLOAT_EQ(buffer.getSample(ch, i), expected);
       float sum = 0.0f;
@@ -75,29 +76,35 @@ void checkMainAndReconstruction(const juce::AudioBuffer<float>& buffer,
 }
 void processGuarded(audio_plugin::AudioPluginAudioProcessor& processor,
                     juce::AudioBuffer<float>& buffer,
-                    juce::MidiBuffer& midi) {
+                    juce::MidiBuffer& midi,
+                    int latency) {
   RealtimeAllocationGuard guard;
   processor.processBlock(buffer, midi);
   const auto traffic = guard.finish();
   EXPECT_EQ(traffic.allocations, 0U);
   EXPECT_EQ(traffic.deallocations, 0U);
-  EXPECT_EQ(processor.getLatencySamples(), kPdc);
+  EXPECT_EQ(processor.getLatencySamples(), latency);
   EXPECT_EQ(processor.getMaximumSameCallbackWaitMicroseconds(), 0);
 }
 }  // namespace
 #endif
 
-TEST(RealtimeSafetyTest,
-     StoppedWorkerSaturatesQueueWithoutCallbackHeapTraffic) {
+class RealtimeHostRateSafetyTest : public ::testing::TestWithParam<int> {};
+
+TEST_P(RealtimeHostRateSafetyTest,
+       StoppedWorkerSaturatesQueueWithoutCallbackHeapTraffic) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.setNonRealtime(false);
-  processor.prepareToPlay(44100.0, kBlockSize);
+  processor.prepareToPlay(static_cast<double>(GetParam()), kBlockSize);
+  const int latency = processor.getLatencySamples();
+  ASSERT_GT(latency, 0) << processor.getOrtStatusString();
+  if (GetParam() == 44100) {
+    EXPECT_EQ(latency, kPdc);
+  }
   ASSERT_EQ(processor.getConfiguredOrtIntraOpThreads(), 1);
-  ASSERT_EQ(processor.getLatencySamples(), kPdc)
-      << processor.getOrtStatusString();
   audio_plugin::AudioPluginProcessorTestPeer::stopWorker(processor);
   juce::AudioBuffer<float> buffer(processor.getTotalNumOutputChannels(),
                                   kBlockSize);
@@ -111,49 +118,59 @@ TEST(RealtimeSafetyTest,
     const int start = (block % 256) * kBlockSize;
     playHead.setSample(start + (block >= 256 ? 65536 : 0));
     fillInput(buffer, start);
-    processGuarded(processor, buffer, midi);
-    checkMainAndReconstruction(buffer, start, true);
+    processGuarded(processor, buffer, midi, latency);
+    checkMainAndReconstruction(buffer, start, true, latency);
   }
   EXPECT_GT(processor.getQueueFullChunkDropCount(), 0U);
-  EXPECT_GT(processor.getSameCallbackTimeoutCount(), 0U);
+  if (GetParam() == 44100) {
+    EXPECT_GT(processor.getSameCallbackTimeoutCount(), 0U);
+  } else {
+    EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0U);
+  }
   EXPECT_GT(processor.getUnderrunSampleCount(), 0U);
   processor.releaseResources();
 #endif
 }
 
-TEST(RealtimeSafetyTest, ReadyResultsRecoverWithoutCallbackHeapTraffic) {
+TEST_P(RealtimeHostRateSafetyTest,
+       ReadyResultsRecoverWithoutCallbackHeapTraffic) {
 #if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
   GTEST_SKIP() << "ONNX Runtime support not compiled";
 #else
   audio_plugin::AudioPluginAudioProcessor processor;
   processor.setNonRealtime(false);
-  processor.prepareToPlay(44100.0, kBlockSize);
-  ASSERT_EQ(processor.getLatencySamples(), kPdc)
-      << processor.getOrtStatusString();
+  processor.prepareToPlay(static_cast<double>(GetParam()), kBlockSize);
+  const int latency = processor.getLatencySamples();
+  ASSERT_GT(latency, 0) << processor.getOrtStatusString();
+  if (GetParam() == 44100) {
+    EXPECT_EQ(latency, kPdc);
+  }
   ASSERT_EQ(processor.getConfiguredOrtIntraOpThreads(), 1);
   juce::AudioBuffer<float> buffer(processor.getTotalNumOutputChannels(),
                                   kBlockSize);
   ASSERT_EQ(buffer.getNumChannels(), 10);
   juce::MidiBuffer midi;
   float retainedPeak = 0.0f;
-  for (int block = 0; block < 16; ++block) {
+  const int blocks = (latency + kBlockSize - 1) / kBlockSize + 16;
+  for (int block = 0; block < blocks; ++block) {
     const int start = block * kBlockSize;
     fillInput(buffer, start);
-    processGuarded(processor, buffer, midi);
-    checkMainAndReconstruction(buffer, start, false);
+    processGuarded(processor, buffer, midi, latency);
+    checkMainAndReconstruction(buffer, start, false, latency);
     retainedPeak =
         std::max(retainedPeak, buffer.getMagnitude(2, 0, kBlockSize));
     // Test control thread only. Make results observable before the next call
     // so correctness of the ready-output branch is independent of CI speed.
     const auto deadline =
         std::chrono::steady_clock::now() + std::chrono::seconds(3);
-    while (!audio_plugin::AudioPluginProcessorTestPeer::submissionCompleted(
+    while (!audio_plugin::AudioPluginProcessorTestPeer::allSubmissionsCompleted(
                processor) &&
            std::chrono::steady_clock::now() < deadline) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    ASSERT_TRUE(audio_plugin::AudioPluginProcessorTestPeer::submissionCompleted(
-        processor));
+    ASSERT_TRUE(
+        audio_plugin::AudioPluginProcessorTestPeer::allSubmissionsCompleted(
+            processor));
   }
   EXPECT_GT(retainedPeak, 1.0e-6f);
   EXPECT_EQ(processor.getSameCallbackTimeoutCount(), 0U);
@@ -161,5 +178,9 @@ TEST(RealtimeSafetyTest, ReadyResultsRecoverWithoutCallbackHeapTraffic) {
   processor.releaseResources();
 #endif
 }
+
+INSTANTIATE_TEST_SUITE_P(HostRates,
+                         RealtimeHostRateSafetyTest,
+                         ::testing::Values(44100, 48000, 192000));
 
 }  // namespace audio_plugin_test

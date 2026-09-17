@@ -5,7 +5,7 @@ Main carries the complete delayed mix; the four stem outputs reconstruct it.
 
 StemgenRT uses a trained [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet)
 model at **44.1 kHz**, processing 128 samples at a time. With a **128-sample host
-buffer**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
+buffer at 44.1 kHz**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
 one dedicated CPU worker, and the audio callback never waits for it.
 
 ## Download
@@ -18,8 +18,8 @@ or notarization. Archive checksums accompany the release.
 
 ## Use
 
-1. Set the session to **44.1 kHz** and select a **128-sample buffer** for the
-   lowest reported latency.
+1. Use **44.1, 48, 88.2, 96, 176.4 or 192 kHz**. For the lowest reported
+   latency, use **44.1 kHz / 128 samples**.
 2. Insert StemgenRT on a stereo track and enable its additional stereo outputs.
 3. Route **Main, Drums, Bass, Other, Vocals**. Summing the four stems reconstructs
    Main; adding Main again doubles the mix.
@@ -28,7 +28,13 @@ The editor shows the logo with small white latency and fallback-sample readouts.
 The fallback count remains visible at zero. When a result misses
 its deadline, the complete delayed mix goes to Other for that interval. Late
 results are discarded, and separation fades back in over 64 samples when ready.
-Other sample rates use Main/Other fallback.
+Higher rates are converted to 44.1 kHz for inference and back to the host rate
+for stem output. Main preserves the native input, and Other includes the residual
+needed for exact reconstruction. Unsupported rates use Main/Other fallback.
+
+Resampling is available in this branch for testing; the linked 0.6.0 release
+accepts only 44.1 kHz. See [resampling testing](RESAMPLING_TESTING.md) for builds,
+reported delays and the M4 checks still needed.
 
 | Prepared host buffer | Reported delay | At 44.1 kHz |
 | --- | --- | --- |
@@ -39,7 +45,7 @@ Other sample rates use Main/Other fallback.
 | 1024 | 1152 samples | 26.12 ms |
 
 Smaller host buffers require an extra scheduling reserve after a complete model
-hop arrives. The host must reprepare the plugin after changing its buffer setup.
+hop arrives. The host must reprepare the plugin after changing its rate or buffer setup.
 Offline rendering supports varying callbacks and waits for inference. Render the
 reported tail at transport stop to retain the final samples.
 

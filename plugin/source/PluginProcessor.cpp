@@ -532,14 +532,15 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
       hostSampleRate_, std::max(samplesPerBlock, 1));
   const bool sampleRateSupported =
       sampleRateCanConvertToInt &&
-      std::abs(sampleRate - static_cast<double>(roundedSampleRate)) < 0.5 &&
+      std::abs(sampleRate - static_cast<double>(roundedSampleRate)) <= 1.0e-6 &&
       isQualifiedAsyncHostConfiguration(roundedSampleRate, samplesPerBlock);
   sampleRateSupported_.store(sampleRateSupported, std::memory_order_release);
   if (!sampleRateSupported) {
     const juce::String error =
         juce::String("Unsupported audio configuration ") +
         juce::String(sampleRate, 1) + " Hz / " + juce::String(samplesPerBlock) +
-        " samples; use 44100 Hz and a buffer of 1 to 65536 samples";
+        " samples; use 44100, 48000, 88200, 96000, 176400 or 192000 Hz "
+        "and a buffer of 1 to 65536 samples";
     {
       const std::lock_guard<std::mutex> lock(statusMutex_);
       modelLoadError_ = error;
@@ -874,9 +875,18 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       else if (playbackStopped && activeLatency > 0) {
         stoppedTailSamplesRemaining_ = static_cast<uint64_t>(activeLatency);
         const uint64_t partial = overlapAdd_.getInputAccumCount();
+        // Converted outputs must cover the native input plus both filters'
+        // delay. Drain that interval on the model clock before rounding up the
+        // final partial hop and submitting the single graph flush. Without
+        // this reserve, the last converted range ends before the dry tail.
+        const uint64_t converterTail = ceilDivide(
+            static_cast<uint64_t>(sampleRateConversionDelaySamples_) *
+                static_cast<uint64_t>(kModelSampleRate),
+            static_cast<uint64_t>(hostSampleRate_));
         stoppedModelSamplesRemaining_ =
-            (partial == 0U ? 0U : kOutputChunkSize - partial) +
-            kOutputChunkSize;
+            ceilDivide(partial + converterTail, kOutputChunkSize) *
+                kOutputChunkSize -
+            partial + kOutputChunkSize;
       }
 #endif
     }

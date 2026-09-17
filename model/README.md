@@ -124,3 +124,15 @@ startup/reset counters and require zero additional steady-playback fallback.
 Exercise transport changes and listen to instrumental passages, quiet real
 vocals and Other. Version 0.5.0 ships this graph and runtime setting. Sustained
 zero-fallback M4 timing and the broader quality goal remain unqualified.
+
+## Host sample-rate conversion
+
+The resampling branch admits 48, 88.2, 96, 176.4 and 192 kHz hosts through the
+existing streaming converters. The model, weights and 44.1 kHz inference clock
+are unchanged. Reported host latency includes converter group delay and the
+reserve for host/model clock alignment. Native Main remains a delayed copy of
+the input; Other reconstructs its residual after Drums, Bass and Vocals.
+
+The model scores and previous M4 playback report above do not measure this
+converted path. Sustained CPU/deadline behavior and listening at these rates
+require the [resampling checks](../RESAMPLING_TESTING.md) on the target machine.

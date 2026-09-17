@@ -40,9 +40,23 @@ constexpr int kPluginLatencySamples = qualified_model::kPluginLatencySamples;
 constexpr int kAsyncQualifiedHostSampleRate = kModelSampleRate;
 constexpr int kAsyncQualifiedHostBlockSize = kOutputChunkSize;
 
+// Host clocks covered by the native sample-rate bridge. This admits the
+// configuration; sustained real-time performance still depends on the host.
+constexpr std::array<int, 6> kQualifiedHostSampleRates = {
+    44100, 48000, 88200, 96000, 176400, 192000};
+
+constexpr bool isQualifiedHostSampleRate(int sampleRate) {
+  for (const int qualifiedRate : kQualifiedHostSampleRates) {
+    if (sampleRate == qualifiedRate) {
+      return true;
+    }
+  }
+  return false;
+}
+
 constexpr bool isQualifiedAsyncHostConfiguration(int sampleRate,
                                                  int blockSize) {
-  return sampleRate == kAsyncQualifiedHostSampleRate && blockSize > 0 &&
+  return isQualifiedHostSampleRate(sampleRate) && blockSize > 0 &&
          blockSize <= 65536;
 }
 
@@ -63,22 +77,6 @@ constexpr int kAudioThreadWaitBudgetMicroseconds = 0;
 constexpr int kSameCallbackWaitBudgetMicroseconds =
     kAudioThreadWaitBudgetMicroseconds;
 
-// Host clocks explicitly covered by the native sample-rate bridge. The graph
-// contract itself remains fixed at 44.1 kHz. Keep this list qualification-
-// gated rather than accepting arbitrary rates that have not been exercised by
-// the latency, reconstruction, and SRC quality tests.
-constexpr std::array<int, 6> kQualifiedHostSampleRates = {
-    44100, 48000, 88200, 96000, 176400, 192000};
-
-constexpr bool isQualifiedHostSampleRate(int sampleRate) {
-  for (const int qualifiedRate : kQualifiedHostSampleRates) {
-    if (sampleRate == qualifiedRate) {
-      return true;
-    }
-  }
-  return false;
-}
-
 constexpr std::uint64_t ceilDivide(std::uint64_t numerator,
                                    std::uint64_t denominator) {
   return numerator / denominator +
@@ -95,8 +93,8 @@ constexpr int calculatePluginLatencySamples(int hostBlockSize) {
          std::gcd(safeBlockSize, kOutputChunkSize);
 }
 
-// Rate-aware form, retained for the future sample-rate bridge. The active
-// model configuration currently admits only 44.1 kHz.
+// Include host/model clock alignment and the complete worker reserve before
+// adding the round-trip sample-rate converter delay.
 constexpr int calculateModelSchedulingLatencySamples(int hostSampleRate,
                                                      int hostBlockSize) {
   const std::uint64_t safeSampleRate = static_cast<std::uint64_t>(
@@ -162,7 +160,7 @@ static_assert(calculatePluginLatencySamples(1024) == 1152);
 static_assert(kModelOutputDelayChunks == 1);
 static_assert(kAsyncQueueDelayChunks == 1);
 static_assert(isQualifiedAsyncHostConfiguration(44100, 256));
-static_assert(!isQualifiedAsyncHostConfiguration(48000, 512));
+static_assert(isQualifiedAsyncHostConfiguration(48000, 512));
 static_assert(isQualifiedAsyncHostConfiguration(44100, 512));
 static_assert(!isQualifiedAsyncHostConfiguration(44100, 0));
 static_assert(kAudioThreadWaitBudgetMicroseconds == 0);

@@ -31,7 +31,7 @@ Use the installer to replace entire macOS bundles, rather than `cp -R` over exis
 | `spec_memory_hidden` | `[1,1,500]` | `next_spec_memory_hidden`: same shape |
 | `waveform_memory_hidden` | `[1,1,500]` | `next_waveform_memory_hidden`: same shape |
 
-Initialize all eight states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. Pad a partial final hop once, submit exactly one zero graph hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
+Initialize all eight states to zero and carry every returned state unchanged. The first call after reset succeeds with `outputValid=false`. Call N emits input N-1. When stopping, first cover the converter delay on the model clock, pad the final partial hop once, submit exactly one graph flush hop, then only drain queued output. Do not reuse states from a different model or add a second graph flush.
 
 The attention caches and two branch memories contain only received features and add no audio queue. Fusion and branch GRU hidden states use the public scale 2^-18; carry returned values without rescaling.
 
@@ -41,7 +41,8 @@ Only the inference worker advances/resets model state. Audio-thread resets inval
 
 - No waits, locks, allocation or PDC changes in real-time `processBlock`. Offline rendering may wait with a bounded timeout.
 - Preserve exact sample timestamps through the queue and output ring. Discard elapsed output instead of shifting it to a newer range. Only already-published results can be claimed at a real-time callback boundary.
-- Prepared 44.1 kHz block sizes from 1 to 65536 are admitted. Report the full accumulation/scheduling reserve. Larger or unexpected callback requirements use aligned fallback. Other sample rates are disabled until the new graph is validated through the existing converters.
+- Prepared host rates 44.1, 48, 88.2, 96, 176.4 and 192 kHz and block sizes from 1 to 65536 are admitted. Inference remains at 44.1 kHz. Report the full accumulation/scheduling reserve plus round-trip converter delay. Larger or unexpected callback requirements use aligned fallback. Rate admission does not establish sustained real-time performance; obtain physical-host evidence separately.
+- Sample-rate bridge changes must preserve native Main, exact residual reconstruction, converter phase across irregular callbacks, all-channel finite output, transport-stop tails, reset/reprepare determinism and allocation-free real-time conversion. Keep worker-publication correctness tests independent of machine speed.
 - Main is the complete delayed native input. Output buses are Main, Drums, Bass, Other, Vocals; graph source order is Drums, Bass, Vocals, Other.
 - Keep raw input levels unchanged. Do not add per-hop normalization, external context/reflection padding, crossover reinjection, bass processing, input gates or output clipping.
 - Preserve all four graph outputs in `OnnxRuntime`. After the existing output confidence/recovery fade, `Other = Main - Drums - Bass - Vocals`. Complete fallback is zero Drums/Bass/Vocals and Main in Other.

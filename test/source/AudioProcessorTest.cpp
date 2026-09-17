@@ -812,7 +812,7 @@ TEST(ConstantsTest, HostBlockSchedulingIsIncludedInReportedLatency) {
   EXPECT_EQ(audio_plugin::calculatePluginLatencySamples(2048), 2176);
 }
 
-TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
+TEST(ConstantsTest, SupportedHostRatesIncludeBridgeSchedulingReserve) {
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(48000));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(88200));
   EXPECT_TRUE(audio_plugin::isQualifiedHostSampleRate(96000));
@@ -821,7 +821,7 @@ TEST(ConstantsTest, PreservedBridgeMathIsSeparateFromAsyncQualification) {
   EXPECT_FALSE(audio_plugin::isQualifiedHostSampleRate(48001));
 
   EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(44100, 512));
-  EXPECT_FALSE(audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
+  EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(48000, 512));
   EXPECT_TRUE(audio_plugin::isQualifiedAsyncHostConfiguration(44100, 256));
 
   EXPECT_EQ(audio_plugin::calculateModelSchedulingLatencySamples(48000, 512),
