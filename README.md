@@ -8,6 +8,14 @@ model at **44.1 kHz**, processing 128 samples at a time. With a **128-sample hos
 buffer**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
 one dedicated CPU worker, and the audio callback never waits for it.
 
+## Download
+
+[StemgenRT 0.5.0](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.5.0)
+includes macOS AU and VST3 for Apple Silicon (macOS 14+) and Windows x86-64 VST3.
+The model and ONNX Runtime are bundled. Replace the complete plugin bundle and
+restart the DAW. macOS downloads are ad-hoc signed, without Developer ID signing
+or notarization. Archive checksums accompany the release.
+
 ## Use
 
 1. Set the session to **44.1 kHz** and select a **128-sample buffer** for the
@@ -60,7 +68,7 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 ## Model and checks
 
 The model combines spectrogram and waveform estimates with causal attention
-and separate recurrent memories. This candidate packs the attention query,
+and separate recurrent memories. Version 0.5.0 packs the attention query,
 key and value projections into one integer product, bringing the total to
 seventeen. The exact graph scores **4.455173 dB SDR** on the unchanged
 development panel, versus 4.455153 dB for PR #17. The source
@@ -70,21 +78,23 @@ The 5 dB goal and instrumental listening acceptance remain unmet.
 
 Raw input levels, the linked near-silence confidence fade and
 `Other = Main - Drums - Bass - Vocals` are preserved. The native Linux suite
-passed 164 tests, with one platform-specific skip and seven disabled timing
-tests. Coverage includes independent PyTorch parity, resets, partial EOF,
+and the [physical M4 Pro suite](model/macos-validation.json) each passed 164
+tests, with one platform-specific skip and seven disabled tests. Coverage
+includes independent PyTorch parity, resets, partial EOF,
 alignment, queue recovery, reconstruction and callback heap traffic.
 
 The plugin now disables KleidiAI through ORT's session configuration. The
 retained [M4 Pro parent evidence](model/macos-runtime-parity-diagnostic.json)
 fails all eight cases with backend defaults and passes all eight with KleidiAI
-disabled. All 24 diagnostic cases pass on Linux for this candidate; its own
-physical M4 numerical checks remain outstanding.
+disabled. Both independent PyTorch parity tests now pass on the physical M4 Pro
+with the production setting and unchanged `1e-5` tolerance. All 24 backend
+diagnostic cases also pass on Linux for this graph.
 
 The graph reduced local median block p50 by 5.14% compared with PR #17 under
 concurrent training. The backend setting's cost on M4 must be measured together
-with this graph. The latest user report is 1,920 fallback samples after ten
-minutes with PR #17 on M4 in Ableton at 44.1 kHz / 128 samples. Sustained zero
-fallback is still unqualified for this candidate.
+with this graph. The user reports that the installed PR #19 plugin works well.
+That report has no recorded duration or fallback-counter trace; sustained zero
+fallback and net M4 performance remain unqualified.
 
 Follow [the M4 test instructions](M4_TESTING.md) for numerical checks, repeated
 extended soaks and installed-DAW playback. Keep one inference worker and retain
