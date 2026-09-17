@@ -25,8 +25,10 @@ The plugin also sets `mlas.disable_kleidiai=1`. The retained
 [M4 Pro parent diagnostic](macos-runtime-parity-diagnostic.json) failed all
 eight independent reference cases with ORT defaults and passed all eight with
 KleidiAI disabled. The setting and graph optimization are separate commits;
-the setting-only parent is `af06fac`. This candidate still needs its own M4
-numerical and timing measurements.
+the setting-only parent is `af06fac`. The complete production candidate now
+passes both independent PyTorch parity tests on the physical M4 Pro, as
+recorded in [the local validation report](macos-validation.json). Sustained
+timing measurements remain outstanding.
 
 ## Deployment quality
 
@@ -86,7 +88,16 @@ All 24 [Linux backend diagnostic cases](runtime-parity-diagnostic.json) passed
 with maximum error 1.63912773132e-7. The diagnostic retains ORT-default,
 KleidiAI-disabled and optimization-disabled sessions. The plugin uses the
 KleidiAI-disabled setting. Linux correctness does not establish physical M4
-correctness for this new graph.
+correctness for this new graph by itself.
+
+The [physical M4 Pro Release suite](macos-validation.json) passed **164 tests**,
+with one platform-specific skip and seven disabled tests, at PR #19 commit
+`35b533017b32099f417b6c965e37214b72a8ccea`. Both independent PyTorch parity tests
+passed at the unchanged `1e-5` waveform limit with KleidiAI disabled in
+production. AU and VST3 bundles passed strict signature checks and matched the
+built candidate byte for byte. The user reports that the installed plugin
+works well; no playback duration or fallback-counter trace was supplied.
+The 0.5.0 release preparation changes version metadata and documentation.
 
 ## Timing and M4 acceptance
 
@@ -101,11 +112,13 @@ The parent M4 Pro diagnostic's longest short clip averaged 0.932 ms with ORT
 defaults and 1.047 ms with KleidiAI disabled. Those averages and the Linux graph
 comparison cannot establish the combined candidate's M4 performance.
 
-The user reported 1,920 fallback samples after ten minutes with PR #17 in
-Ableton on M4 at 44.1 kHz / 128 samples. Follow [the M4 test instructions](../M4_TESTING.md)
-for this candidate's own numerical checks, repeated 30-minute untraced soaks,
+The earlier user report recorded 1,920 fallback samples after ten minutes
+with PR #17 in Ableton on M4 at 44.1 kHz / 128 samples. The latest PR #19
+playback report is positive, without recorded counters. Follow
+[the M4 test instructions](../M4_TESTING.md) for reproducible numerical checks,
+repeated 30-minute untraced soaks,
 complete worker traces when needed, and installed-AU playback. Retain raw
 startup/reset counters and require zero additional steady-playback fallback.
 Exercise transport changes and listen to instrumental passages, quiet real
-vocals and Other. The candidate is for evaluation; no M4 qualification, release
-replacement or completion of the broader quality goal is claimed.
+vocals and Other. Version 0.5.0 ships this graph and runtime setting. Sustained
+zero-fallback M4 timing and the broader quality goal remain unqualified.

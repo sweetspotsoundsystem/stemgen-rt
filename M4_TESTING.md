@@ -1,25 +1,30 @@
 # Model tests on M4
 
-This candidate fuses the attention query, key and value products into one
+StemgenRT 0.5.0 fuses the attention query, key and value products into one
 signed integer projection. The graph SHA-256 begins `08424ca91fea`; it has
 seventeen integer products and uses `mlas.disable_kleidiai=1` in the plugin.
 It retains one inference worker, eight persistent states, 44.1 kHz,
 128-sample model hops and 256 samples of graph-plus-host delay with a
 128-sample host buffer.
 
-The candidate passed independent short and long numerical checks, 164 Linux
+The graph passed independent short and long numerical checks, 164 Linux
 native correctness tests, and all 24 Linux backend diagnostic cases. The
-native suite has one platform-specific skip and seven disabled performance
-tests. Read the [model report](model/README.md) for exact deployment quality,
-all regressions and the scope of these measurements. This candidate still
-requires its own physical M4 numerical and timing results.
+[physical M4 Pro suite](model/macos-validation.json) also passed 164 tests,
+including both independent PyTorch parity tests at the unchanged `1e-5` limit.
+Each native suite has one platform-specific skip and seven disabled tests.
+The tested PR #19 source is `35b5330`; the release preparation changes version
+metadata and documentation. Read the [model report](model/README.md) for exact
+deployment quality, all regressions and the scope of these measurements.
+Sustained timing measurements remain outstanding.
 
-The latest playback baseline is the user's PR #17 result: **1,920 fallback
-samples after ten minutes on M4 in Ableton at 44.1 kHz / 128 samples**. The
+The user reports that the installed PR #19 plugin works well, without a
+recorded duration or fallback-counter trace. The earlier PR #17 baseline was
+**1,920 fallback samples after ten minutes on M4 in Ableton at 44.1 kHz /
+128 samples**. The
 retained [M4 Pro diagnostic](model/macos-runtime-parity-diagnostic.json) belongs
 to that parent graph. Default ORT settings failed all eight cases, while
 KleidiAI disabled passed all eight at the unchanged `1e-5` limit. That evidence
-motivates the new plugin setting; it does not measure this candidate.
+motivates the new plugin setting; it does not measure this graph's timing.
 
 ## Correctness and identity
 

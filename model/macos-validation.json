@@ -1,0 +1,74 @@
+{
+  "kind": "observed_physical_macos_correctness_and_installation",
+  "source_commit": "35b533017b32099f417b6c965e37214b72a8ccea",
+  "completed_at_utc": "2026-09-17T02:42:00.474840+00:00",
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "architecture": "arm64",
+    "os": "Darwin 27.0.0"
+  },
+  "build_type": "Release",
+  "tested_plugin_version": "0.4.1",
+  "release_scope": "Version 0.5.0 preparation changes version metadata and documentation; the model and production inference code retain the tested PR 19 definitions.",
+  "model": {
+    "model_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
+    "model_bytes": "37532574",
+    "sample_rate": "44100",
+    "callback_samples": "128",
+    "pdc_samples": "256"
+  },
+  "fixture_sha256": "e9553a3821b6b7a356a881498683b16b454593c9cdefd9edfa5230d4526bbc8f",
+  "reference": "Independent CPU PyTorch declared seventeen-projection signed integer inference, reconstructed from source checkpoint weights. Eight FP32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing authenticates reconstructed weights; runtime imports are actively rejected.",
+  "runtime": {
+    "version": "1.26.0",
+    "mlas.disable_kleidiai": "1",
+    "execution": "sequential",
+    "intra_op_threads": 1,
+    "inter_op_threads": 1,
+    "spinning": false
+  },
+  "correctness": {
+    "passed": 164,
+    "failed": 0,
+    "skipped": 1,
+    "disabled": 7,
+    "ctest_exit": 0,
+    "parity_tests_passed": [
+      "CroppedModelParityTest.FourNativeStemsMatchIndependentPytorchWithOneFlush",
+      "CroppedModelParityTest.OfflineBusesPreservePytorchStemsThroughPartialEof"
+    ],
+    "parity_max_abs_tolerance": 1e-05
+  },
+  "installed_formats": {
+    "AU": {
+      "version": "0.4.1",
+      "file_count": 6,
+      "all_files_match_build": true,
+      "strict_signature_verification": true,
+      "architecture": "arm64"
+    },
+    "VST3": {
+      "version": "0.4.1",
+      "file_count": 6,
+      "all_files_match_build": true,
+      "strict_signature_verification": true,
+      "architecture": "arm64"
+    }
+  },
+  "local_evidence_sha256": {
+    "configure.log": "d8d62129be1443479a6918dc4902dc44c5a60789a25586fbfb9245f605f25991",
+    "build.log": "761a444f4fde653bee68493f0b311a07e0922ea0e4298178bdba39a636ea2152",
+    "ctest.log": "e260e8c1d65f90b4a6f857200a45e497a5b419103ab9214f4f1df2fb8afc68cc",
+    "install.log": "f6aa91dd03c147f734744585552bc69c066ba3fe1249e68568f17dce31d867fa",
+    "installed-signatures.log": "2ff0ccaece23cc0757fbec8b8505a8086a29b2543aedd5e4de83b17b81c7ffbe",
+    "installed-integrity.json": "57d8f38e2a4eef5f2e9572ca85c3cb8e4f52b0eeda511fd8ec51c38ed25bd32d"
+  },
+  "user_playback_report": {
+    "result": "Works well",
+    "source": "User report after PR 19 installation",
+    "duration_recorded": false,
+    "fallback_counter_trace_supplied": false
+  },
+  "timing_qualified": false,
+  "timing_note": "This installation ran the regular correctness suite. No paced qualification, sustained synthetic-host soak or independently observed DAW playback was performed."
+}
