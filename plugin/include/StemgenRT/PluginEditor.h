@@ -6,7 +6,7 @@
 namespace audio_plugin {
 
 #if !STEMGENRT_DEBUG_UI
-// Release build - retain the logo and expose lightweight streaming health.
+// Release build - logo with a small latency and fallback readout.
 class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor,
                                         private juce::Timer {
 public:

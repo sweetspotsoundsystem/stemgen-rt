@@ -24,10 +24,11 @@ or notarization. Archive checksums accompany the release.
 3. Route **Main, Drums, Bass, Other, Vocals**. Summing the four stems reconstructs
    Main; adding Main again doubles the mix.
 
-The editor shows the active delay and separation status. When a result misses
+The editor shows the logo with small white latency and fallback-sample readouts.
+The fallback count remains visible at zero. When a result misses
 its deadline, the complete delayed mix goes to Other for that interval. Late
 results are discarded, and separation fades back in over 64 samples when ready.
-Other sample rates use Main/Other fallback and display a setup message.
+Other sample rates use Main/Other fallback.
 
 | Prepared host buffer | Reported delay | At 44.1 kHz |
 | --- | --- | --- |
@@ -92,9 +93,10 @@ diagnostic cases also pass on Linux for this graph.
 
 The graph reduced local median block p50 by 5.14% compared with PR #17 under
 concurrent training. The backend setting's cost on M4 must be measured together
-with this graph. The user reports that the installed PR #19 plugin works well.
-That report has no recorded duration or fallback-counter trace; sustained zero
-fallback and net M4 performance remain unqualified.
+with this graph. The user reports **zero fallback on M4** with the installed
+PR #19 plugin. Playback duration and a raw counter trace were not supplied, so
+this records that successful user test without establishing an extended soak
+or a measured net M4 speedup.
 
 Follow [the M4 test instructions](M4_TESTING.md) for numerical checks, repeated
 extended soaks and installed-DAW playback. Keep one inference worker and retain

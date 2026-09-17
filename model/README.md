@@ -95,8 +95,9 @@ with one platform-specific skip and seven disabled tests, at PR #19 commit
 `35b533017b32099f417b6c965e37214b72a8ccea`. Both independent PyTorch parity tests
 passed at the unchanged `1e-5` waveform limit with KleidiAI disabled in
 production. AU and VST3 bundles passed strict signature checks and matched the
-built candidate byte for byte. The user reports that the installed plugin
-works well; no playback duration or fallback-counter trace was supplied.
+built candidate byte for byte. The user subsequently reported zero fallback
+on M4 with the installed PR #19 plugin; playback duration and a raw
+fallback-counter trace were not supplied.
 The 0.5.0 release preparation changes version metadata and documentation.
 
 ## Timing and M4 acceptance
@@ -114,7 +115,8 @@ comparison cannot establish the combined candidate's M4 performance.
 
 The earlier user report recorded 1,920 fallback samples after ten minutes
 with PR #17 in Ableton on M4 at 44.1 kHz / 128 samples. The latest PR #19
-playback report is positive, without recorded counters. Follow
+playback report explicitly reports zero fallback on M4. This is user-reported
+playback evidence; the run duration and raw counter trace are not recorded. Follow
 [the M4 test instructions](../M4_TESTING.md) for reproducible numerical checks,
 repeated 30-minute untraced soaks,
 complete worker traces when needed, and installed-AU playback. Retain raw
