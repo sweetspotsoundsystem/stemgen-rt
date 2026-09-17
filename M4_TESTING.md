@@ -1,82 +1,93 @@
 # Model tests on M4
 
-This checkout tests the sixteen-projection graph (SHA-256 prefix `c7ea50ac67bf`).
-It retains one inference worker, 44.1 kHz, 128-sample model hops and 256 samples
-of graph-plus-host delay with a 128-sample host buffer. The two branch-memory
-output projections now use integer products. Short and long independent
-numerical checks passed, and the Linux native suite passed 164 tests with one
-platform-specific skip and seven performance tests disabled. Full-panel quality
-review is complete: 4.455153 dB SDR versus PR #15's 4.455150 dB. Instrumental
-vocal leakage remains essentially unchanged.
-The local native comparison measured 9.4% lower median block p50 than PR #15
-under concurrent training. Version **v0.4.1-rc.2** is a testing prerelease of
-this graph. The user reports that the installed PR #17 candidate works;
-recorded sustained M4 playback acceptance remains pending.
-See [the model report](model/README.md) for the evidence and limitations.
+This candidate fuses the attention query, key and value products into one
+signed integer projection. The graph SHA-256 begins `08424ca91fea`; it has
+seventeen integer products and uses `mlas.disable_kleidiai=1` in the plugin.
+It retains one inference worker, eight persistent states, 44.1 kHz,
+128-sample model hops and 256 samples of graph-plus-host delay with a
+128-sample host buffer.
 
-The earlier PR #15 candidate produced a user-reported 3,072 cumulative fallback
-samples after ten minutes and failed two local independent PyTorch parity
-tests. Retain its graph/runtime evidence when comparing this candidate.
+The candidate passed independent short and long numerical checks, 164 Linux
+native correctness tests, and all 24 Linux backend diagnostic cases. The
+native suite has one platform-specific skip and seven disabled performance
+tests. Read the [model report](model/README.md) for exact deployment quality,
+all regressions and the scope of these measurements. This candidate still
+requires its own physical M4 numerical and timing results.
 
-To investigate the two independent PyTorch parity failures, run:
+The latest playback baseline is the user's PR #17 result: **1,920 fallback
+samples after ten minutes on M4 in Ableton at 44.1 kHz / 128 samples**. The
+retained [M4 Pro diagnostic](model/macos-runtime-parity-diagnostic.json) belongs
+to that parent graph. Default ORT settings failed all eight cases, while
+KleidiAI disabled passed all eight at the unchanged `1e-5` limit. That evidence
+motivates the new plugin setting; it does not measure this candidate.
+
+## Correctness and identity
+
+Use a clean checkout of this candidate on native arm64 macOS 14 or newer.
+From the repository root, fetch its LFS model and run the existing full
+qualification script with a new evidence directory outside the source tree:
 
 ```bash
-bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgen-parity-evidence-001"
+git lfs pull
+./scripts/qualify-macos.sh "$HOME/Desktop/stemgen-qkv-qualification-001"
+bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgen-qkv-parity-001"
 ```
 
-Use a new evidence directory for each run. This builds a small diagnostic
-against the checkout's official ORT 1.26.0 SDK. Before inference it verifies
-the model against `cmake/QualifiedModelContract.cmake` and checks the independent
-fixture's hash and declared graph identity. The normal test build now verifies
-these identities too, and both parity tests reject fixtures from a different
-compiled model.
+The qualification script makes a fresh Release build with official ONNX
+Runtime 1.26.0, checks the complete native suite and AU/VST3 bundles, and runs
+the short paced callback/worker measurement. The model contract and independent
+fixture must match this checkout. Both ordinary PyTorch parity tests must pass.
 
-The diagnostic compares the same eight clips and all four stems with default
-settings, `mlas.disable_kleidiai=1`, and graph optimizations disabled. It records
-runtime path/build/hash, checkout and fixture identities, CPU/SME capabilities,
-compiler and execution exits, and per-stem errors. `diagnostic-exit.txt = 0`
-means all measurements completed; each `parity_pass` reports the unchanged
-`1e-5` accuracy check. Inspect `results.jsonl`, `stderr.log` and `identity.txt`.
+The diagnostic retains three modes: ORT defaults, `kleidiai_disabled`, and
+graph optimizations disabled. The plugin uses `kleidiai_disabled`; every case
+in that mode must pass. The `default` label describes ORT's backend defaults.
+`diagnostic-exit.txt = 0` means that measurements completed; inspect each
+`parity_pass` in `results.jsonl`. Keep `identity.txt`, `stderr.log`, actual
+compiler/process exits and all per-stem errors. These records bind the graph,
+fixture, runtime path/hash/build and CPU capabilities.
 
-On the local Apple M4 Pro, default settings failed all eight reference cases
-(maximum error 0.000960826873779); disabling KleidiAI passed all eight
-(maximum error 1.78813934326e-7). Disabling graph optimizations also passed all
-eight (maximum error 1.63912773132e-7). The ordinary suite passed 162 tests,
-failed both parity tests and skipped the platform-specific test.
-The [recorded diagnostic](model/macos-runtime-parity-diagnostic.json) ties these
-results to PR #17's exact graph, fixture and loaded runtime. This isolates a
-backend-setting-dependent numerical difference on this machine; it does not
-yet identify the first divergent operator. [ORT's SME dispatch](https://github.com/microsoft/onnxruntime/blob/v1.26.0/onnxruntime/core/mlas/lib/platform.cpp)
-and its [input quantizer](https://github.com/ARM-software/kleidiai/blob/v1.20.0/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c)
-remain relevant implementation references.
-The diagnostic does not change production kernel settings. Its short Run
-averages do not qualify sustained plugin timing. Retain the evidence from the
-failing checkout when comparing a later graph or runtime.
+## Sustained timing
 
-After authenticating this checkout and building its native arm64 Release
-binary with official ONNX Runtime 1.26.0, run the existing correctness and
-paced qualification, then run `scripts/extended-soak-macos.sh` with the source
-directory and a new evidence directory. The extended runner repeats 30-minute
-paced tests and retains machine/model/source identities, raw logs and exits.
-It does not qualify installed-DAW playback by itself.
+From the same committed checkout and verified Release build, run two untraced
+30-minute synthetic-host measurements:
 
-For a separate diagnostic of late worker acquisition, inference or publication,
-append `--trace` and use another evidence directory. Worker and callback timing
-storage covers the full requested 30 minutes (about 60 MB on 64-bit platforms).
-The test rejects traced runs exceeding its 128 MiB collection budget before
-starting the worker. It reports omitted samples, matched and missing measured
-requests, and allocated collection bytes. Worker statistics describe matched
-requests; missing requests can also result from a queue gap. Detailed failure
-events retain their existing 64-entry limit and report omissions. Total process
-CPU time includes other threads and is not worker CPU time alone.
+```bash
+bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-qkv-soak-001"
+```
 
-Tracing changes memory use and adds clock reads. Keep both default untraced
-soaks as the timing evidence; traced diagnostics help investigate their failures.
-The extended trace only affects the test harness and runner. No physical M4
-execution of that trace has been verified yet.
+The runner retains both raw logs, actual exits, machine/model/source identities,
+and startup and measured fallback counts. Keep its strict pass/fail result.
+For a separate diagnostic of acquisition, inference and publication delays,
+use another directory and enable the complete-duration trace:
 
-In the DAW, record sample rate, buffer, workload, duration and cumulative
-fallback counters. Separate startup/reset increments from steady playback;
-require zero new steady-playback fallback. Include start/stop, seeks and loops,
-instrumental passages, quiet real vocals, and Other-stem listening. Retain the
-complete v0.4.0 bundle outside the plugin directory for rollback.
+```bash
+bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-qkv-trace-001" --trace
+```
+
+The trace allocates about 60 MB for 30 minutes and rejects requests beyond a
+128 MiB bound before starting the worker. It reports omitted timing samples,
+matched and missing requests, and bounded failure-event omissions. Worker
+statistics cover matched requests; total process CPU time includes other
+threads. Tracing adds clock reads and memory traffic, so retain the untraced
+runs as the timing measurements.
+
+The graph alone reduced local Linux median block p50 by 5.14%. The parent M4
+Pro diagnostic averaged 0.932 ms with defaults and 1.047 ms with KleidiAI
+disabled on its longest short clip. These are separate measurements on
+different platforms. Measure this candidate with its actual plugin setting;
+its net M4 performance has not been established.
+
+## Installed AU in Ableton
+
+After correctness passes, preserve the prior complete bundle, install with
+`./scripts/install-plugins.sh --release`, and restart Ableton. Use the confirmed
+**M4 / 44.1 kHz / 128-sample buffer** setup with one inference worker and a
+documented DAW load. Record the candidate revision, graph identity, duration,
+and starting/ending cumulative fallback counters. Repeat at least 30 minutes
+of steady playback and require **zero additional steady-playback fallback**.
+Keep startup/reset increments separately and retain all raw counts.
+
+Exercise start/stop, seeks and loops, then listen to instrumental passages,
+quiet real vocals and Other. Synthetic-host success alone leaves this installed
+AU test outstanding. Preserve v0.4.0 and the PR #17 bundle outside the plugin
+folder for comparison and rollback.

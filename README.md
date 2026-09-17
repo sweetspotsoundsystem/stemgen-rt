@@ -60,42 +60,36 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 ## Model and checks
 
 The model combines spectrogram and waveform estimates with causal attention
-and separate recurrent memories for the two branches. This candidate converts
-the two branch output projections to integer products, bringing the total to
-sixteen. The exact graph scores 4.455153 dB SDR on the unchanged development
-panel, versus 4.455150 dB for PR #15 and 4.455188 dB for v0.4.0. Instrumental
-vocal leakage remains essentially unchanged. The [deployment report](model/quality-deployment.json)
-records all track/stem regressions and source-view windows, separately from
-the source checkpoint's 4.465157 dB score. The 5 dB goal remains unmet.
-It consumes raw stereo samples and preserves their level. The plugin applies a
-linked near-silence confidence fade, then calculates
-`Other = Main - Drums - Bass - Vocals` to preserve the complete mix.
-See the [model interface and validation](model/README.md) for details.
+and separate recurrent memories. This candidate packs the attention query,
+key and value projections into one integer product, bringing the total to
+seventeen. The exact graph scores **4.455173 dB SDR** on the unchanged
+development panel, versus 4.455153 dB for PR #17. The source
+FP32 checkpoint scores 4.465157 dB. The [deployment report](model/quality-deployment.json)
+retains all 56 track/stem comparisons and 840 paired source-view windows.
+The 5 dB goal and instrumental listening acceptance remain unmet.
 
-Tests cover independent PyTorch waveform parity, streaming resets, partial
-final clips, sample alignment, queue recovery, output reconstruction, variable
-offline callbacks and C++ heap traffic in the audio callback. Model validation
-and target-Mac testing are documented in [model/README.md](model/README.md).
+Raw input levels, the linked near-silence confidence fade and
+`Other = Main - Drums - Bass - Vocals` are preserved. The native Linux suite
+passed 164 tests, with one platform-specific skip and seven disabled timing
+tests. Coverage includes independent PyTorch parity, resets, partial EOF,
+alignment, queue recovery, reconstruction and callback heap traffic.
 
-Real-time performance depends on the machine and host load. The candidate
-measured 9.4% lower local inference cost than the fourteen-projection graph
-under concurrent training. This does not establish sustained M4 timing. The
-user reported 3,072 cumulative fallback samples after ten minutes with PR #15,
-then reported that the installed PR #17 candidate works. Version
-**v0.4.1-rc.2** makes that candidate available as a testing prerelease.
+The plugin now disables KleidiAI through ORT's session configuration. The
+retained [M4 Pro parent evidence](model/macos-runtime-parity-diagnostic.json)
+fails all eight cases with backend defaults and passes all eight with KleidiAI
+disabled. All 24 diagnostic cases pass on Linux for this candidate; its own
+physical M4 numerical checks remain outstanding.
 
-The local M4 Pro suite passed 162 tests, failed two PyTorch parity tests and
-skipped one platform-specific test. In the new diagnostic, all eight reference
-cases failed with default settings and all eight passed with KleidiAI disabled.
-Production settings remain unchanged. The [numerical evidence](model/macos-runtime-parity-diagnostic.json)
-records the tested graph and runtime; successful playback does not establish
-formal parity or sustained timing qualification.
+The graph reduced local median block p50 by 5.14% compared with PR #17 under
+concurrent training. The backend setting's cost on M4 must be measured together
+with this graph. The latest user report is 1,920 fallback samples after ten
+minutes with PR #17 on M4 in Ableton at 44.1 kHz / 128 samples. Sustained zero
+fallback is still unqualified for this candidate.
 
-Follow the [M4 test instructions](M4_TESTING.md) for the runtime parity
-diagnostic, repeated extended soaks and installed-DAW checks. The traced soak
-now retains worker/callback timing throughout the requested duration. Keep one
-inference worker and retain the previous complete plugin bundle for rollback.
-See the [model report](model/README.md) for quality and timing limitations.
+Follow [the M4 test instructions](M4_TESTING.md) for numerical checks, repeated
+extended soaks and installed-DAW playback. Keep one inference worker and retain
+the previous complete plugin bundle. See [the model report](model/README.md)
+for exact quality changes, timing evidence and limitations.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

@@ -1,10 +1,10 @@
 {
   "format": "SGRTG001: LE uint32 case count, then per case LE uint32 frames, planar input[2,T] and deployed[4,2,T] LE float32",
-  "fixture_sha256": "569a496ec39fcb7a024f9d371504fcf3dbb8ea8ce47233d52389c479be6537da",
-  "generator_sha256": "2632c0a5aa916259fdb40650f24feae19be162b99a9b721f4f562b70f1447e05",
-  "plan_sha256": "b52cc4bf0d049bf1ff3d3fb9c5f3b218d789550e8e611339e985fbbdfbeaa16e",
+  "fixture_sha256": "e9553a3821b6b7a356a881498683b16b454593c9cdefd9edfa5230d4526bbc8f",
+  "generator_sha256": "3af3075fa9de9f1ffd0c0f283dbac3877648114faba5e44520eaae87b9aefaf5",
+  "plan_sha256": "465af12629adc77dfb5922a1d802f784759f8ac0c3daa4bb0e132b565767520d",
   "checkpoint_sha256": "2e0600a3619106682d789c1e8c9648c5c6adfe67dce51e08d5e17556064f3fb0",
-  "deployment_graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
+  "deployment_graph_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
   "independent_integer_projections": [
     {
       "module": "conv_encode",
@@ -139,6 +139,20 @@
       "weight_scale_zero_point_bit_exact": true,
       "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
       "bias": null
+    },
+    {
+      "module": "temporal_qkv",
+      "source_modules": [
+        "temporal_query",
+        "temporal_key",
+        "temporal_value"
+      ],
+      "initializer": "/attention_qkv_fusion/weight32",
+      "source_float_sha256": "2130c0ab2db0fa4dc531f4946ac3b19ab2fca2605ee9a87b3c05f55bc67742c1",
+      "quantized_matrix_sha256": "fbf7aa0805b791085765bd5e3b486606943161ac1269833254facc6e957f0e9b",
+      "weight_scale_zero_point_bit_exact": true,
+      "reference_arithmetic": "NumPy range reconstruction and PyTorch int32 products; no ORT oracle",
+      "bias": null
     }
   ],
   "state_names": [
@@ -216,5 +230,5 @@
     "vocals",
     "other"
   ],
-  "reference": "Independent CPU PyTorch declared sixteen-projection signed integer inference, reconstructed from source checkpoint weights. Eight FP32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing authenticates reconstructed weights; runtime imports are actively rejected."
+  "reference": "Independent CPU PyTorch declared seventeen-projection signed integer inference, reconstructed from source checkpoint weights. Eight FP32 public states; zero initial states; one zero flush; crop to real length. ONNX parsing authenticates reconstructed weights; runtime imports are actively rejected."
 }

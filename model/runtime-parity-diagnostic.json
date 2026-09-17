@@ -1,39 +1,64 @@
 {
-  "schema": "stemgenrt-runtime-parity-diagnostic-validation-v1",
+  "kind": "observed_linux_runtime_parity_diagnostic",
   "status": "pass",
-  "graph_sha256": "c7ea50ac67bf4bfddf1f5ff41c6eb419af00fe420ce1a0b0eaeef11a1861cd61",
-  "fixture_sha256": "569a496ec39fcb7a024f9d371504fcf3dbb8ea8ce47233d52389c479be6537da",
+  "observed_at_utc": "2026-09-16T06:17:35.417803+00:00",
+  "model_sha256": "08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748",
+  "fixture_sha256": "e9553a3821b6b7a356a881498683b16b454593c9cdefd9edfa5230d4526bbc8f",
+  "source_revision": "6cc789f825629cbe85d20736379b5f0556334971",
+  "native_plan_sha256": "86779f71c96519ba50ed18bbe9cf5612e94ddadd35f01fac520d052e97113f8f",
+  "runtime": {
+    "version": "1.26.0",
+    "loaded_binary_sha256": "5bd5bedf736fc501692435d0ec4f6e8b2bdf48cd30af8e6d00d61b3ddc9a7ab8",
+    "build_info": "ORT Build Info: git-branch=HEAD, git-commit-id=8c546c37b4, fp8-kv-cache=1, build type=Release"
+  },
+  "diagnostic_source_sha256": "3d4cc737dfabf1da3a028323497fe95d7e38aad3b3223a593f51114000918de8",
+  "diagnostic_binary_sha256": "038865925ce62b077e4ed0b418f65d24ce13718a763a50a9b0f0c522c2c656c4",
   "source_order": [
     "drums",
     "bass",
     "vocals",
     "other"
   ],
-  "system": "Linux x86_64",
-  "threshold": 1e-05,
-  "intra_op_threads": 1,
-  "inter_op_threads": 1,
-  "spinning": false,
-  "execution_mode": "sequential",
+  "max_abs_tolerance": 1e-05,
+  "diagnostic_exit": 0,
+  "source_bindings_unchanged": true,
+  "plugin_session_setting": "mlas.disable_kleidiai=1",
+  "summary": {
+    "default": {
+      "cases": 8,
+      "passed": 8,
+      "max_error": 1.63912773132e-07
+    },
+    "kleidiai_disabled": {
+      "cases": 8,
+      "passed": 8,
+      "max_error": 1.63912773132e-07
+    },
+    "optimizations_disabled": {
+      "cases": 8,
+      "passed": 8,
+      "max_error": 1.63912773132e-07
+    }
+  },
   "cases": [
     {
       "mode": "default",
       "frames": 1,
       "max_error": 7.45058059692e-09,
       "parity_pass": true,
-      "mean_run_ms": 8.711387,
+      "mean_run_ms": 3.6796455,
       "stems": [
         {
           "max_error": 7.45058059692e-09,
           "rmse": 5.26835606386e-09
         },
         {
-          "max_error": 4.65661287308e-10,
-          "rmse": 3.29272253991e-10
+          "max_error": 9.31322574615e-10,
+          "rmse": 7.36275143029e-10
         },
         {
           "max_error": 9.31322574615e-10,
-          "rmse": 9.31322574615e-10
+          "rmse": 6.58544507983e-10
         },
         {
           "max_error": 7.45058059692e-09,
@@ -44,25 +69,25 @@
     {
       "mode": "default",
       "frames": 127,
-      "max_error": 6.70552253723e-08,
+      "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 10.899427,
+      "mean_run_ms": 3.371518,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.0403644434e-08
+          "rmse": 1.04298699468e-08
         },
         {
-          "max_error": 3.81842255592e-08,
-          "rmse": 1.03501280455e-08
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.03810539511e-08
         },
         {
-          "max_error": 1.86264514923e-08,
-          "rmse": 4.97234667384e-09
+          "max_error": 1.67638063431e-08,
+          "rmse": 4.8373345339e-09
         },
         {
-          "max_error": 6.70552253723e-08,
-          "rmse": 1.85721061724e-08
+          "max_error": 7.45058059692e-08,
+          "rmse": 1.87025617793e-08
         }
       ]
     },
@@ -71,23 +96,23 @@
       "frames": 128,
       "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 8.382359,
+      "mean_run_ms": 3.38144,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.13198561943e-08
+          "rmse": 1.13461647906e-08
         },
         {
           "max_error": 3.44589352608e-08,
-          "rmse": 1.16207407573e-08
+          "rmse": 1.16128659956e-08
         },
         {
           "max_error": 2.23517417908e-08,
-          "rmse": 5.38598830754e-09
+          "rmse": 5.41968129356e-09
         },
         {
           "max_error": 7.45058059692e-08,
-          "rmse": 2.18340031886e-08
+          "rmse": 2.18774095597e-08
         }
       ]
     },
@@ -96,23 +121,23 @@
       "frames": 129,
       "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 4.385988,
+      "mean_run_ms": 3.23900566667,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.03811374623e-08
+          "rmse": 1.02978997375e-08
         },
         {
           "max_error": 4.28408384323e-08,
-          "rmse": 1.23922044809e-08
+          "rmse": 1.23794133913e-08
         },
         {
           "max_error": 1.8859282136e-08,
-          "rmse": 4.99415206806e-09
+          "rmse": 5.01171277802e-09
         },
         {
           "max_error": 7.45058059692e-08,
-          "rmse": 2.06140732091e-08
+          "rmse": 2.0581430159e-08
         }
       ]
     },
@@ -121,23 +146,23 @@
       "frames": 255,
       "max_error": 1.00582838058e-07,
       "parity_pass": true,
-      "mean_run_ms": 4.30083266667,
+      "mean_run_ms": 3.16748833333,
       "stems": [
         {
           "max_error": 5.21540641785e-08,
-          "rmse": 1.54033188882e-08
+          "rmse": 1.53271672786e-08
         },
         {
           "max_error": 5.77419996262e-08,
-          "rmse": 1.8100457937e-08
+          "rmse": 1.8096981103e-08
         },
         {
           "max_error": 2.25845724344e-08,
-          "rmse": 5.8945171997e-09
+          "rmse": 5.90883584163e-09
         },
         {
           "max_error": 1.00582838058e-07,
-          "rmse": 2.92297249826e-08
+          "rmse": 2.91266735915e-08
         }
       ]
     },
@@ -146,23 +171,23 @@
       "frames": 256,
       "max_error": 1.06170773506e-07,
       "parity_pass": true,
-      "mean_run_ms": 4.171025,
+      "mean_run_ms": 4.55650666667,
       "stems": [
         {
           "max_error": 4.842877388e-08,
-          "rmse": 1.60379469458e-08
+          "rmse": 1.59947924171e-08
         },
         {
           "max_error": 1.06170773506e-07,
-          "rmse": 1.91524489269e-08
+          "rmse": 1.9155898231e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.62907237116e-09
+          "rmse": 5.62967893959e-09
         },
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 3.15440144835e-08
+          "rmse": 3.15212354113e-08
         }
       ]
     },
@@ -171,48 +196,48 @@
       "frames": 257,
       "max_error": 1.06170773506e-07,
       "parity_pass": true,
-      "mean_run_ms": 4.06308725,
+      "mean_run_ms": 4.30529075,
       "stems": [
         {
           "max_error": 4.09781932831e-08,
-          "rmse": 1.44475544968e-08
+          "rmse": 1.43998212487e-08
         },
         {
           "max_error": 1.06170773506e-07,
-          "rmse": 1.84247008055e-08
+          "rmse": 1.84282723759e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.52477309553e-09
+          "rmse": 5.52538870918e-09
         },
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 2.85024069782e-08
+          "rmse": 2.84772931549e-08
         }
       ]
     },
     {
       "mode": "default",
       "frames": 16521,
-      "max_error": 1.78813934326e-07,
+      "max_error": 1.63912773132e-07,
       "parity_pass": true,
-      "mean_run_ms": 5.03810234351,
+      "mean_run_ms": 4.46265055725,
       "stems": [
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 1.9998357408e-08
+          "rmse": 2.01972442435e-08
         },
         {
-          "max_error": 1.56462192535e-07,
-          "rmse": 2.50547648969e-08
+          "max_error": 1.41561031342e-07,
+          "rmse": 2.506152406e-08
         },
         {
-          "max_error": 5.33182173967e-08,
-          "rmse": 7.77616052754e-09
+          "max_error": 5.12227416039e-08,
+          "rmse": 7.87189845705e-09
         },
         {
-          "max_error": 1.78813934326e-07,
-          "rmse": 4.06593413689e-08
+          "max_error": 1.63912773132e-07,
+          "rmse": 4.12244850927e-08
         }
       ]
     },
@@ -221,19 +246,19 @@
       "frames": 1,
       "max_error": 7.45058059692e-09,
       "parity_pass": true,
-      "mean_run_ms": 6.119783,
+      "mean_run_ms": 3.7194055,
       "stems": [
         {
           "max_error": 7.45058059692e-09,
           "rmse": 5.26835606386e-09
         },
         {
-          "max_error": 4.65661287308e-10,
-          "rmse": 3.29272253991e-10
+          "max_error": 9.31322574615e-10,
+          "rmse": 7.36275143029e-10
         },
         {
           "max_error": 9.31322574615e-10,
-          "rmse": 9.31322574615e-10
+          "rmse": 6.58544507983e-10
         },
         {
           "max_error": 7.45058059692e-09,
@@ -244,25 +269,25 @@
     {
       "mode": "kleidiai_disabled",
       "frames": 127,
-      "max_error": 6.70552253723e-08,
+      "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 4.68883,
+      "mean_run_ms": 3.37251,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.0403644434e-08
+          "rmse": 1.04298699468e-08
         },
         {
-          "max_error": 3.81842255592e-08,
-          "rmse": 1.03501280455e-08
+          "max_error": 3.72529029846e-08,
+          "rmse": 1.03810539511e-08
         },
         {
-          "max_error": 1.86264514923e-08,
-          "rmse": 4.97234667384e-09
+          "max_error": 1.67638063431e-08,
+          "rmse": 4.8373345339e-09
         },
         {
-          "max_error": 6.70552253723e-08,
-          "rmse": 1.85721061724e-08
+          "max_error": 7.45058059692e-08,
+          "rmse": 1.87025617793e-08
         }
       ]
     },
@@ -271,23 +296,23 @@
       "frames": 128,
       "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.6565235,
+      "mean_run_ms": 3.2929305,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.13198561943e-08
+          "rmse": 1.13461647906e-08
         },
         {
           "max_error": 3.44589352608e-08,
-          "rmse": 1.16207407573e-08
+          "rmse": 1.16128659956e-08
         },
         {
           "max_error": 2.23517417908e-08,
-          "rmse": 5.38598830754e-09
+          "rmse": 5.41968129356e-09
         },
         {
           "max_error": 7.45058059692e-08,
-          "rmse": 2.18340031886e-08
+          "rmse": 2.18774095597e-08
         }
       ]
     },
@@ -296,23 +321,23 @@
       "frames": 129,
       "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 6.567899,
+      "mean_run_ms": 3.21069633333,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.03811374623e-08
+          "rmse": 1.02978997375e-08
         },
         {
           "max_error": 4.28408384323e-08,
-          "rmse": 1.23922044809e-08
+          "rmse": 1.23794133913e-08
         },
         {
           "max_error": 1.8859282136e-08,
-          "rmse": 4.99415206806e-09
+          "rmse": 5.01171277802e-09
         },
         {
           "max_error": 7.45058059692e-08,
-          "rmse": 2.06140732091e-08
+          "rmse": 2.0581430159e-08
         }
       ]
     },
@@ -321,23 +346,23 @@
       "frames": 255,
       "max_error": 1.00582838058e-07,
       "parity_pass": true,
-      "mean_run_ms": 6.387775,
+      "mean_run_ms": 3.70890833333,
       "stems": [
         {
           "max_error": 5.21540641785e-08,
-          "rmse": 1.54033188882e-08
+          "rmse": 1.53271672786e-08
         },
         {
           "max_error": 5.77419996262e-08,
-          "rmse": 1.8100457937e-08
+          "rmse": 1.8096981103e-08
         },
         {
           "max_error": 2.25845724344e-08,
-          "rmse": 5.8945171997e-09
+          "rmse": 5.90883584163e-09
         },
         {
           "max_error": 1.00582838058e-07,
-          "rmse": 2.92297249826e-08
+          "rmse": 2.91266735915e-08
         }
       ]
     },
@@ -346,23 +371,23 @@
       "frames": 256,
       "max_error": 1.06170773506e-07,
       "parity_pass": true,
-      "mean_run_ms": 6.16205833333,
+      "mean_run_ms": 4.79823266667,
       "stems": [
         {
           "max_error": 4.842877388e-08,
-          "rmse": 1.60379469458e-08
+          "rmse": 1.59947924171e-08
         },
         {
           "max_error": 1.06170773506e-07,
-          "rmse": 1.91524489269e-08
+          "rmse": 1.9155898231e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.62907237116e-09
+          "rmse": 5.62967893959e-09
         },
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 3.15440144835e-08
+          "rmse": 3.15212354113e-08
         }
       ]
     },
@@ -371,48 +396,48 @@
       "frames": 257,
       "max_error": 1.06170773506e-07,
       "parity_pass": true,
-      "mean_run_ms": 12.754609,
+      "mean_run_ms": 5.08508725,
       "stems": [
         {
           "max_error": 4.09781932831e-08,
-          "rmse": 1.44475544968e-08
+          "rmse": 1.43998212487e-08
         },
         {
           "max_error": 1.06170773506e-07,
-          "rmse": 1.84247008055e-08
+          "rmse": 1.84282723759e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.52477309553e-09
+          "rmse": 5.52538870918e-09
         },
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 2.85024069782e-08
+          "rmse": 2.84772931549e-08
         }
       ]
     },
     {
       "mode": "kleidiai_disabled",
       "frames": 16521,
-      "max_error": 1.78813934326e-07,
+      "max_error": 1.63912773132e-07,
       "parity_pass": true,
-      "mean_run_ms": 8.28912166412,
+      "mean_run_ms": 4.73130770229,
       "stems": [
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 1.9998357408e-08
+          "rmse": 2.01972442435e-08
         },
         {
-          "max_error": 1.56462192535e-07,
-          "rmse": 2.50547648969e-08
+          "max_error": 1.41561031342e-07,
+          "rmse": 2.506152406e-08
         },
         {
-          "max_error": 5.33182173967e-08,
-          "rmse": 7.77616052754e-09
+          "max_error": 5.12227416039e-08,
+          "rmse": 7.87189845705e-09
         },
         {
-          "max_error": 1.78813934326e-07,
-          "rmse": 4.06593413689e-08
+          "max_error": 1.63912773132e-07,
+          "rmse": 4.12244850927e-08
         }
       ]
     },
@@ -421,19 +446,19 @@
       "frames": 1,
       "max_error": 7.45058059692e-09,
       "parity_pass": true,
-      "mean_run_ms": 6.940242,
+      "mean_run_ms": 4.581364,
       "stems": [
         {
           "max_error": 7.45058059692e-09,
           "rmse": 5.26835606386e-09
         },
         {
-          "max_error": 0,
-          "rmse": 0
+          "max_error": 9.31322574615e-10,
+          "rmse": 6.78812141396e-10
         },
         {
           "max_error": 9.31322574615e-10,
-          "rmse": 9.31322574615e-10
+          "rmse": 6.58544507983e-10
         },
         {
           "max_error": 7.45058059692e-09,
@@ -444,25 +469,25 @@
     {
       "mode": "optimizations_disabled",
       "frames": 127,
-      "max_error": 6.70552253723e-08,
+      "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.4646625,
+      "mean_run_ms": 4.3023845,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.04462274581e-08
+          "rmse": 1.05399524981e-08
         },
         {
           "max_error": 3.25962901115e-08,
-          "rmse": 1.01765316455e-08
+          "rmse": 1.02048886777e-08
         },
         {
-          "max_error": 1.51339918375e-08,
-          "rmse": 4.89209932478e-09
+          "max_error": 1.49011611938e-08,
+          "rmse": 4.80061930457e-09
         },
         {
-          "max_error": 6.70552253723e-08,
-          "rmse": 1.80741357493e-08
+          "max_error": 7.45058059692e-08,
+          "rmse": 1.83471608098e-08
         }
       ]
     },
@@ -471,23 +496,23 @@
       "frames": 128,
       "max_error": 6.70552253723e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.3804275,
+      "mean_run_ms": 4.3703905,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.13078775072e-08
+          "rmse": 1.12694601459e-08
         },
         {
           "max_error": 3.632158041e-08,
-          "rmse": 1.14262468637e-08
+          "rmse": 1.14203519715e-08
         },
         {
           "max_error": 2.60770320892e-08,
-          "rmse": 5.18450177381e-09
+          "rmse": 5.20378121382e-09
         },
         {
           "max_error": 6.70552253723e-08,
-          "rmse": 2.1220824026e-08
+          "rmse": 2.11504566468e-08
         }
       ]
     },
@@ -496,23 +521,23 @@
       "frames": 129,
       "max_error": 7.45058059692e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.48300533333,
+      "mean_run_ms": 5.61299333333,
       "stems": [
         {
           "max_error": 3.72529029846e-08,
-          "rmse": 1.04656406123e-08
+          "rmse": 1.03675270999e-08
         },
         {
           "max_error": 4.842877388e-08,
-          "rmse": 1.26027336136e-08
+          "rmse": 1.25971638308e-08
         },
         {
           "max_error": 1.86264514923e-08,
-          "rmse": 4.76850075695e-09
+          "rmse": 4.7717768523e-09
         },
         {
           "max_error": 7.45058059692e-08,
-          "rmse": 2.01522593756e-08
+          "rmse": 2.01135191242e-08
         }
       ]
     },
@@ -521,23 +546,23 @@
       "frames": 255,
       "max_error": 1.00582838058e-07,
       "parity_pass": true,
-      "mean_run_ms": 5.33241266667,
+      "mean_run_ms": 5.50825166667,
       "stems": [
         {
           "max_error": 4.842877388e-08,
-          "rmse": 1.54709357643e-08
+          "rmse": 1.54198442016e-08
         },
         {
           "max_error": 6.23986124992e-08,
-          "rmse": 1.83629428786e-08
+          "rmse": 1.83665429874e-08
         },
         {
           "max_error": 2.44472175837e-08,
-          "rmse": 5.73800752578e-09
+          "rmse": 5.75598989678e-09
         },
         {
           "max_error": 1.00582838058e-07,
-          "rmse": 2.9290812783e-08
+          "rmse": 2.92466516949e-08
         }
       ]
     },
@@ -546,23 +571,23 @@
       "frames": 256,
       "max_error": 9.87201929092e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.18164266667,
+      "mean_run_ms": 4.23408233333,
       "stems": [
         {
           "max_error": 5.21540641785e-08,
-          "rmse": 1.62150531033e-08
+          "rmse": 1.61572800432e-08
         },
         {
           "max_error": 9.87201929092e-08,
-          "rmse": 1.89160488925e-08
+          "rmse": 1.89161720331e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.5885593582e-09
+          "rmse": 5.58452720785e-09
         },
         {
           "max_error": 8.94069671631e-08,
-          "rmse": 3.16599649209e-08
+          "rmse": 3.16115565522e-08
         }
       ]
     },
@@ -571,23 +596,23 @@
       "frames": 257,
       "max_error": 9.87201929092e-08,
       "parity_pass": true,
-      "mean_run_ms": 5.75766275,
+      "mean_run_ms": 3.926126,
       "stems": [
         {
           "max_error": 4.09781932831e-08,
-          "rmse": 1.44385023994e-08
+          "rmse": 1.43738436065e-08
         },
         {
           "max_error": 9.87201929092e-08,
-          "rmse": 1.8052454894e-08
+          "rmse": 1.80525834233e-08
         },
         {
           "max_error": 2.04890966415e-08,
-          "rmse": 5.510668528e-09
+          "rmse": 5.50659526009e-09
         },
         {
           "max_error": 8.94069671631e-08,
-          "rmse": 2.8464401876e-08
+          "rmse": 2.84107588917e-08
         }
       ]
     },
@@ -596,257 +621,52 @@
       "frames": 16521,
       "max_error": 1.63912773132e-07,
       "parity_pass": true,
-      "mean_run_ms": 7.35115703053,
+      "mean_run_ms": 5.6400270916,
       "stems": [
         {
           "max_error": 1.04308128357e-07,
-          "rmse": 1.99956092788e-08
+          "rmse": 2.02054862093e-08
         },
         {
-          "max_error": 1.49011611938e-07,
-          "rmse": 2.50312264309e-08
+          "max_error": 1.41561031342e-07,
+          "rmse": 2.50888514327e-08
         },
         {
-          "max_error": 5.58793544769e-08,
-          "rmse": 7.75447222294e-09
+          "max_error": 5.12227416039e-08,
+          "rmse": 7.83424147267e-09
         },
         {
           "max_error": 1.63912773132e-07,
-          "rmse": 4.07006530356e-08
+          "rmse": 4.13048434527e-08
         }
       ]
     }
   ],
-  "execution": {
-    "actual_exec_session_id": 66005,
-    "actual_terminal_chunk_id": "e1780e",
+  "raw_evidence": {
+    "stderr.log": "c1d576328cbec979fadba536c617eecb23d0e988b903575bf52decad52c1e0bf",
+    "build-exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "diagnose": "038865925ce62b077e4ed0b418f65d24ce13718a763a50a9b0f0c522c2c656c4",
+    "fixture-verification.log": "0440f1cf86fa704c1c1127e82876c02bb1b60dd9c9d4db79d92fd98c23790eda",
+    "diagnostic-exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "results.jsonl": "cd064a8012c6dd85f4e8708be8807a4edfe1626cd4b723bdb5fe04b12fc4913c",
+    "identity.txt": "1ca4292a1ec6669e92fe07c5351eaa34519db4c38a5dc501f9404bbd17e4d875"
+  },
+  "timing_qualified": false,
+  "quality_selected": false,
+  "physical_m4_qualified": false,
+  "timing_note": "Shared Linux CPU under concurrent GPU training and quality scoring. Short diagnostic Run averages do not establish paced or sustained plugin timing. Default labels the ORT backend default, while the plugin explicitly disables KleidiAI.",
+  "actual_root_execution": {
+    "actual_session_id": 45453,
+    "actual_tool_chunk_id": "e31716",
     "actual_exit_code": 0,
-    "observed_utc": "2026-09-15T04:52:48.375658+00:00",
-    "cases_passed": 24,
-    "maximum_error": 1.78813934326e-07,
-    "native_host_qualified": false,
-    "system": "Linux",
-    "files": {
-      "stderr.log": "ec18cf62b06806fd1bca343910309b643c688585c40005e6a5c1fb5d64ba7152",
-      "build-exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
-      "build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "diagnose": "5595a2b82778a345539dab8401e176a590a90caa071dc392a6d60a53a0f914ab",
-      "fixture-verification.log": "3232d61c844be61294221a4387850e1557c3712e08954ba86ba2fea06d502103",
-      "diagnostic-exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
-      "results.jsonl": "ae65ce73a9f49e119355343e99ac793464cd279a1cce55f84a789f5a9b74ba22",
-      "identity.txt": "991e3cc8a8afee7e0a1c94b3b7c1bc48d2e180b8255f8d4fbfdf25f5c7163e88"
-    }
-  },
-  "source_sha256": "3d4cc737dfabf1da3a028323497fe95d7e38aad3b3223a593f51114000918de8",
-  "runner_sha256": "d75dd5b14628ab3ea0bdd49b184d710f155f98d1d1f07ea5345f9522c745c28a",
-  "runtime_build": "ORT Build Info: git-branch=HEAD, git-commit-id=8c546c37b4, fp8-kv-cache=1, build type=Release",
-  "runtime_library_sha256": "5bd5bedf736fc501692435d0ec4f6e8b2bdf48cd30af8e6d00d61b3ddc9a7ab8",
-  "fixture_identity_controls": {
-    "count": 7,
-    "result_sha256": "cf1cfe81e75812f27238d3f5b258659c96f2f47d796d60e937841b25be61f8ac",
-    "cases": [
-      {
-        "case": "matching",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-puerssw0",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 0,
-        "expected_result_observed": true,
-        "stdout": "-- Verified independent parity fixture: 6f967ee4bcf3f8ccacf994679379df18905171f4a969d693f398bb524315cf66\n",
-        "stderr": ""
-      },
-      {
-        "case": "fixture_changed",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-aba9e4wh",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:26 (message):\n  Parity fixture SHA-256 mismatch at\n  /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-aba9e4wh/test/fixtures/cropped1024-pytorch.bin:\n  expected 6f967ee4bcf3f8ccacf994679379df18905171f4a969d693f398bb524315cf66,\n  got 47488306fba1602ffd555225f3729e72f68b1ad15274bbc00fccfb0222057edb\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      },
-      {
-        "case": "wrong_graph_metadata",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-ect955d9",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:32 (message):\n  Parity fixture/model identity mismatch.  Contract:\n  08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13; fixture\n  expects: 0000000000000000000000000000000000000000000000000000000000000000;\n  model: 08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13 (24\n  bytes).  Rebuild with matching model and independent fixture.\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      },
-      {
-        "case": "model_changed",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-0vkeuk5u",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:32 (message):\n  Parity fixture/model identity mismatch.  Contract:\n  08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13; fixture\n  expects: 08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13;\n  model: 094d6934ddc116576eac034f6e0947bb98acd057cd91b097d491aaa6f77444f1 (25\n  bytes).  Rebuild with matching model and independent fixture.\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      },
-      {
-        "case": "wrong_model_size",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-s5xyjx5b",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:32 (message):\n  Parity fixture/model identity mismatch.  Contract:\n  08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13; fixture\n  expects: 08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13;\n  model: 08423e5a1ba70a030388b9aea8e2b937185c98a7cd78205dfe95be038a51ec13 (24\n  bytes).  Rebuild with matching model and independent fixture.\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      },
-      {
-        "case": "malformed_metadata",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-m8i_n68v",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:20 (message):\n  Invalid parity fixture metadata:\n  /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-m8i_n68v/test/fixtures/cropped1024-pytorch.json\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      },
-      {
-        "case": "missing_fixture",
-        "argv": [
-          "cmake",
-          "-DSTEMGENRT_SOURCE_ROOT=/home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-opb2tr23",
-          "-P",
-          "research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake"
-        ],
-        "actual_exit_code": 1,
-        "expected_result_observed": true,
-        "stdout": "",
-        "stderr": "CMake Error at research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:11 (message):\n  Missing parity input:\n  /home/axel/autoresearch/codex/HS-TasNet/research/direct/runs/latency58/m4-fixture-identity-controls-001/fixture-opb2tr23/test/fixtures/cropped1024-pytorch.bin\nCall Stack (most recent call first):\n  research/direct/runs/latency58/m4-inference-diagnostics-plugin-001/cmake/VerifyParityFixture.cmake:42 (stemgenrt_verify_parity_fixture)\n\n\n"
-      }
-    ]
-  },
-  "trace_runner_controls": {
-    "count": 10,
-    "result_sha256": "3f4c3639e2a3c0712debf9f1ee7a2eb86f6c143cde70e52f6dd6592e23db5ebe",
-    "runner_sha256": "46df93b09ae0fd91889dbc275a2d0f46c5dcc77f4234b8421b250e164aafaa89",
-    "macos_commands_simulated": true,
-    "cases": [
-      {
-        "case": "untraced",
-        "actual_exit_code": 0,
-        "expected_exit_code": 0,
-        "status": "synthetic_host_soak_passed",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "complete",
-        "actual_exit_code": 0,
-        "expected_exit_code": 0,
-        "status": "synthetic_host_traced_diagnostic_passed",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "old_truncated_prefix",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "missing_worker",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "missing_request",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "old_scope",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "duplicate_sequence",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "duplicate_worker",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "duplicate_summary",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          0
-        ]
-      },
-      {
-        "case": "child_exit_second",
-        "actual_exit_code": 1,
-        "expected_exit_code": 1,
-        "status": "synthetic_host_traced_diagnostic_failed_or_incomplete",
-        "retained_child_exits": [
-          0,
-          3
-        ]
-      }
-    ]
-  },
-  "native_mac_execution": false,
-  "production_kernel_settings_changed": false,
-  "scope": "Local diagnostic implementation and shell-control verification. Run averages are context, not deadline qualification."
+    "timed_out": false,
+    "source_bindings_unchanged": true,
+    "source_bindings_reference": "research/m4_followup_20260916/attention-qkv-native-tests-002/plan.json",
+    "source_bindings_reference_sha256": "86779f71c96519ba50ed18bbe9cf5612e94ddadd35f01fac520d052e97113f8f",
+    "command_sha256": "bbe48a05815dfbd8d7d57292cda962f1d7920d9a0c7ad2d1600dacf0002c8188",
+    "result_sha256": "9572674363b62fcbb4ac1e596e013d4b7e1ed311becad2448a4f3ab61a044f49",
+    "all_24_numerical_cases_passed": true,
+    "physical_m4_qualified": false
+  }
 }
