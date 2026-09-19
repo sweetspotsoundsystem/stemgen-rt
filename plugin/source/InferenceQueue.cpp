@@ -5,9 +5,11 @@
 #include "StemgenRT/InferenceQueue.h"
 #include "StemgenRT/OnnxRuntime.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
@@ -96,7 +98,7 @@ uint32_t InferenceRequest::getEpoch() const {
   return epochFromControl(control_.load(std::memory_order_acquire));
 }
 
-InferenceQueue::InferenceQueue() {
+InferenceQueue::InferenceQueue() : queue_(kNumInferenceBuffers) {
   for (auto& slot : queue_) {
     slot = std::make_unique<InferenceRequest>();
   }
@@ -106,12 +108,22 @@ InferenceQueue::~InferenceQueue() {
   stopThread();
 }
 
-void InferenceQueue::allocate() {
-  for (auto& slot : queue_) {
-    if (slot) {
-      slot->allocate(hostOutputCapacity_);
-    }
+void InferenceQueue::allocate(size_t minimumCapacity) {
+  if (isThreadRunning()) {
+    throw std::logic_error("Cannot resize a running inference queue");
   }
+  if (minimumCapacity > std::numeric_limits<uint32_t>::max()) {
+    throw std::length_error("Inference queue exceeds packed index capacity");
+  }
+  queue_.resize(
+      std::max(minimumCapacity, static_cast<size_t>(kNumInferenceBuffers)));
+  for (auto& slot : queue_) {
+    if (!slot) {
+      slot = std::make_unique<InferenceRequest>();
+    }
+    slot->allocate(hostOutputCapacity_);
+  }
+  fullReset();
 }
 
 bool InferenceQueue::prepareOutputSampleRate(
@@ -339,8 +351,7 @@ void InferenceQueue::submitWriteSlot(uint32_t epoch) {
     }
 
     // Advance write index
-    writeIdx_.store((idx + 1) % kNumInferenceBuffers,
-                    std::memory_order_release);
+    writeIdx_.store((idx + 1) % queue_.size(), std::memory_order_release);
   }
 }
 
@@ -435,8 +446,7 @@ InferenceRequest* InferenceQueue::getOutputSlot(uint32_t currentEpoch) {
                                                   std::memory_order_acquire)) {
         continue;
       }
-      consumeIdx_.store((idx + 1) % kNumInferenceBuffers,
-                        std::memory_order_release);
+      consumeIdx_.store((idx + 1) % queue_.size(), std::memory_order_release);
       continue;
     }
 
@@ -476,8 +486,7 @@ void InferenceQueue::releaseOutputSlot() {
     if (slot->control_.compare_exchange_strong(observed, desired,
                                                std::memory_order_release,
                                                std::memory_order_acquire)) {
-      consumeIdx_.store((idx + 1) % kNumInferenceBuffers,
-                        std::memory_order_release);
+      consumeIdx_.store((idx + 1) % queue_.size(), std::memory_order_release);
     }
   }
 }
@@ -863,8 +872,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
           timing.publishFinished = WorkerTimingSample::Clock::now();
           timingTrace->record(timing);
         }
-        readIdx_.store((idx + 1) % kNumInferenceBuffers,
-                       std::memory_order_release);
+        readIdx_.store((idx + 1) % queue_.size(), std::memory_order_release);
       }
     }
   }

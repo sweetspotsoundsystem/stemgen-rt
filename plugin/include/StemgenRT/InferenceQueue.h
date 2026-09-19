@@ -108,8 +108,10 @@ public:
   InferenceQueue(const InferenceQueue&) = delete;
   InferenceQueue& operator=(const InferenceQueue&) = delete;
 
-  // Allocate all request buffers
-  void allocate();
+  // Lifecycle only, with the worker stopped. Reserve a complete callback's
+  // submission burst before audio starts; capacity stays fixed while running.
+  void allocate(size_t minimumCapacity = kNumInferenceBuffers);
+  size_t getCapacity() const noexcept { return queue_.size(); }
 
   // Configure worker-side conversion of retained model stems. Call only while
   // the worker is stopped. The optional fractional host-sample delay is used
@@ -226,7 +228,7 @@ private:
   bool convertOutputToHost(InferenceRequest& request) noexcept;
   bool resetOutputConversionAtModelSample(uint64_t modelSample) noexcept;
 
-  std::array<std::unique_ptr<InferenceRequest>, kNumInferenceBuffers> queue_;
+  std::vector<std::unique_ptr<InferenceRequest>> queue_;
   StreamingSampleRateAdapter outputSampleRateAdapter_;
   size_t hostOutputCapacity_{0};
   bool outputSampleRateConversionEnabled_{false};

@@ -400,8 +400,15 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
   // Reset output writer (initializes crossfade state)
   outputWriter_.reset();
 
-  // Allocate inference queue buffers
-  inferenceQueue_.allocate();
+  // Real-time callbacks publish their entire burst without consuming any
+  // newly completed work. Reserve every possible hop, including a partial
+  // accumulation carried into this callback, plus the existing jitter slack.
+  const size_t maximumModelSamples = inputSampleRateAdapter_.maxOutputForInput(
+      static_cast<size_t>(safeHostBlockSize));
+  const size_t maximumHops =
+      (maximumModelSamples + static_cast<size_t>(kOutputChunkSize) - 1U) /
+      static_cast<size_t>(kOutputChunkSize);
+  inferenceQueue_.allocate(maximumHops + kNumInferenceBuffers - 1U);
 
   DBG("[HS-TasNet] Streaming buffers allocated:");
   DBG("  Model chunk size: " << kOutputChunkSize << " samples");
@@ -409,7 +416,7 @@ void AudioPluginAudioProcessor::allocateStreamingBuffers(
   DBG("  Host sample rate: " << hostSampleRate_ << " Hz");
   DBG("  SRC delay: " << sampleRateConversionDelaySamples_ << " samples");
   DBG("  Reported PDC: " << calculatedLatencySamples << " samples");
-  DBG("  Inference queue size: " << kNumInferenceBuffers << " slots");
+  DBG("  Inference queue size: " << inferenceQueue_.getCapacity() << " slots");
 }
 
 #endif
@@ -740,6 +747,10 @@ void AudioPluginAudioProcessor::releaseResources() {
   resetStreamingBuffers();
 }
 
+void AudioPluginAudioProcessor::reset() {
+  resetRequested_.store(true, std::memory_order_release);
+}
+
 bool AudioPluginAudioProcessor::isBusesLayoutSupported(
     const BusesLayout& layouts) const {
 #if JucePlugin_IsMidiEffect
@@ -782,9 +793,29 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported(
 }
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages) {
+  processBlockInternal(buffer, midiMessages, false);
+}
+
+void AudioPluginAudioProcessor::processBlockBypassed(
+    juce::AudioBuffer<float>& buffer,
+    juce::MidiBuffer& midiMessages) {
+  processBlockInternal(buffer, midiMessages, true);
+}
+
+void AudioPluginAudioProcessor::processBlockInternal(
+    juce::AudioBuffer<float>& buffer,
+    juce::MidiBuffer& midiMessages,
+    bool bypassed) {
   juce::ignoreUnused(midiMessages);
 
   juce::ScopedNoDenormals noDenormals;
+  const bool hostResetRequested =
+      resetRequested_.exchange(false, std::memory_order_acq_rel);
+  if (hostResetRequested) {
+    resetStreamingBuffersRT();
+    hasExpectedPlayheadPosition_ = false;
+    wasPlaying.store(false, std::memory_order_release);
+  }
   const int numSamples = buffer.getNumSamples();
   const bool nonRealtimeRender = isNonRealtime();
   const bool callbackMatchesAsyncContract =
@@ -821,7 +852,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   }
   // If the host exposes no transport state, preserve live/offline processing
   // telemetry. A known stopped transport has no playback deadline to miss.
-  bool underrunTelemetryEnabled = true;
+  bool underrunTelemetryEnabled = !bypassed;
   bool resetAfterCurrentCallback = false;
 
   // Check for playback state change to reset streaming buffers.
@@ -835,13 +866,13 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   if (juce::AudioPlayHead* currentPlayHead = getPlayHead()) {
     if (auto posInfo = currentPlayHead->getPosition()) {
       const bool isPlaying = posInfo->getIsPlaying();
-      underrunTelemetryEnabled = isPlaying;
+      underrunTelemetryEnabled = isPlaying && !bypassed;
       const bool wasPlayingBefore =
           wasPlaying.exchange(isPlaying, std::memory_order_acq_rel);
 
       const bool playbackStarted = isPlaying && !wasPlayingBefore;
       const bool playbackStopped = !isPlaying && wasPlayingBefore;
-      bool transportDiscontinuity = playbackStarted;
+      bool transportDiscontinuity = playbackStarted && !hostResetRequested;
       if (const auto timeInSamples = posInfo->getTimeInSamples()) {
         if (hasExpectedPlayheadPosition_) {
           if (isPlaying && wasPlayingBefore &&
@@ -1079,7 +1110,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     const auto drainReadyInferenceResults = [&]() {
       size_t consumedResults = 0;
-      for (int resultIndex = 0; resultIndex < kNumInferenceBuffers;
+      for (size_t resultIndex = 0; resultIndex < inferenceQueue_.getCapacity();
            ++resultIndex) {
         InferenceRequest* consumeRequest =
             inferenceQueue_.getCurrentOutputSlot();
@@ -1108,7 +1139,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       const uint32_t dueEpoch = realtimeDueEpoch_;
       const uint32_t currentEpoch = inferenceQueue_.getEpoch();
       bool exactDueResultAvailable = false;
-      for (int resultIndex = 0; resultIndex < kNumInferenceBuffers;
+      for (size_t resultIndex = 0; resultIndex < inferenceQueue_.getCapacity();
            ++resultIndex) {
         InferenceRequest* consumeRequest =
             inferenceQueue_.getCurrentOutputSlot();
@@ -1154,7 +1185,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         break;
       }
 
-      if (!exactDueResultAvailable) {
+      if (!exactDueResultAvailable && !bypassed) {
         // Preserve the public compatibility counter while giving it its honest
         // asynchronous meaning: the exact request was absent at the boundary,
         // and the complete hop therefore rendered from aligned fallback.
@@ -1329,12 +1360,15 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
-    // Set up output writer and write the block
+    // Keep the input, dry delay and worker timeline advancing while bypassed.
+    // Intentional bypass selects delayed Main/Other, clears the named stems,
+    // and is not an underrun. Resuming separation uses the normal recovery
+    // fade.
     outputWriter_.setOutputPointers(mainWrite, mainNumCh, stemWrite, stemNumCh);
     const auto writeStats = outputWriter_.writeBlock(
         overlapAdd_, outputRingBuffers, delayedInputBuffer, outRingSize,
-        numSamples, underrunTelemetryEnabled, !unsafeRealtimeCallback,
-        !sampleRateConversionActive_);
+        numSamples, underrunTelemetryEnabled,
+        !bypassed && !unsafeRealtimeCallback, !sampleRateConversionActive_);
 
     // Report exact-timeline model samples that remain scheduled after this
     // block. Gaps are not counted as fill and never shift later output.
