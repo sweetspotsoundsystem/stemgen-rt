@@ -364,47 +364,51 @@ TEST(InferenceQueueTest,
 
 TEST(InferenceQueueTest,
      ResetOfFullRingDoesNotLoseFirstHopBehindOldInFlightRun) {
-  FakeRuntime runtime;
-  InferenceQueue queue;
-  queue.allocate();
-  struct ReleaseGuard {
-    ~ReleaseGuard() {
-      runtime.releaseFirstRun.store(true, std::memory_order_release);
-    }
-    FakeRuntime& runtime;
-  } release{runtime};
-  runtime.blockFirstRun.store(true, std::memory_order_release);
-  InferenceQueueTestPeer::startThread(
-      queue, &runtime, &FakeRuntime::runCallback, &FakeRuntime::resetCallback);
-  submit(queue, queue.getEpoch(), 0);
-  ASSERT_TRUE(waitUntil(
-      [&] { return runtime.firstRunEntered.load(std::memory_order_acquire); }));
-  for (uint64_t sequence = 1; sequence < audio_plugin::kNumInferenceBuffers;
-       ++sequence)
-    submit(queue, queue.getEpoch(), sequence);
-  ASSERT_EQ(queue.getWriteSlot(), nullptr);
+  for (const size_t capacity : {size_t{16}, size_t{527}}) {
+    SCOPED_TRACE(capacity);
+    FakeRuntime runtime;
+    InferenceQueue queue;
+    queue.allocate(capacity);
+    struct ReleaseGuard {
+      ~ReleaseGuard() {
+        runtime.releaseFirstRun.store(true, std::memory_order_release);
+      }
+      FakeRuntime& runtime;
+    } release{runtime};
+    runtime.blockFirstRun.store(true, std::memory_order_release);
+    InferenceQueueTestPeer::startThread(queue, &runtime,
+                                        &FakeRuntime::runCallback,
+                                        &FakeRuntime::resetCallback);
+    submit(queue, queue.getEpoch(), 0);
+    ASSERT_TRUE(waitUntil([&] {
+      return runtime.firstRunEntered.load(std::memory_order_acquire);
+    }));
+    for (uint64_t sequence = 1; sequence < queue.getCapacity(); ++sequence)
+      submit(queue, queue.getEpoch(), sequence);
+    ASSERT_EQ(queue.getWriteSlot(), nullptr);
 
-  const uint32_t epoch = queue.reset();
-  // Claim synchronously while the old graph is still blocked: no wait/retry
-  // may hide a lost first request or overwrite the old Processing lease.
-  auto* firstInput = queue.getWriteSlot();
-  ASSERT_NE(firstInput, nullptr);
-  firstInput->chunkSequence = 0;
-  queue.submitWriteSlot(epoch);
-  submit(queue, epoch, 1);
-  runtime.releaseFirstRun.store(true, std::memory_order_release);
-  auto* preroll = waitForOutput(queue, epoch);
-  ASSERT_NE(preroll, nullptr);
-  EXPECT_EQ(preroll->chunkSequence, 0U);
-  EXPECT_FALSE(preroll->outputValid);
-  queue.releaseOutputSlot();
-  auto* firstValid = waitForOutput(queue, epoch);
-  ASSERT_NE(firstValid, nullptr);
-  EXPECT_EQ(firstValid->chunkSequence, 1U);
-  EXPECT_TRUE(firstValid->outputValid);
-  queue.releaseOutputSlot();
-  EXPECT_EQ(runtime.runCalls.load(std::memory_order_acquire), 3U);
-  queue.stopThread();
+    const uint32_t epoch = queue.reset();
+    // Claim synchronously while the old graph is still blocked: no wait/retry
+    // may hide a lost first request or overwrite the old Processing lease.
+    auto* firstInput = queue.getWriteSlot();
+    ASSERT_NE(firstInput, nullptr);
+    firstInput->chunkSequence = 0;
+    queue.submitWriteSlot(epoch);
+    submit(queue, epoch, 1);
+    runtime.releaseFirstRun.store(true, std::memory_order_release);
+    auto* preroll = waitForOutput(queue, epoch);
+    ASSERT_NE(preroll, nullptr);
+    EXPECT_EQ(preroll->chunkSequence, 0U);
+    EXPECT_FALSE(preroll->outputValid);
+    queue.releaseOutputSlot();
+    auto* firstValid = waitForOutput(queue, epoch);
+    ASSERT_NE(firstValid, nullptr);
+    EXPECT_EQ(firstValid->chunkSequence, 1U);
+    EXPECT_TRUE(firstValid->outputValid);
+    queue.releaseOutputSlot();
+    EXPECT_EQ(runtime.runCalls.load(std::memory_order_acquire), 3U);
+    queue.stopThread();
+  }
 }
 
 TEST(InferenceQueueTest,

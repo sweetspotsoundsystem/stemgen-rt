@@ -162,4 +162,97 @@ TEST(RealtimeSafetyTest, ReadyResultsRecoverWithoutCallbackHeapTraffic) {
 #endif
 }
 
+TEST(RealtimeSafetyTest,
+     BypassAndHostResetDoNotAllocateOrCountIntentionalFallback) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#else
+  audio_plugin::AudioPluginAudioProcessor processor;
+  processor.setNonRealtime(false);
+  processor.prepareToPlay(44100.0, kBlockSize);
+  ASSERT_EQ(processor.getLatencySamples(), kPdc);
+  audio_plugin::AudioPluginProcessorTestPeer::stopWorker(processor);
+  auto& host = static_cast<juce::AudioProcessor&>(processor);
+  juce::AudioBuffer<float> buffer(10, kBlockSize);
+  juce::MidiBuffer midi;
+  for (int block = 0; block < 40; ++block) {
+    const int start = (block % 20) * kBlockSize;
+    fillInput(buffer, start);
+    const bool bypassed = (block % 20) < 10;
+    const auto underrunsBefore = processor.getUnderrunSampleCount();
+    const auto missesBefore = processor.getSameCallbackTimeoutCount();
+    RealtimeAllocationGuard guard;
+    if (block == 20) {
+      // A full stale queue and delayed dry input must be invalidated without
+      // calling the lifecycle reset that joins/restarts the worker.
+      host.reset();
+    }
+    if (bypassed) {
+      host.processBlockBypassed(buffer, midi);
+    } else {
+      host.processBlock(buffer, midi);
+    }
+    const auto traffic = guard.finish();
+    EXPECT_EQ(traffic.allocations, 0U);
+    EXPECT_EQ(traffic.deallocations, 0U);
+    EXPECT_EQ(host.getLatencySamples(), kPdc);
+    checkMainAndReconstruction(buffer, start, true);
+    if (bypassed) {
+      EXPECT_EQ(processor.getUnderrunSampleCount(), underrunsBefore);
+      EXPECT_EQ(processor.getSameCallbackTimeoutCount(), missesBefore);
+    }
+  }
+  EXPECT_GT(processor.getQueueFullChunkDropCount(), 0U);
+  processor.releaseResources();
+#endif
+}
+
+TEST(RealtimeSafetyTest,
+     LargeQueueSaturationAndResetHaveNoCallbackHeapTraffic) {
+#if !(defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME)
+  GTEST_SKIP() << "ONNX Runtime support not compiled";
+#else
+  for (const int blockSize : {4096, 65536}) {
+    SCOPED_TRACE(blockSize);
+    audio_plugin::AudioPluginAudioProcessor processor;
+    processor.setNonRealtime(false);
+    processor.prepareToPlay(44100.0, blockSize);
+    const int latency = processor.getLatencySamples();
+    ASSERT_GT(latency, 0);
+    audio_plugin::AudioPluginProcessorTestPeer::stopWorker(processor);
+    auto& host = static_cast<juce::AudioProcessor&>(processor);
+    juce::AudioBuffer<float> buffer(10, blockSize);
+    juce::MidiBuffer midi;
+    for (int block = 0; block < 4; ++block) {
+      const int start = (block % 3) * blockSize;
+      buffer.clear();
+      for (int ch = 0; ch < 2; ++ch) {
+        for (int i = 0; i < blockSize; ++i) {
+          buffer.setSample(ch, i, sampleAt(start + i, ch));
+        }
+      }
+      RealtimeAllocationGuard guard;
+      if (block == 3) {
+        host.reset();
+      }
+      host.processBlock(buffer, midi);
+      const auto traffic = guard.finish();
+      EXPECT_EQ(traffic.allocations, 0U);
+      EXPECT_EQ(traffic.deallocations, 0U);
+      EXPECT_EQ(host.getLatencySamples(), latency);
+      for (int ch = 0; ch < 2; ++ch) {
+        for (int i = 0; i < blockSize; ++i) {
+          const int source = start + i - latency;
+          const float expected = source < 0 ? 0.0f : sampleAt(source, ch);
+          ASSERT_FLOAT_EQ(buffer.getSample(ch, i), expected);
+          ASSERT_FLOAT_EQ(buffer.getSample(6 + ch, i), expected);
+        }
+      }
+    }
+    EXPECT_GT(processor.getQueueFullChunkDropCount(), 0U);
+    processor.releaseResources();
+  }
+#endif
+}
+
 }  // namespace audio_plugin_test

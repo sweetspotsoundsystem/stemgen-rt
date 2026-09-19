@@ -22,6 +22,7 @@ set(SOURCE_FILES
   source/PacedQualificationTraceTest.cpp
   source/SampleRateBridgeE2ETest.cpp
   source/TransportUnderrunE2ETest.cpp
+  source/ProcessorLifecycleTest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE

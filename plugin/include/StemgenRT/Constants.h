@@ -189,7 +189,8 @@ static_assert(calculateAutomaticOrtIntraOpThreadCount(4) == 1);
 static_assert(calculateAutomaticOrtIntraOpThreadCount(14) ==
               kOrtAutomaticIntraOpThreadCap);
 
-// Allow bounded timing variation without blocking the real-time audio thread.
+// Minimum queue size for one-hop callbacks. Preparation adds capacity for
+// larger callback bursts while retaining this bounded timing slack.
 constexpr int kNumInferenceBuffers = 16;
 constexpr int kOutputRingBufferSlackChunks = 8;
 constexpr int kOutputRingBufferChunks =

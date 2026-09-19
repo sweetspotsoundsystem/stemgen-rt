@@ -77,11 +77,15 @@ public:
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
+  void reset() override;
 
   bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
   void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
   using AudioProcessor::processBlock;
+  void processBlockBypassed(juce::AudioBuffer<float>&,
+                            juce::MidiBuffer&) override;
+  using AudioProcessor::processBlockBypassed;
 
   juce::AudioProcessorEditor* createEditor() override;
   bool hasEditor() const override;
@@ -154,6 +158,13 @@ private:
 #endif
 
   void resetStreamingBuffersRT();
+  void processBlockInternal(juce::AudioBuffer<float>&,
+                            juce::MidiBuffer&,
+                            bool bypassed);
+
+  // Hosts may request reset from a control thread. Consume it at the next
+  // audio boundary so dry history and queue ownership retain one writer.
+  std::atomic<bool> resetRequested_{false};
 
   // Track playback state for hidden state reset
   std::atomic<bool> wasPlaying{false};

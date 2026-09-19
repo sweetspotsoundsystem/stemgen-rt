@@ -10,7 +10,7 @@ one dedicated CPU worker, and the audio callback never waits for it.
 
 ## Download
 
-[StemgenRT 0.6.0](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.6.0)
+[StemgenRT 0.6.1](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.6.1)
 includes macOS AU and VST3 for Apple Silicon (macOS 14+) and Windows x86-64 VST3.
 The model and ONNX Runtime are bundled. Replace the complete plugin bundle and
 restart the DAW. macOS downloads are ad-hoc signed, without Developer ID signing
@@ -30,6 +30,12 @@ its deadline, the complete delayed mix goes to Other for that interval. Late
 results are discarded, and separation fades back in over 64 samples when ready.
 Other sample rates use Main/Other fallback.
 
+Host bypass preserves the reported delay: Main and Other carry the complete
+delayed mix, and Drums, Bass and Vocals are silent. The worker keeps processing
+while bypassed so separation can resume on the current timeline with the usual
+recovery fade. Intentional bypass does not increase the fallback counter.
+Host reset requests clear pending audio and model state at the next callback.
+
 | Prepared host buffer | Reported delay | At 44.1 kHz |
 | --- | --- | --- |
 | 64 | 320 samples | 7.26 ms |
@@ -40,6 +46,9 @@ Other sample rates use Main/Other fallback.
 
 Smaller host buffers require an extra scheduling reserve after a complete model
 hop arrives. The host must reprepare the plugin after changing its buffer setup.
+The inference queue is allocated during preparation to hold a complete callback
+burst, including large supported buffers up to 65,536 samples. This prevents
+capacity-related drops; meeting playback deadlines still depends on the machine.
 Offline rendering supports varying callbacks and waits for inference. Render the
 reported tail at transport stop to retain the final samples.
 
