@@ -194,6 +194,11 @@ TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
 #else
   EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
 #endif
+#if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
+  EXPECT_GE(sample.threadCpuMicroseconds(), 0.0);
+#else
+  EXPECT_EQ(sample.threadCpuMicroseconds(), -1.0);
+#endif
   EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
 }
 
@@ -207,6 +212,19 @@ TEST(InferenceQueueTest, CpuClockDeltasRejectUnavailableOrRegressingSamples) {
   EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
   sample.processCpuFinished = static_cast<std::clock_t>(-1);
   EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
+  EXPECT_EQ(sample.threadCpuMicroseconds(), -1.0);
+  EXPECT_EQ(sample.runNonCpuMicroseconds(), -1.0);
+  sample.threadCpuStartedNs = 1000000;
+  sample.threadCpuFinishedNs = 3000000;
+  sample.runFinished = sample.runStarted + std::chrono::microseconds(2810);
+  EXPECT_DOUBLE_EQ(sample.threadCpuMicroseconds(), 2000.0);
+  EXPECT_DOUBLE_EQ(sample.runNonCpuMicroseconds(), 810.0);
+  sample.runFinished = sample.runStarted + std::chrono::microseconds(1000);
+  EXPECT_EQ(sample.runNonCpuMicroseconds(), -1.0);
+  sample.threadCpuFinishedNs = sample.threadCpuStartedNs - 1;
+  EXPECT_EQ(sample.threadCpuMicroseconds(), -1.0);
+  sample.threadCpuFinishedNs = -1;
+  EXPECT_EQ(sample.threadCpuMicroseconds(), -1.0);
 }
 
 TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {

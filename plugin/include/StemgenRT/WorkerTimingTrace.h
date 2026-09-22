@@ -22,6 +22,8 @@ struct WorkerTimingSample {
   // synthetic-host threads. It is not the dedicated worker's CPU time alone.
   std::clock_t processCpuStarted{static_cast<std::clock_t>(-1)};
   std::clock_t processCpuFinished{static_cast<std::clock_t>(-1)};
+  int64_t threadCpuStartedNs{-1};
+  int64_t threadCpuFinishedNs{-1};
   bool inferenceOk{};
 
   double processCpuMicroseconds() const noexcept {
@@ -32,6 +34,25 @@ struct WorkerTimingSample {
     }
     return 1.0e6 * static_cast<double>(processCpuFinished - processCpuStarted) /
            static_cast<double>(CLOCKS_PER_SEC);
+  }
+
+  double threadCpuMicroseconds() const noexcept {
+    if (threadCpuStartedNs < 0 || threadCpuFinishedNs < threadCpuStartedNs) {
+      return -1.0;
+    }
+    return static_cast<double>(threadCpuFinishedNs - threadCpuStartedNs) /
+           1000.0;
+  }
+
+  // Time inside the run bracket that the worker did not spend on CPU. This
+  // includes blocking, descheduling and measurement overhead. Coarse CPU
+  // clocks may exceed the wall interval; retain those gaps as unavailable.
+  double runNonCpuMicroseconds() const noexcept {
+    const double cpu = threadCpuMicroseconds();
+    const double wall =
+        std::chrono::duration<double, std::micro>(runFinished - runStarted)
+            .count();
+    return cpu >= 0.0 && wall >= cpu ? wall - cpu : -1.0;
   }
 };
 
