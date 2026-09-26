@@ -3,7 +3,7 @@
 This graph exports the frozen **teacher004 EMA** research baseline at 45,750
 cumulative updates. The teacher is used only during training. Matching model,
 training, objectives, data, recovery, evaluation and export code accompany the
-candidate in [HS-TasNet PR #5](https://github.com/sweetspotsoundsystem/HS-TasNet/pull/5).
+candidate in [StemgenRT-5.8 PR #5](https://github.com/sweetspotsoundsystem/StemgenRT-5.8/pull/5).
 
 The graph SHA-256 is `77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9` (37,529,132 bytes).
 The source checkpoint SHA-256 is `7fcd444f83985c0aab0c76923c4355fea3c3e11aa32c81410a6bb9388b755154` and decoded EMA
