@@ -19,6 +19,7 @@
 #elif defined(__APPLE__) || defined(__linux__)
 #include <pthread.h>
 #include <sched.h>
+#include <time.h>
 #endif
 
 namespace audio_plugin {
@@ -31,6 +32,40 @@ std::clock_t processCpuClock() noexcept {
 #else
   // MSVC's clock() measures elapsed wall time, so do not label it CPU time.
   return static_cast<std::clock_t>(-1);
+#endif
+}
+
+int64_t threadCpuClockNanoseconds() noexcept {
+#if defined(__APPLE__) || defined(__linux__)
+  timespec value{};
+  constexpr int64_t nanosPerSecond = 1000000000;
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) != 0 || value.tv_sec < 0 ||
+      value.tv_nsec < 0 || value.tv_nsec >= nanosPerSecond ||
+      value.tv_sec > (std::numeric_limits<int64_t>::max() - value.tv_nsec) /
+                         nanosPerSecond) {
+    return -1;
+  }
+  return static_cast<int64_t>(value.tv_sec) * nanosPerSecond + value.tv_nsec;
+#elif defined(_WIN32)
+  FILETIME creation{}, exit{}, kernel{}, user{};
+  if (GetThreadTimes(GetCurrentThread(), &creation, &exit, &kernel, &user) ==
+      0) {
+    return -1;
+  }
+  const auto ticks = [](const FILETIME& value) {
+    return (static_cast<uint64_t>(value.dwHighDateTime) << 32U) |
+           value.dwLowDateTime;
+  };
+  const uint64_t kernelTicks = ticks(kernel);
+  const uint64_t userTicks = ticks(user);
+  constexpr uint64_t maximumTicks =
+      static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) / 100U;
+  if (kernelTicks > maximumTicks || userTicks > maximumTicks - kernelTicks) {
+    return -1;
+  }
+  return static_cast<int64_t>((kernelTicks + userTicks) * 100U);
+#else
+  return -1;
 #endif
 }
 
@@ -799,6 +834,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       if (timingTrace != nullptr) {
         timing.processCpuStarted = processCpuClock();
         timing.runStarted = WorkerTimingSample::Clock::now();
+        timing.threadCpuStartedNs = threadCpuClockNanoseconds();
       }
       if (epochControl_.load(std::memory_order_acquire) ==
               currentEpochControl &&
@@ -806,6 +842,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         inferenceOk = callbacks.run(callbacks.context, *request);
       }
       if (timingTrace != nullptr) {
+        timing.threadCpuFinishedNs = threadCpuClockNanoseconds();
         timing.runFinished = WorkerTimingSample::Clock::now();
         timing.processCpuFinished = processCpuClock();
       }

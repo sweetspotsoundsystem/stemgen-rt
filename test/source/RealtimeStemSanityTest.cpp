@@ -179,6 +179,8 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
 
   std::vector<double> runTimes;
   std::vector<double> processCpuTimes;
+  std::vector<double> threadCpuTimes;
+  std::vector<double> runNonCpuTimes;
   std::vector<double> dispatchLowerBounds;
   std::vector<double> dispatchUpperBounds;
   uint64_t missingMeasuredRequests = 0U;
@@ -199,6 +201,14 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
     } else {
       ++missingCpuSamples;
     }
+    const double threadCpu = sample->threadCpuMicroseconds();
+    if (threadCpu >= 0.0) {
+      threadCpuTimes.push_back(threadCpu);
+    }
+    const double runNonCpu = sample->runNonCpuMicroseconds();
+    if (runNonCpu >= 0.0) {
+      runNonCpuTimes.push_back(runNonCpu);
+    }
     dispatchLowerBounds.push_back(std::max(
         0.0,
         microsecondsBetween(sample->acquired, callbacks[due - 1U].finished)));
@@ -210,6 +220,8 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
   }
   const auto run = summarizeTiming(runTimes);
   const auto processCpu = summarizeTiming(processCpuTimes);
+  const auto threadCpu = summarizeTiming(threadCpuTimes);
+  const auto runNonCpu = summarizeTiming(runNonCpuTimes);
   const auto dispatchLower = summarizeTiming(dispatchLowerBounds);
   const auto dispatchUpper = summarizeTiming(dispatchUpperBounds);
   std::cerr << std::fixed << std::setprecision(3)
@@ -234,6 +246,24 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
             << (processCpuTimes.empty() ? -1.0 : processCpu.p99)
             << " process_cpu_max_us="
             << (processCpuTimes.empty() ? -1.0 : processCpu.maximum)
+            << " thread_cpu_scope=inference_worker"
+            << " thread_cpu_samples=" << threadCpuTimes.size()
+            << " missing_thread_cpu_samples="
+            << runTimes.size() - threadCpuTimes.size() << " thread_cpu_mean_us="
+            << (threadCpuTimes.empty() ? -1.0 : threadCpu.mean)
+            << " thread_cpu_p99_us="
+            << (threadCpuTimes.empty() ? -1.0 : threadCpu.p99)
+            << " thread_cpu_max_us="
+            << (threadCpuTimes.empty() ? -1.0 : threadCpu.maximum)
+            << " run_non_cpu_samples=" << runNonCpuTimes.size()
+            << " missing_run_non_cpu_samples="
+            << runTimes.size() - runNonCpuTimes.size()
+            << " run_non_cpu_mean_us="
+            << (runNonCpuTimes.empty() ? -1.0 : runNonCpu.mean)
+            << " run_non_cpu_p99_us="
+            << (runNonCpuTimes.empty() ? -1.0 : runNonCpu.p99)
+            << " run_non_cpu_max_us="
+            << (runNonCpuTimes.empty() ? -1.0 : runNonCpu.maximum)
             << " dispatch_lower_p99_us=" << dispatchLower.p99
             << " dispatch_upper_p99_us=" << dispatchUpper.p99
             << " dispatch_lower_max_us=" << dispatchLower.maximum
@@ -261,6 +291,8 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
           << " run_us="
           << microsecondsBetween(sample->runFinished, sample->runStarted)
           << " process_cpu_us=" << sample->processCpuMicroseconds()
+          << " thread_cpu_us=" << sample->threadCpuMicroseconds()
+          << " run_non_cpu_us=" << sample->runNonCpuMicroseconds()
           << " post_run_to_publish_upper_us="
           << microsecondsBetween(sample->publishFinished, sample->runFinished)
           << " publish_relative_due_start_lower_us="
@@ -336,6 +368,8 @@ TEST(RealtimeStemSanityTest, WorkerTraceUsesSubmissionBoundsAndExcludesWarmup) {
   late.publishFinished = late.publishStarted + Microseconds(1);
   late.processCpuStarted = CLOCKS_PER_SEC;
   late.processCpuFinished = CLOCKS_PER_SEC + CLOCKS_PER_SEC / 500;
+  late.threadCpuStartedNs = 1000000;
+  late.threadCpuFinishedNs = 2500000;
   late.inferenceOk = true;
   trace.record(late);
   PacedQualificationTrace failures(kWarmupBlocks);
@@ -350,6 +384,9 @@ TEST(RealtimeStemSanityTest, WorkerTraceUsesSubmissionBoundsAndExcludesWarmup) {
         "duplicate_sequences=0 ", "published_after_due_callback=1 ",
         "dispatch_lower_us=200.000 ", "dispatch_upper_us=210.000 ",
         "run_us=2810.000 ", "process_cpu_us=2000.000 ",
+        "thread_cpu_scope=inference_worker ", "thread_cpu_samples=1 ",
+        "thread_cpu_us=1500.000 ", "run_non_cpu_us=1310.000 ",
+        "thread_cpu_mean_us=1500.000 ", "run_non_cpu_mean_us=1310.000 ",
         "publish_relative_due_finish_lower_us=15.000"}) {
     EXPECT_NE(text.find(expected), std::string::npos) << text;
   }

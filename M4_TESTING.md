@@ -54,11 +54,16 @@ use another directory and enable the complete-duration trace:
 bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-teacher004-trace-001" --trace
 ```
 
-The trace allocates about 60 MB for 30 minutes and rejects requests beyond a
+The trace allocates about 70 MB for 30 minutes and rejects requests beyond a
 128 MiB bound before starting the worker. It reports omitted timing samples,
 matched and missing requests, and bounded failure-event omissions. Worker
-statistics cover matched requests; total process CPU time includes other
-threads. Tracing adds clock reads and memory traffic, so retain the untraced
+statistics cover matched requests. Dedicated-worker CPU time and its difference
+from run wall time are reported alongside total process CPU time. The difference
+includes blocking, descheduling and measurement overhead; compare it with the
+dispatch bounds and late-result records before choosing a scheduling change.
+Unavailable clocks and CPU deltas exceeding the wall interval retain missing
+sample counts. Total process CPU time includes other threads.
+Tracing adds clock reads and memory traffic, so retain the untraced
 runs as the timing measurements.
 
 Measure this graph with its production runtime setting. Timing from the previous
