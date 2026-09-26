@@ -77,16 +77,21 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 
 ## Model and checks
 
-This draft candidate uses the frozen StemgenRT-5.8 teacher004 EMA checkpoint
-(source score: **4.564402 dB SDR**). It retains 17 integer products, eight states,
-one inference worker and **256 samples of graph-plus-host delay** at 44.1 kHz
-with a 128-sample host buffer. The teacher is absent from inference.
+This candidate uses the frozen **StemgenRT-5.8 teacher004 EMA** checkpoint.
+The exact integer graph scores **4.564148 dB SDR**, versus 4.455173 dB
+for shipped v0.6.1 on the unchanged development panel. The FP32 source score
+is 4.564402 dB. See [the model report](model/README.md) for per-stem changes,
+leakage, provenance and evidence boundaries.
 
-Independent short/long reference checks and **174 Linux native tests pass**.
-The exact deployment quality evaluation and portable package checks are in
-progress. Physical M4 parity, sustained zero-fallback playback and listening
-acceptance remain pending for these weights. See [the model report](model/README.md)
-and [M4 instructions](M4_TESTING.md); preserve shipped v0.6.1 for rollback.
+The 17 integer products, eight states, 128-sample hop and **256-sample total
+latency** with a 128-sample host buffer are retained. The teacher is absent
+from inference. Raw input levels, the confidence fade, residual Other routing,
+one inference worker and `mlas.disable_kleidiai=1` are unchanged.
+
+Independent short/long PyTorch parity and 174 Linux native tests pass.
+Physical M4 parity, sustained zero-fallback playback and listening acceptance
+remain pending for these weights. Follow [the M4 instructions](M4_TESTING.md)
+and preserve the shipped v0.6.1 bundles for comparison and rollback.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

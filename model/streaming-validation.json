@@ -1,6 +1,8 @@
 {
   "status": "pass",
   "graph_sha256": "77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9",
+  "checkpoint_sha256": "7fcd444f83985c0aab0c76923c4355fea3c3e11aa32c81410a6bb9388b755154",
+  "model_state_sha256": "f78c49b3755d6a71b7890482d3a40a5662b417b7a63ed3ad9d393cfb0da0037b",
   "runtime": "ONNX Runtime 1.26.0 CPU1, KleidiAI disabled",
   "short_parity": {
     "passed": true,
@@ -254,7 +256,13 @@
     }
   ],
   "fixture_sha256": "02d7934fb50934c10e33be67ad53d117904bc025365fcb40f464d1d6476a027d",
-  "oracle": "Independent NumPy/PyTorch integer reconstruction; ORT inference blocked during fixture generation.",
+  "fixture_generator_sha256": "19729cb5e8ed185fa6424cb75814bde025f652172b97aeeb3863fcc5db511cf1",
+  "fixture_maximum_reconstruction_error": 1.4901161193847656e-08,
+  "oracle": "Independent NumPy/PyTorch reconstruction of all 17 integer products; ORT inference actively forbidden during fixture generation.",
+  "integer_products": 17,
+  "state_count": 8,
+  "algorithmic_latency_samples": 256,
+  "graph_and_fixture_identical_across_export_runtime_versions": true,
   "qualification_result_sha256": "57b17ee26c3ae696aeb0d4054cb090e0a2889661c6d45d91904d2756e5998356",
-  "physical_m4_qualified": false
+  "native_host_qualified": false
 }

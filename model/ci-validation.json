@@ -1,0 +1,21 @@
+{
+  "status": "pass",
+  "source_commit": "eb5891e74b6243ac8c915d6d7640bcecb22605ba",
+  "run_url": "https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/36218192351",
+  "graph_sha256": "77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9",
+  "platforms": [
+    {
+      "name": "build (windows-latest, Release)",
+      "url": "https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/36218192351/job/108338275033",
+      "conclusion": "success",
+      "test_step_passed": true
+    },
+    {
+      "name": "build (macos-15, Release)",
+      "url": "https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/36218192351/job/108338275147",
+      "conclusion": "success",
+      "test_step_passed": true
+    }
+  ],
+  "physical_m4_timing_qualified": false
+}

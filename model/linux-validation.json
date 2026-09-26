@@ -1,7 +1,8 @@
 {
   "status": "pass",
   "graph_sha256": "77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9",
-  "runtime": "ONNX Runtime 1.26.0, KleidiAI disabled",
+  "runtime_version": "1.26.0",
+  "runtime_session_setting": "mlas.disable_kleidiai=1",
   "passed": [
     "ProcessorLifecycleTest.HostResetMatchesFreshStreamWithQueuedResults",
     "ProcessorLifecycleTest.ResetIsSafeOutsideAnActiveStream",
@@ -189,6 +190,10 @@
     "OrtStreamingRuntimeTest.BenchmarkStatefulCpuIntraOpThreadSweep"
   ],
   "failed": [],
+  "test_binaries": {
+    "AudioPluginTest": "e01977e385b8048f57becf100935cdc47279ea11ce2e8eda5ef356c09f09f3ad",
+    "RealtimeSafetyTest": "f4c24e94a3af5b867d549e91132218bbbb34316dfbe0766e73e518ae1552bbfd"
+  },
   "source_files": {
     "CMakeLists.txt": "b7a957c14071393db22215ce2455ede3a1d7b342e6f53ee42c8b98e18e0069bf",
     "cmake/CompilerWarnings.cmake": "7ee272fc79eb50ca0c9241735406dda344dfdd4c4ecd4c18b82f2f323d264afa",
@@ -242,6 +247,13 @@
     "test/source/StreamingSampleRateAdapterTest.cpp": "c2109ea5606785c81b1563279b3899ab7168e4c568671fefc7d7286c398b0af6",
     "test/source/TransportUnderrunE2ETest.cpp": "5cdc0e6cef827c24172b0731baff34f99e304251d3b47a6bba08ccbfaadcfe32"
   },
+  "test_xml_sha256": "1fff43e35ed33b479057c3507f46ff9b259308bc5bc08ccb8adfc703d2228c5b",
   "native_result_sha256": "44a7ac65cf7109baa74babb7ea02bc9076d376bc387156f3b8eae2a171b959e4",
-  "physical_m4_qualified": false
+  "stage_exit_codes": {
+    "configure": 0,
+    "build": 0,
+    "correctness": 0
+  },
+  "native_host_qualified": false,
+  "scope": "Linux native correctness; physical M4 tests and sustained timing pending."
 }
