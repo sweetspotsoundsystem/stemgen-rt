@@ -1,30 +1,15 @@
 # Model tests on M4
 
-StemgenRT 0.5.0 fuses the attention query, key and value products into one
-signed integer projection. The graph SHA-256 begins `08424ca91fea`; it has
-seventeen integer products and uses `mlas.disable_kleidiai=1` in the plugin.
-It retains one inference worker, eight persistent states, 44.1 kHz,
-128-sample model hops and 256 samples of graph-plus-host delay with a
-128-sample host buffer.
+This candidate exports the frozen StemgenRT-5.8 teacher004 EMA checkpoint.
+The graph SHA-256 begins `77164d6a581f`. It retains seventeen integer products,
+`mlas.disable_kleidiai=1`, one inference worker, eight states and 128-sample
+hops at 44.1 kHz. Graph plus host delay remains 256 samples with a 128-sample
+host buffer. The teacher is not present in the plugin.
 
-The graph passed independent short and long numerical checks, 164 Linux
-native correctness tests, and all 24 Linux backend diagnostic cases. The
-[physical M4 Pro suite](model/macos-validation.json) also passed 164 tests,
-including both independent PyTorch parity tests at the unchanged `1e-5` limit.
-Each native suite has one platform-specific skip and seven disabled tests.
-The tested PR #19 source is `35b5330`; the release preparation changes version
-metadata and documentation. Read the [model report](model/README.md) for exact
-deployment quality, all regressions and the scope of these measurements.
-Sustained timing measurements remain outstanding.
-
-The user reports that the installed PR #19 plugin works well, without a
-recorded duration or fallback-counter trace. The earlier PR #17 baseline was
-**1,920 fallback samples after ten minutes on M4 in Ableton at 44.1 kHz /
-128 samples**. The
-retained [M4 Pro diagnostic](model/macos-runtime-parity-diagnostic.json) belongs
-to that parent graph. Default ORT settings failed all eight cases, while
-KleidiAI disabled passed all eight at the unchanged `1e-5` limit. That evidence
-motivates the new plugin setting; it does not measure this graph's timing.
+Read [the model report](model/README.md) for this graph's measured quality and
+Linux correctness. Physical M4 parity, sustained fallback counts and listening
+acceptance must be measured for these weights. Historical M4 evidence is
+retained under [the v0.6.1 baseline](model/baseline-v0.6.1/README.md).
 
 ## Correctness and identity
 
@@ -34,8 +19,8 @@ qualification script with a new evidence directory outside the source tree:
 
 ```bash
 git lfs pull
-./scripts/qualify-macos.sh "$HOME/Desktop/stemgen-qkv-qualification-001"
-bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgen-qkv-parity-001"
+./scripts/qualify-macos.sh "$HOME/Desktop/stemgen-teacher004-qualification-001"
+bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgen-teacher004-parity-001"
 ```
 
 The qualification script makes a fresh Release build with official ONNX
@@ -57,7 +42,7 @@ From the same committed checkout and verified Release build, run two untraced
 30-minute synthetic-host measurements:
 
 ```bash
-bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-qkv-soak-001"
+bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-teacher004-soak-001"
 ```
 
 The runner retains both raw logs, actual exits, machine/model/source identities,
@@ -66,7 +51,7 @@ For a separate diagnostic of acquisition, inference and publication delays,
 use another directory and enable the complete-duration trace:
 
 ```bash
-bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-qkv-trace-001" --trace
+bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-teacher004-trace-001" --trace
 ```
 
 The trace allocates about 60 MB for 30 minutes and rejects requests beyond a
@@ -76,11 +61,8 @@ statistics cover matched requests; total process CPU time includes other
 threads. Tracing adds clock reads and memory traffic, so retain the untraced
 runs as the timing measurements.
 
-The graph alone reduced local Linux median block p50 by 5.14%. The parent M4
-Pro diagnostic averaged 0.932 ms with defaults and 1.047 ms with KleidiAI
-disabled on its longest short clip. These are separate measurements on
-different platforms. Measure this candidate with its actual plugin setting;
-its net M4 performance has not been established.
+Measure this graph with its production runtime setting. Timing from the previous
+checkpoint does not qualify the candidate.
 
 ## Installed AU in Ableton
 
@@ -94,5 +76,5 @@ Keep startup/reset increments separately and retain all raw counts.
 
 Exercise start/stop, seeks and loops, then listen to instrumental passages,
 quiet real vocals and Other. Synthetic-host success alone leaves this installed
-AU test outstanding. Preserve v0.4.0 and the PR #17 bundle outside the plugin
-folder for comparison and rollback.
+AU test outstanding. Preserve the complete shipped v0.6.1 bundle outside the plugin folder for
+comparison and rollback.

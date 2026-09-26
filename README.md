@@ -77,40 +77,21 @@ place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build
 
 ## Model and checks
 
-The model combines spectrogram and waveform estimates with causal attention
-and separate recurrent memories. Version 0.5.0 packs the attention query,
-key and value projections into one integer product, bringing the total to
-seventeen. The exact graph scores **4.455173 dB SDR** on the unchanged
-development panel, versus 4.455153 dB for PR #17. The source
-FP32 checkpoint scores 4.465157 dB. The [deployment report](model/quality-deployment.json)
-retains all 56 track/stem comparisons and 840 paired source-view windows.
-The 5 dB goal and instrumental listening acceptance remain unmet.
+This candidate uses the frozen **StemgenRT-5.8 teacher004 EMA** checkpoint.
+The exact integer graph scores **4.564148 dB SDR**, versus 4.455173 dB
+for shipped v0.6.1 on the unchanged development panel. The FP32 source score
+is 4.564402 dB. See [the model report](model/README.md) for per-stem changes,
+leakage, provenance and evidence boundaries.
 
-Raw input levels, the linked near-silence confidence fade and
-`Other = Main - Drums - Bass - Vocals` are preserved. The native Linux suite
-and the [physical M4 Pro suite](model/macos-validation.json) each passed 164
-tests, with one platform-specific skip and seven disabled tests. Coverage
-includes independent PyTorch parity, resets, partial EOF,
-alignment, queue recovery, reconstruction and callback heap traffic.
+The 17 integer products, eight states, 128-sample hop and **256-sample total
+latency** with a 128-sample host buffer are retained. The teacher is absent
+from inference. Raw input levels, the confidence fade, residual Other routing,
+one inference worker and `mlas.disable_kleidiai=1` are unchanged.
 
-The plugin now disables KleidiAI through ORT's session configuration. The
-retained [M4 Pro parent evidence](model/macos-runtime-parity-diagnostic.json)
-fails all eight cases with backend defaults and passes all eight with KleidiAI
-disabled. Both independent PyTorch parity tests now pass on the physical M4 Pro
-with the production setting and unchanged `1e-5` tolerance. All 24 backend
-diagnostic cases also pass on Linux for this graph.
-
-The graph reduced local median block p50 by 5.14% compared with PR #17 under
-concurrent training. The backend setting's cost on M4 must be measured together
-with this graph. The user reports **zero fallback on M4** with the installed
-PR #19 plugin. Playback duration and a raw counter trace were not supplied, so
-this records that successful user test without establishing an extended soak
-or a measured net M4 speedup.
-
-Follow [the M4 test instructions](M4_TESTING.md) for numerical checks, repeated
-extended soaks and installed-DAW playback. Keep one inference worker and retain
-the previous complete plugin bundle. See [the model report](model/README.md)
-for exact quality changes, timing evidence and limitations.
+Independent short/long PyTorch parity and 174 Linux native tests pass.
+Physical M4 parity, sustained zero-fallback playback and listening acceptance
+remain pending for these weights. Follow [the M4 instructions](M4_TESTING.md)
+and preserve the shipped v0.6.1 bundles for comparison and rollback.
 
 Built with [JUCE](https://github.com/juce-framework/JUCE) and
 [ONNX Runtime](https://github.com/microsoft/onnxruntime).

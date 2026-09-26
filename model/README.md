@@ -1,126 +1,83 @@
-# Streaming separation model
+# StemgenRT-5.8 deployment candidate
 
-`model.onnx` separates Drums, Bass, Vocals and Other at 44.1 kHz. It accepts
-128-sample stereo hops, uses a 1024-sample asymmetric analysis window and a
-256-sample synthesis frame, and carries eight FP32 states. The graph delay
-is 128 samples; the asynchronous host queue adds 128 samples at the supported
-128-sample host buffer. Total graph-plus-host delay is 256 samples.
+This graph exports the frozen **teacher004 EMA** research baseline at 45,750
+cumulative updates. The teacher is used only during training. Matching model,
+training, objectives, data, recovery, evaluation and export code accompany the
+candidate in [HS-TasNet PR #5](https://github.com/sweetspotsoundsystem/HS-TasNet/pull/5).
 
-The authoritative identity and interface are in
-`cmake/QualifiedModelContract.cmake`. This self-contained graph has SHA-256
-`08424ca91feae8d4746442a35ebf70489dea70ea6e81401b39483cf02d497748` and is 37,532,574 bytes.
-It retains the source checkpoint, 39,250 training updates, raw input levels,
-four outputs, residual policy and streaming/reset/EOF contract. The confidence
-envelope and output routing are unchanged.
+The graph SHA-256 is `77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9` (37,529,132 bytes).
+The source checkpoint SHA-256 is `7fcd444f83985c0aab0c76923c4355fea3c3e11aa32c81410a6bb9388b755154` and decoded EMA
+state SHA-256 is `f78c49b3755d6a71b7890482d3a40a5662b417b7a63ed3ad9d393cfb0da0037b`.
+`cmake/QualifiedModelContract.cmake` locks the exact identity and all 60 metadata
+entries. Metadata uses the `stemgenrt.*` namespace and retains transformation
+ancestry. The file is self-contained and tracked with Git LFS.
 
-## Inference changes
+## Interface and latency
 
-The three attention input products are packed into one dynamic U8/S8 product
-with per-column signed weight scales. The query's last-frame slice follows
-the packed projection, preserving its time selection. Seventeen products now
-use reduced signed weights in [-64,64]. The other graph nodes and initializers
-retain their definitions. No extra audio buffering or persistent state is added.
+The existing 17-product U8/S8 deployment arithmetic, eight FP32 states, stereo
+44.1 kHz input and 128-sample hop are retained. Analysis is 1024 samples and
+synthesis is 256 samples. Graph delay is 128 samples; the asynchronous worker
+adds 128 samples with a 128-sample host buffer, for **256 samples (5.8 ms)** total.
+There is no new audio buffer. Carry every state unchanged, reset to zero and
+flush once after a padded partial final hop.
 
-The plugin also sets `mlas.disable_kleidiai=1`. The retained
-[M4 Pro parent diagnostic](macos-runtime-parity-diagnostic.json) failed all
-eight independent reference cases with ORT defaults and passed all eight with
-KleidiAI disabled. The setting and graph optimization are separate commits;
-the setting-only parent is `af06fac`. The complete production candidate now
-passes both independent PyTorch parity tests on the physical M4 Pro, as
-recorded in [the local validation report](macos-validation.json). Sustained
-timing measurements remain outstanding.
+The plugin retains one ORT worker with spinning disabled and
+`mlas.disable_kleidiai=1`. Raw input levels, the confidence envelope and
+`Other = Main - Drums - Bass - Vocals` are unchanged.
 
-## Deployment quality
+## Measured quality
 
-The exact graph scores **4.455172594 dB full-band SDR**, a **+0.000019666 dB**
-change from PR #17's sixteen-product graph on the unchanged 14-track,
-28-excerpt development panel. The source FP32 checkpoint scores 4.465157422 dB;
-v0.4.0's deployment graph scores 4.455188055 dB. These are separate endpoints.
-The 5.0 dB target remains unmet.
+The exact deployment graph scores **4.564148 dB full-band SDR**, **+0.108976
+dB** versus shipped v0.6.1 (4.455173 dB). The source FP32 checkpoint scores
+**4.564402 dB**; it is a separate endpoint. Scoring uses the same 14 tracks,
+28 physical excerpts, continuous carried state and unchanged metric code.
+The retained product control reproduced every metric for its first track exactly.
+The paired-track bootstrap 95% interval for the mean gain is [-0.006083,
++0.202519] dB. This repeatedly used development panel does not establish a
+statistically conclusive improvement on unseen tracks.
 
-| Stem | PR #17 SDR (dB) | Candidate SDR (dB) | Change (dB) |
+| Stem | v0.6.1 (dB) | Candidate (dB) | Change (dB) |
 | --- | ---: | ---: | ---: |
-| Drums | 4.403038 | 4.403057 | +0.000019 |
-| Bass | 4.995898 | 4.995904 | +0.000006 |
-| Vocals | 5.307888 | 5.307862 | -0.000026 |
-| Other | 3.113788 | 3.113867 | +0.000080 |
+| Drums | 4.403057 | 4.474373 | +0.071316 |
+| Bass | 4.995904 | 5.146444 | +0.150540 |
+| Vocals | 5.307862 | 5.446602 | +0.138740 |
+| Other | 3.113867 | 3.189174 | +0.075306 |
 
-Full-band SDR decreases in 29/56 track/stem cells;
-the worst change is -0.000927550 dB. The complete
-[deployment report](quality-deployment.json) retains all track/stem/band/absence
-regressions, paired bootstrap summaries, and all 840 source-view windows.
-The worst SIR change is -0.049846 dB for other
-on Skelpolu - Human Mistakes. The largest natural-absence output increase is
-+0.005724 dB for vocals on
-Young Griffo - Pennies.
+16/56 track/stem cells decrease; the worst change is
+-1.103074 dB for drums on Skelpolu - Human Mistakes. The
+[deployment report](quality-deployment.json) includes every track/stem/band/absence
+comparison, paired track bootstrap intervals and all 840 source-view windows.
 
-On the exact instrumental remixes, mean unwanted vocal output is
--47.254567 dBFS, a +0.003535 dB change from PR #17
-(positive means more leakage). The largest one-second instrumental-window
-increase is +0.030907 dB. On isolated vocals, desired-vocal
-SDR changes by +0.001391 dB and signed desired projection gain
-changes by +0.000019911. Read these with Other quality and the retained
-worst windows. They do not establish improved instrumental listening.
-The small instrumental-vocal increase occurs on all fourteen tracks; this
-runtime experiment does not solve the reported vocal-leakage problem.
+On instrumental remixes, mean unwanted vocal output is -48.024391
+dBFS (-0.769824 dB versus v0.6.1; positive means more leakage).
+The largest active instrumental-window increase is
++6.774830 dB on
+Skelpolu - Human Mistakes; all 840 paired window deltas are retained.
+On isolated vocals, desired-vocal SDR changes by +3.450404 dB.
+These development measurements do not establish instrumental listening acceptance
+or new held-out performance. The 5 dB research target remains unmet.
 
-Scoring uses the original continuous input, physical intervals, alignment,
-residual reconstruction and metric code. CPU ORT 1.26.0 runtime binaries match
-those used for the parent measurements. There is no new confirmation panel;
-source-view references can contain recording bleed. Listening acceptance and
-representative real instrumental material remain outstanding.
+## Validation and testing
 
-## Numerical and native checks
+[Streaming checks](streaming-validation.json) pass on ORT 1.26.0 with the
+independent NumPy/PyTorch integer reference, including short trajectories,
+2,048-hop carried-state cases, nonzero initial states, silence, partial EOF and
+bit-exact reset replay. ORT inference was blocked while generating the eight
+fixture cases; expected outputs never come from ORT.
 
-[Streaming validation](streaming-validation.json) retains independent PyTorch
-reconstruction of all seventeen integer products, short and long carried-state
-cases, nonzero initial states, partial EOF and exact reset replay. Expected
-fixture outputs are generated without importing ONNX Runtime.
+The [Linux native suite](linux-validation.json) passed **174 tests**,
+with one platform-specific skip and seven disabled performance tests. Coverage
+includes four-stem reference parity, identity, reset/EOF, alignment, queue and
+epoch recovery, reconstruction, variable callbacks and callback allocation checks.
 
-The [Linux native suite](linux-validation.json) passed 164 tests, with one
-platform-specific skip and seven disabled performance tests. Both four-stem
-parity tests passed at the unchanged 1e-5 waveform limit. The suite also checks
-state/reset/EOF behavior, timestamp admission, queue recovery, alignment,
-reconstruction, variable offline callbacks and callback heap traffic. Its
-record includes 50 plugin/test/contract/fixture input hashes.
+[Windows and macOS arm64 CI](ci-validation.json) also passed the build and test
+jobs, including both independent PyTorch parity tests, at source commit
+`eb5891e74b6243ac8c915d6d7640bcecb22605ba`. The subsequent report update changes
+only documentation and report JSON, preserving the tested graph, fixtures,
+contract and runtime code.
 
-All 24 [Linux backend diagnostic cases](runtime-parity-diagnostic.json) passed
-with maximum error 1.63912773132e-7. The diagnostic retains ORT-default,
-KleidiAI-disabled and optimization-disabled sessions. The plugin uses the
-KleidiAI-disabled setting. Linux correctness does not establish physical M4
-correctness for this new graph by itself.
-
-The [physical M4 Pro Release suite](macos-validation.json) passed **164 tests**,
-with one platform-specific skip and seven disabled tests, at PR #19 commit
-`35b533017b32099f417b6c965e37214b72a8ccea`. Both independent PyTorch parity tests
-passed at the unchanged `1e-5` waveform limit with KleidiAI disabled in
-production. AU and VST3 bundles passed strict signature checks and matched the
-built candidate byte for byte. The user subsequently reported zero fallback
-on M4 with the installed PR #19 plugin; playback duration and a raw
-fallback-counter trace were not supplied.
-The 0.5.0 release preparation changes version metadata and documentation.
-
-## Timing and M4 acceptance
-
-An eight-block preallocated native ORT 1.26.0 comparison on an AMD Ryzen 5 5500
-under WSL2 measured median block p50 of 3.154038 ms for PR #17 and 2.991973 ms
-for this graph: **5.14% lower**, with all four paired medians faster. Each block
-used 256 warmup and 2,048 measured hops, one ORT thread and disabled spinning.
-Timing tails varied under concurrent training. This is a relative local
-graph measurement; the two legacy `linux-*-timing.log` files are historical.
-
-The parent M4 Pro diagnostic's longest short clip averaged 0.932 ms with ORT
-defaults and 1.047 ms with KleidiAI disabled. Those averages and the Linux graph
-comparison cannot establish the combined candidate's M4 performance.
-
-The earlier user report recorded 1,920 fallback samples after ten minutes
-with PR #17 in Ableton on M4 at 44.1 kHz / 128 samples. The latest PR #19
-playback report explicitly reports zero fallback on M4. This is user-reported
-playback evidence; the run duration and raw counter trace are not recorded. Follow
-[the M4 test instructions](../M4_TESTING.md) for reproducible numerical checks,
-repeated 30-minute untraced soaks,
-complete worker traces when needed, and installed-AU playback. Retain raw
-startup/reset counters and require zero additional steady-playback fallback.
-Exercise transport changes and listen to instrumental passages, quiet real
-vocals and Other. Version 0.5.0 ships this graph and runtime setting. Sustained
-zero-fallback M4 timing and the broader quality goal remain unqualified.
+Physical M4 parity and sustained timing are **pending for this graph**. Follow
+[M4_TESTING.md](../M4_TESTING.md), then test the installed AU in Ableton and listen
+to instrumental passages, quiet vocals and Other. Previous timing and hardware
+reports are retained under [baseline-v0.6.1](baseline-v0.6.1/README.md) and do not
+qualify these weights. Preserve the shipped v0.6.1 bundles for rollback.
