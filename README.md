@@ -3,7 +3,7 @@
 Separate a stereo music mix into **Drums, Bass, Other and Vocals** in your DAW.
 Main carries the complete delayed mix; the four stem outputs reconstruct it.
 
-StemgenRT uses a trained [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet)
+StemgenRT uses a trained [StemgenRT-5.8](https://github.com/sweetspotsoundsystem/StemgenRT-5.8)
 model at **44.1 kHz**, processing 128 samples at a time. With a **128-sample host
 buffer**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
 one dedicated CPU worker, and the audio callback never waits for it.
