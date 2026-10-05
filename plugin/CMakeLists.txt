@@ -43,6 +43,20 @@ juce_add_plugin(
   "com.sweetspot.StemgenRT"
 )
 
+# Keep optimized Windows release builds debuggable. The linker PDB is saved
+# separately from the distributable and must accompany that exact binary.
+if(MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Release>:/Zi>")
+  target_compile_options(${PROJECT_NAME}_VST3 PRIVATE "$<$<CONFIG:Release>:/Zi>")
+  target_link_options(${PROJECT_NAME}_VST3 PRIVATE
+    "$<$<CONFIG:Release>:/DEBUG:FULL>"
+    "$<$<CONFIG:Release>:/OPT:REF>"
+    "$<$<CONFIG:Release>:/OPT:ICF>")
+  set_target_properties(${PROJECT_NAME}_VST3 PROPERTIES
+    PDB_NAME "StemgenRT-VST3"
+    PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/windows-symbols/$<CONFIG>")
+endif()
+
 # Binary data for logo asset
 set(ASSETS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
 if(EXISTS "${ASSETS_DIR}/logo.png")
