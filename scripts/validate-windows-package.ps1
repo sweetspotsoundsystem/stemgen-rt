@@ -13,7 +13,7 @@ param(
 $ErrorActionPreference = "Stop"
 $archive = (Resolve-Path -LiteralPath $PluginArchive).Path
 $validator = (Resolve-Path -LiteralPath $PluginvalPath).Path
-$cmake = (Get-Command cmake -CommandType Application).Source
+$cmake = (Get-Command cmake -CommandType Application | Select-Object -First 1).Path
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $evidence = [System.IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $evidence) {
@@ -33,16 +33,51 @@ $result = [ordered]@{
 }
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $evidence "result.json")
 
-# Start-Process joins ArgumentList into a command line on Windows. Quote every
-# argument so paths with spaces survive. Windows filenames cannot contain ".
+# Let .NET quote individual arguments for the target platform. Record the launch
+# inputs before starting so setup failures retain the executable and directory.
 function Invoke-EvidenceProcess {
     param([string]$Executable, [string[]]$Arguments, [string]$Name, [string]$WorkingDirectory)
-    $quotedArguments = $Arguments | ForEach-Object { '"' + $_ + '"' }
-    $process = Start-Process -FilePath $Executable -ArgumentList $quotedArguments `
-        -WorkingDirectory $WorkingDirectory -Wait -PassThru `
-        -RedirectStandardOutput (Join-Path $evidence "$Name-stdout.log") `
-        -RedirectStandardError (Join-Path $evidence "$Name-stderr.log")
-    return $process.ExitCode
+    [ordered]@{
+        executable = $Executable
+        executable_exists = Test-Path -LiteralPath $Executable -PathType Leaf
+        arguments = $Arguments
+        working_directory = $WorkingDirectory
+        working_directory_exists = Test-Path -LiteralPath $WorkingDirectory -PathType Container
+    } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $evidence "$Name-invocation.json")
+    $start = [System.Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $Executable
+    $start.WorkingDirectory = $WorkingDirectory
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in $Arguments) {
+        $start.ArgumentList.Add($argument)
+    }
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $start
+    $stdout = [System.IO.FileStream]::new((Join-Path $evidence "$Name-stdout.log"),
+        [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read, 1, [System.IO.FileOptions]::Asynchronous)
+    $stderr = [System.IO.FileStream]::new((Join-Path $evidence "$Name-stderr.log"),
+        [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write,
+        [System.IO.FileShare]::Read, 1, [System.IO.FileOptions]::Asynchronous)
+    try {
+        if (-not $process.Start()) {
+            throw "Could not start $Name at $Executable"
+        }
+        # Drain both pipes concurrently to files, including during noisy tests.
+        # With buffering disabled, logs also survive a CI timeout/process kill.
+        $stdoutCopy = $process.StandardOutput.BaseStream.CopyToAsync($stdout)
+        $stderrCopy = $process.StandardError.BaseStream.CopyToAsync($stderr)
+        $process.WaitForExit()
+        [void]$stdoutCopy.GetAwaiter().GetResult()
+        [void]$stderrCopy.GetAwaiter().GetResult()
+        return $process.ExitCode
+    } finally {
+        $stdout.Dispose()
+        $stderr.Dispose()
+        $process.Dispose()
+    }
 }
 
 try {
@@ -57,7 +92,8 @@ try {
         $sdkDll = (Resolve-Path -LiteralPath $ExpectedOrtDll).Path
         $packageArguments = @("-DSTEMGENRT_EXPECTED_ORT_DLL=$sdkDll") + $packageArguments
     }
-    $result.package_exit_code = Invoke-EvidenceProcess $cmake $packageArguments "package" $evidence
+    $result.package_exit_code = Invoke-EvidenceProcess -Executable $cmake `
+        -Arguments $packageArguments -Name "package" -WorkingDirectory $evidence
     if ($result.package_exit_code -ne 0) {
         throw "Package inspection failed; see package-stderr.log in $evidence"
     }
@@ -81,8 +117,9 @@ try {
         "--validate", $bundle
     )
     # Keep GUI tests enabled: opening the editor is part of the reported crash
-    # scenario. The validator's default child process isolates a crashing plugin.
-    $result.validator_exit_code = Invoke-EvidenceProcess $validator $validatorArguments "pluginval" $evidence
+    # scenario. Its separate process isolates a crash from this evidence script.
+    $result.validator_exit_code = Invoke-EvidenceProcess -Executable $validator `
+        -Arguments $validatorArguments -Name "pluginval" -WorkingDirectory $evidence
     if ($result.validator_exit_code -ne 0) {
         throw "Plugin validation failed; see pluginval logs in $evidence"
     }

@@ -129,6 +129,7 @@ jobs:
           ${{ runner.temp }}/stemgenrt-windows-validation/*.json
           ${{ runner.temp }}/stemgenrt-windows-validation/pluginval
           build/windows-symbols/Release
+          StemgenRT-Windows-VST3.zip
         if-no-files-found: warn
         retention-days: 30
 
