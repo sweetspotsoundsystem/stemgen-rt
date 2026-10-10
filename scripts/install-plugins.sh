@@ -71,13 +71,13 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ARTEFACTS_DIR="$PROJECT_ROOT/$BUILD_DIR/plugin/AudioPlugin_artefacts/$BUILD_TYPE"
 SEAL_SCRIPT="$PROJECT_ROOT/cmake/SignAndVerifyAppleBundle.cmake"
 
-AU_PLUGIN="$ARTEFACTS_DIR/AU/StemgenRT.component"
-VST3_PLUGIN="$ARTEFACTS_DIR/VST3/StemgenRT.vst3"
+AU_PLUGIN="$ARTEFACTS_DIR/AU/StemgenRT Independent.component"
+VST3_PLUGIN="$ARTEFACTS_DIR/VST3/StemgenRT Independent.vst3"
 
 AU_DEST_DIR="$HOME/Library/Audio/Plug-Ins/Components"
 VST3_DEST_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
-AU_INSTALLED="$AU_DEST_DIR/StemgenRT.component"
-VST3_INSTALLED="$VST3_DEST_DIR/StemgenRT.vst3"
+AU_INSTALLED="$AU_DEST_DIR/StemgenRT Independent.component"
+VST3_INSTALLED="$VST3_DEST_DIR/StemgenRT Independent.vst3"
 
 [[ -f "$SEAL_SCRIPT" ]] || fail "bundle sealing script not found at $SEAL_SCRIPT"
 
@@ -160,7 +160,7 @@ install_bundle() {
         esac
         backup_bundle="$backup_root/${destination_bundle##*/}"
         case "$backup_bundle" in
-            "$backup_root"/StemgenRT.component|"$backup_root"/StemgenRT.vst3) ;;
+            "$backup_root/StemgenRT Independent.component"|"$backup_root/StemgenRT Independent.vst3") ;;
             *) fail "refusing unexpected backup bundle '$backup_bundle'" ;;
         esac
 

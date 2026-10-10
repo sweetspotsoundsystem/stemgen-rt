@@ -32,15 +32,15 @@ juce_add_plugin(
   PLUGIN_MANUFACTURER_CODE
   Swee
   PLUGIN_CODE
-  Stem
+  SgIn
   FORMATS
   Standalone
   VST3
   AU
   PRODUCT_NAME
-  "StemgenRT"
+  "StemgenRT Independent"
   BUNDLE_ID
-  "com.sweetspot.StemgenRT"
+  "com.sweetspot.StemgenRTIndependent"
 )
 
 # Binary data for logo asset

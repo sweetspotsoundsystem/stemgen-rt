@@ -159,36 +159,36 @@ void* OnnxRuntime::ensureOrtDllLoaded() noexcept {
   if (g_ortDllLoadFailed.load(std::memory_order_acquire)) {
     return nullptr;
   }
-    return g_ortDllHandle;
+  return g_ortDllHandle;
 }
 #endif  // _WIN32
 
 const OrtApiBase* OnnxRuntime::getSafeOrtApiBase() noexcept {
 #ifdef _WIN32
-    const auto module = static_cast<HMODULE>(ensureOrtDllLoaded());
-    if (module == nullptr) {
-        return nullptr;
-    }
-    using GetApiBaseFunction = const OrtApiBase* (ORT_API_CALL*)();
-    const auto getApiBase = reinterpret_cast<GetApiBaseFunction>(
-        GetProcAddress(module, "OrtGetApiBase"));
-    if (getApiBase == nullptr) {
-        DBG("[ORT] Bundled DLL does not export OrtGetApiBase");
-        return nullptr;
-    }
-    return getApiBase();
+  const auto module = static_cast<HMODULE>(ensureOrtDllLoaded());
+  if (module == nullptr) {
+    return nullptr;
+  }
+  using GetApiBaseFunction = const OrtApiBase*(ORT_API_CALL*)();
+  const auto getApiBase = reinterpret_cast<GetApiBaseFunction>(
+      GetProcAddress(module, "OrtGetApiBase"));
+  if (getApiBase == nullptr) {
+    DBG("[ORT] Bundled DLL does not export OrtGetApiBase");
+    return nullptr;
+  }
+  return getApiBase();
 #else
-    return OrtGetApiBase();
+  return OrtGetApiBase();
 #endif
 }
 
 const OrtApi* OnnxRuntime::getSafeOrtApi() noexcept {
-    const OrtApiBase* apiBase = getSafeOrtApiBase();
-    if (apiBase == nullptr) {
-        DBG("[ORT] OrtGetApiBase() returned nullptr");
-        return nullptr;
-    }
-    return apiBase->GetApi(ORT_API_VERSION);
+  const OrtApiBase* apiBase = getSafeOrtApiBase();
+  if (apiBase == nullptr) {
+    DBG("[ORT] OrtGetApiBase() returned nullptr");
+    return nullptr;
+  }
+  return apiBase->GetApi(ORT_API_VERSION);
 }
 
 bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
@@ -208,32 +208,18 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     return false;
   }
 
-  const std::array<std::vector<std::int64_t>,
-                   qualified_model::kInputNames.size()>
-      expectedInputShapes = {{
-          toShapeVector(qualified_model::kInputAudioShape),
-          toShapeVector(qualified_model::kInputHistoryShape),
-          toShapeVector(qualified_model::kInputHiddenShape),
-          toShapeVector(qualified_model::kInputSpectralTailShape),
-          toShapeVector(qualified_model::kInputWaveformTailShape),
-          toShapeVector(qualified_model::kInputAttentionKeysShape),
-          toShapeVector(qualified_model::kInputAttentionValuesShape),
-          toShapeVector(qualified_model::kInputSpecMemoryHiddenShape),
-          toShapeVector(qualified_model::kInputWaveformMemoryHiddenShape),
-      }};
-  const std::array<std::vector<std::int64_t>,
-                   qualified_model::kOutputNames.size()>
-      expectedOutputShapes = {{
-          toShapeVector(qualified_model::kOutputSeparatedShape),
-          toShapeVector(qualified_model::kOutputHistoryShape),
-          toShapeVector(qualified_model::kOutputHiddenShape),
-          toShapeVector(qualified_model::kOutputSpectralTailShape),
-          toShapeVector(qualified_model::kOutputWaveformTailShape),
-          toShapeVector(qualified_model::kOutputAttentionKeysShape),
-          toShapeVector(qualified_model::kOutputAttentionValuesShape),
-          toShapeVector(qualified_model::kOutputSpecMemoryHiddenShape),
-          toShapeVector(qualified_model::kOutputWaveformMemoryHiddenShape),
-      }};
+  std::array<std::vector<std::int64_t>, qualified_model::kInputNames.size()>
+      expectedInputShapes;
+  std::array<std::vector<std::int64_t>, qualified_model::kOutputNames.size()>
+      expectedOutputShapes;
+  expectedInputShapes[0] = toShapeVector(qualified_model::kInputAudioShape);
+  expectedOutputShapes[0] =
+      toShapeVector(qualified_model::kOutputSeparatedShape);
+  for (size_t i = 0; i < qualified_model::kStateShapes.size(); ++i) {
+    const auto& shape = qualified_model::kStateShapes[i];
+    expectedInputShapes[i + 1] = {shape.data(), shape.data() + shape.size()};
+    expectedOutputShapes[i + 1] = expectedInputShapes[i + 1];
+  }
 
   size_t inputCount = 0;
   size_t outputCount = 0;
@@ -379,8 +365,8 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
     // contract validates only metadata fields embedded by the accepted
     // exporter.
     if (rawValue == nullptr) {
-      errorMessage = juce::String("Missing model metadata ") +
-                     toJuceString(key);
+      errorMessage =
+          juce::String("Missing model metadata ") + toJuceString(key);
       api->ReleaseModelMetadata(metadata);
       return false;
     }
@@ -404,17 +390,21 @@ bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
 }
 
 void OnnxRuntime::OrtEnvDeleter::operator()(OrtEnv* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = getSafeOrtApi();
-    if (api == nullptr) return;
-    api->ReleaseEnv(p);
+  if (p == nullptr)
+    return;
+  const OrtApi* api = getSafeOrtApi();
+  if (api == nullptr)
+    return;
+  api->ReleaseEnv(p);
 }
 
 void OnnxRuntime::OrtSessionDeleter::operator()(OrtSession* p) const noexcept {
-    if (p == nullptr) return;
-    const OrtApi* api = getSafeOrtApi();
-    if (api == nullptr) return;
-    api->ReleaseSession(p);
+  if (p == nullptr)
+    return;
+  const OrtApi* api = getSafeOrtApi();
+  if (api == nullptr)
+    return;
+  api->ReleaseSession(p);
 }
 
 OnnxRuntime::OnnxRuntime() : api_(getSafeOrtApi()) {
@@ -544,10 +534,9 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
   // with KleidiAI and passes with it disabled. Keep the declared quantization
   // arithmetic on that backend; this setting does not qualify M4 timing.
   // See model/macos-runtime-parity-diagnostic.json for the parent evidence.
-  if (!applySessionOption(
-          api->AddSessionConfigEntry(sessionOptions, "mlas.disable_kleidiai",
-                                     "1"),
-          "DisableKleidiAi")) {
+  if (!applySessionOption(api->AddSessionConfigEntry(
+                              sessionOptions, "mlas.disable_kleidiai", "1"),
+                          "DisableKleidiAi")) {
     return false;
   }
 
@@ -696,59 +685,22 @@ bool OnnxRuntime::createPreallocatedTensorValues(juce::String& errorMessage) {
   if (!createTensor(inputTensorValues_[0], audioChunkBuffer_,
                     qualified_model::kInputAudioShape,
                     qualified_model::kInputNames[0].data()) ||
-      !createTensor(inputTensorValues_[1], audioHistory_,
-                    qualified_model::kInputHistoryShape,
-                    qualified_model::kInputNames[1].data()) ||
-      !createTensor(inputTensorValues_[2], fusionHidden_,
-                    qualified_model::kInputHiddenShape,
-                    qualified_model::kInputNames[2].data()) ||
-      !createTensor(inputTensorValues_[3], spectralNumeratorTail_,
-                    qualified_model::kInputSpectralTailShape,
-                    qualified_model::kInputNames[3].data()) ||
-      !createTensor(inputTensorValues_[4], waveformTail_,
-                    qualified_model::kInputWaveformTailShape,
-                    qualified_model::kInputNames[4].data()) ||
-      !createTensor(inputTensorValues_[5], attentionKeys_,
-                    qualified_model::kInputAttentionKeysShape,
-                    qualified_model::kInputNames[5].data()) ||
-      !createTensor(inputTensorValues_[6], attentionValues_,
-                    qualified_model::kInputAttentionValuesShape,
-                    qualified_model::kInputNames[6].data()) ||
-      !createTensor(inputTensorValues_[7], specMemoryHidden_,
-                    qualified_model::kInputSpecMemoryHiddenShape,
-                    qualified_model::kInputNames[7].data()) ||
-      !createTensor(inputTensorValues_[8], waveformMemoryHidden_,
-                    qualified_model::kInputWaveformMemoryHiddenShape,
-                    qualified_model::kInputNames[8].data()) ||
       !createTensor(outputTensorValues_[0], separatedOutputBuffer_,
                     qualified_model::kOutputSeparatedShape,
-                    qualified_model::kOutputNames[0].data()) ||
-      !createTensor(outputTensorValues_[1], nextAudioHistoryBuffer_,
-                    qualified_model::kOutputHistoryShape,
-                    qualified_model::kOutputNames[1].data()) ||
-      !createTensor(outputTensorValues_[2], nextFusionHiddenBuffer_,
-                    qualified_model::kOutputHiddenShape,
-                    qualified_model::kOutputNames[2].data()) ||
-      !createTensor(outputTensorValues_[3], nextSpectralNumeratorTail_,
-                    qualified_model::kOutputSpectralTailShape,
-                    qualified_model::kOutputNames[3].data()) ||
-      !createTensor(outputTensorValues_[4], nextWaveformTail_,
-                    qualified_model::kOutputWaveformTailShape,
-                    qualified_model::kOutputNames[4].data()) ||
-      !createTensor(outputTensorValues_[5], nextAttentionKeys_,
-                    qualified_model::kOutputAttentionKeysShape,
-                    qualified_model::kOutputNames[5].data()) ||
-      !createTensor(outputTensorValues_[6], nextAttentionValues_,
-                    qualified_model::kOutputAttentionValuesShape,
-                    qualified_model::kOutputNames[6].data()) ||
-      !createTensor(outputTensorValues_[7], nextSpecMemoryHidden_,
-                    qualified_model::kOutputSpecMemoryHiddenShape,
-                    qualified_model::kOutputNames[7].data()) ||
-      !createTensor(outputTensorValues_[8], nextWaveformMemoryHidden_,
-                    qualified_model::kOutputWaveformMemoryHiddenShape,
-                    qualified_model::kOutputNames[8].data())) {
+                    qualified_model::kOutputNames[0].data())) {
     releasePreallocatedTensorValues();
     return false;
+  }
+  for (size_t i = 0; i < states_.size(); ++i) {
+    if (!createTensor(inputTensorValues_[i + 1], states_[i],
+                      qualified_model::kStateShapes[i],
+                      qualified_model::kInputNames[i + 1].data()) ||
+        !createTensor(outputTensorValues_[i + 1], nextStates_[i],
+                      qualified_model::kStateShapes[i],
+                      qualified_model::kOutputNames[i + 1].data())) {
+      releasePreallocatedTensorValues();
+      return false;
+    }
   }
 
   return true;
@@ -798,35 +750,15 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
       static_cast<size_t>(kNumChannels * kOutputChunkSize);
   const size_t separatedElements =
       static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-  const size_t tailElements =
-      static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-  const size_t historyElements =
-      static_cast<size_t>(kNumChannels * kAnalysisHistorySize);
-  const size_t hiddenElements =
-      static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
 
   try {
     audioChunkBuffer_.resize(audioElements);
-    audioHistory_.resize(historyElements);
-    spectralNumeratorTail_.resize(tailElements);
-    waveformTail_.resize(tailElements);
-    fusionHidden_.resize(hiddenElements);
-    attentionKeys_.resize(qualified_model::kAttentionKeyElements);
-    attentionValues_.resize(qualified_model::kAttentionValueElements);
-    specMemoryHidden_.resize(qualified_model::kSpecMemoryHiddenElements);
-    waveformMemoryHidden_.resize(
-        qualified_model::kWaveformMemoryHiddenElements);
     previousAlignedInput_.resize(audioElements);
     separatedOutputBuffer_.resize(separatedElements);
-    nextAudioHistoryBuffer_.resize(historyElements);
-    nextSpectralNumeratorTail_.resize(tailElements);
-    nextWaveformTail_.resize(tailElements);
-    nextFusionHiddenBuffer_.resize(hiddenElements);
-    nextAttentionKeys_.resize(qualified_model::kAttentionKeyElements);
-    nextAttentionValues_.resize(qualified_model::kAttentionValueElements);
-    nextSpecMemoryHidden_.resize(qualified_model::kSpecMemoryHiddenElements);
-    nextWaveformMemoryHidden_.resize(
-        qualified_model::kWaveformMemoryHiddenElements);
+    for (size_t i = 0; i < states_.size(); ++i) {
+      states_[i].resize(qualified_model::kStateShapes[i].elements());
+      nextStates_[i].resize(qualified_model::kStateShapes[i].elements());
+    }
   } catch (const std::exception& exception) {
     releasePreallocatedTensorValues();
     return failPreparation(
@@ -855,14 +787,10 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
 }
 
 void OnnxRuntime::clearStreamingState() {
-  std::fill(audioHistory_.begin(), audioHistory_.end(), 0.0f);
-  std::fill(spectralNumeratorTail_.begin(), spectralNumeratorTail_.end(), 0.0f);
-  std::fill(waveformTail_.begin(), waveformTail_.end(), 0.0f);
-  std::fill(fusionHidden_.begin(), fusionHidden_.end(), 0.0f);
-  std::fill(attentionKeys_.begin(), attentionKeys_.end(), 0.0f);
-  std::fill(attentionValues_.begin(), attentionValues_.end(), 0.0f);
-  std::fill(specMemoryHidden_.begin(), specMemoryHidden_.end(), 0.0f);
-  std::fill(waveformMemoryHidden_.begin(), waveformMemoryHidden_.end(), 0.0f);
+  for (auto& state : states_)
+    std::fill(state.begin(), state.end(), 0.0f);
+  for (auto& state : nextStates_)
+    std::fill(state.begin(), state.end(), 0.0f);
   std::fill(previousAlignedInput_.begin(), previousAlignedInput_.end(), 0.0f);
   hasPreviousAlignedInput_ = false;
 }
@@ -873,7 +801,8 @@ void OnnxRuntime::resetStreamingState() {
 
 bool OnnxRuntime::runInference(
     const std::array<std::vector<float>, kNumChannels>& inputChunk,
-    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>& outputChunks,
+    std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
+        outputChunks,
     std::array<std::vector<float>, kNumChannels>& alignedInput,
     bool& outputValid) {
   outputValid = false;
@@ -891,35 +820,15 @@ bool OnnxRuntime::runInference(
       static_cast<size_t>(kNumChannels * kOutputChunkSize);
   const size_t separatedElements =
       static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-  const size_t tailElements =
-      static_cast<size_t>(kNumStems * kNumChannels * kOutputChunkSize);
-  const size_t historyElements =
-      static_cast<size_t>(kNumChannels * kAnalysisHistorySize);
-  const size_t hiddenElements =
-      static_cast<size_t>(kFusionHiddenLayers * kFusionHiddenSize);
 
+  for (size_t i = 0; i < states_.size(); ++i) {
+    if (states_[i].size() != qualified_model::kStateShapes[i].elements() ||
+        nextStates_[i].size() != qualified_model::kStateShapes[i].elements())
+      return false;
+  }
   if (audioChunkBuffer_.size() != audioElements ||
-      audioHistory_.size() != historyElements ||
-      spectralNumeratorTail_.size() != tailElements ||
-      waveformTail_.size() != tailElements ||
-      fusionHidden_.size() != hiddenElements ||
-      attentionKeys_.size() != qualified_model::kAttentionKeyElements ||
-      attentionValues_.size() != qualified_model::kAttentionValueElements ||
-      specMemoryHidden_.size() != qualified_model::kSpecMemoryHiddenElements ||
-      waveformMemoryHidden_.size() !=
-          qualified_model::kWaveformMemoryHiddenElements ||
       previousAlignedInput_.size() != audioElements ||
       separatedOutputBuffer_.size() != separatedElements ||
-      nextAudioHistoryBuffer_.size() != historyElements ||
-      nextSpectralNumeratorTail_.size() != tailElements ||
-      nextWaveformTail_.size() != tailElements ||
-      nextFusionHiddenBuffer_.size() != hiddenElements ||
-      nextAttentionKeys_.size() != qualified_model::kAttentionKeyElements ||
-      nextAttentionValues_.size() != qualified_model::kAttentionValueElements ||
-      nextSpecMemoryHidden_.size() !=
-          qualified_model::kSpecMemoryHiddenElements ||
-      nextWaveformMemoryHidden_.size() !=
-          qualified_model::kWaveformMemoryHiddenElements ||
       std::any_of(inputTensorValues_.begin(), inputTensorValues_.end(),
                   [](const OrtValue* value) { return value == nullptr; }) ||
       std::any_of(outputTensorValues_.begin(), outputTensorValues_.end(),
@@ -928,205 +837,181 @@ bool OnnxRuntime::runInference(
     return false;
   }
 
-    // Feed the graph at the exact native input level used by its frozen
-    // quality evaluation. The graph emits the preceding input hop, so retain
-    // a separate raw-domain copy for Main and the final residual instead of
-    // deriving presentation alignment from provider-owned recurrent state.
-    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-      if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
-          alignedInput[ch].size() != static_cast<size_t>(kOutputChunkSize)) {
-        DBG("[ORT] Invalid streaming input or aligned-output shape");
+  // Feed the graph at the exact native input level used by its frozen
+  // quality evaluation. The graph emits the preceding input hop, so retain
+  // a separate raw-domain copy for Main and the final residual instead of
+  // deriving presentation alignment from provider-owned recurrent state.
+  for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+    if (inputChunk[ch].size() != static_cast<size_t>(kOutputChunkSize) ||
+        alignedInput[ch].size() != static_cast<size_t>(kOutputChunkSize)) {
+      DBG("[ORT] Invalid streaming input or aligned-output shape");
+      clearStreamingState();
+      return false;
+    }
+    const size_t channelOffset = ch * static_cast<size_t>(kOutputChunkSize);
+    for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+      const float sample = inputChunk[ch][i];
+      if (!std::isfinite(sample)) {
+        DBG("[ORT] Non-finite streaming input");
         clearStreamingState();
         return false;
       }
-      const size_t channelOffset =
-          ch * static_cast<size_t>(kOutputChunkSize);
-      for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-        const float sample = inputChunk[ch][i];
-        if (!std::isfinite(sample)) {
-          DBG("[ORT] Non-finite streaming input");
-          clearStreamingState();
-          return false;
+      audioChunkBuffer_[channelOffset + i] = sample;
+      alignedInput[ch][i] = hasPreviousAlignedInput_
+                                ? previousAlignedInput_[channelOffset + i]
+                                : 0.0f;
+    }
+  }
+
+  std::array<const char*, qualified_model::kInputNames.size()> inputNames{};
+  std::array<const char*, qualified_model::kOutputNames.size()> outputNames{};
+  std::array<const OrtValue*, qualified_model::kInputNames.size()>
+      constInputValues{};
+  for (size_t index = 0; index < inputNames.size(); ++index) {
+    inputNames[index] = qualified_model::kInputNames[index].data();
+    constInputValues[index] = inputTensorValues_[index];
+  }
+  for (size_t index = 0; index < outputNames.size(); ++index)
+    outputNames[index] = qualified_model::kOutputNames[index].data();
+  auto runOutputValues = outputTensorValues_;
+
+  OrtStatus* runStatus =
+      api->Run(ortSession_.get(), nullptr, inputNames.data(),
+               constInputValues.data(), inputNames.size(), outputNames.data(),
+               outputNames.size(), runOutputValues.data());
+
+  // With every output pre-bound, ORT must retain the supplied OrtValue
+  // pointers. Release any unexpected replacement without disturbing the
+  // persistent bindings, then fail closed.
+  bool outputBindingChanged = false;
+  for (size_t index = 0; index < runOutputValues.size(); ++index) {
+    if (runOutputValues[index] == outputTensorValues_[index]) {
+      continue;
+    }
+    outputBindingChanged = true;
+    const bool aliasesPersistentBinding =
+        runOutputValues[index] != nullptr &&
+        std::find(outputTensorValues_.begin(), outputTensorValues_.end(),
+                  runOutputValues[index]) != outputTensorValues_.end();
+    if (runOutputValues[index] != nullptr && !aliasesPersistentBinding) {
+      api->ReleaseValue(runOutputValues[index]);
+    }
+  }
+
+  if (runStatus != nullptr) {
+    DBG("[ORT] Inference failed: " << api->GetErrorMessage(runStatus));
+    api->ReleaseStatus(runStatus);
+    clearStreamingState();
+    return false;
+  }
+  if (outputBindingChanged) {
+    DBG("[ORT] Run replaced a preallocated streaming output binding");
+    clearStreamingState();
+    return false;
+  }
+
+  const auto allFinite = [](const float* data, size_t count) {
+    return std::all_of(data, data + count,
+                       [](float value) { return std::isfinite(value); });
+  };
+  if (!allFinite(separatedOutputBuffer_.data(), separatedElements) ||
+      std::any_of(nextStates_.begin(), nextStates_.end(),
+                  [&allFinite](const auto& state) {
+                    return !allFinite(state.data(), state.size());
+                  })) {
+    DBG("[ORT] Non-finite streaming output; resetting recurrent state");
+    clearStreamingState();
+    return false;
+  }
+
+  outputValid = hasPreviousAlignedInput_;
+  for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+      auto& destination = outputChunks[stem][ch];
+      if (destination.size() != static_cast<size_t>(kOutputChunkSize)) {
+        clearStreamingState();
+        outputValid = false;
+        return false;
+      }
+      const size_t offset = (stem * static_cast<size_t>(kNumChannels) + ch) *
+                            static_cast<size_t>(kOutputChunkSize);
+      if (outputValid) {
+        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+          destination[i] = separatedOutputBuffer_[offset + i];
         }
-        audioChunkBuffer_[channelOffset + i] = sample;
-        alignedInput[ch][i] =
-            hasPreviousAlignedInput_
-                ? previousAlignedInput_[channelOffset + i]
-                : 0.0f;
+      } else {
+        std::fill(destination.begin(), destination.end(), 0.0f);
       }
     }
+  }
 
-    std::array<const char*, qualified_model::kInputNames.size()> inputNames{};
-    std::array<const char*, qualified_model::kOutputNames.size()> outputNames{};
-    std::array<const OrtValue*, qualified_model::kInputNames.size()>
-        constInputValues{};
-    for (size_t index = 0; index < inputNames.size(); ++index) {
-      inputNames[index] = qualified_model::kInputNames[index].data();
-      constInputValues[index] = inputTensorValues_[index];
-    }
-    for (size_t index = 0; index < outputNames.size(); ++index)
-      outputNames[index] = qualified_model::kOutputNames[index].data();
-    auto runOutputValues = outputTensorValues_;
-
-    OrtStatus* runStatus =
-        api->Run(ortSession_.get(), nullptr, inputNames.data(),
-                 constInputValues.data(), inputNames.size(), outputNames.data(),
-                 outputNames.size(), runOutputValues.data());
-
-    // With every output pre-bound, ORT must retain the supplied OrtValue
-    // pointers. Release any unexpected replacement without disturbing the
-    // persistent bindings, then fail closed.
-    bool outputBindingChanged = false;
-    for (size_t index = 0; index < runOutputValues.size(); ++index) {
-      if (runOutputValues[index] == outputTensorValues_[index]) {
-        continue;
-      }
-      outputBindingChanged = true;
-      const bool aliasesPersistentBinding =
-          runOutputValues[index] != nullptr &&
-          std::find(outputTensorValues_.begin(), outputTensorValues_.end(),
-                    runOutputValues[index]) != outputTensorValues_.end();
-      if (runOutputValues[index] != nullptr && !aliasesPersistentBinding) {
-        api->ReleaseValue(runOutputValues[index]);
-      }
-    }
-
-    if (runStatus != nullptr) {
-      DBG("[ORT] Inference failed: " << api->GetErrorMessage(runStatus));
-      api->ReleaseStatus(runStatus);
-      clearStreamingState();
-      return false;
-    }
-    if (outputBindingChanged) {
-      DBG("[ORT] Run replaced a preallocated streaming output binding");
-      clearStreamingState();
-      return false;
-    }
-
-    const auto allFinite = [](const float* data, size_t count) {
-      return std::all_of(data, data + count,
-                         [](float value) { return std::isfinite(value); });
-    };
-    if (!allFinite(separatedOutputBuffer_.data(), separatedElements) ||
-        !allFinite(nextAudioHistoryBuffer_.data(), historyElements) ||
-        !allFinite(nextSpectralNumeratorTail_.data(), tailElements) ||
-        !allFinite(nextWaveformTail_.data(), tailElements) ||
-        !allFinite(nextFusionHiddenBuffer_.data(), hiddenElements) ||
-        !allFinite(nextAttentionKeys_.data(),
-                   qualified_model::kAttentionKeyElements) ||
-        !allFinite(nextAttentionValues_.data(),
-                   qualified_model::kAttentionValueElements) ||
-        !allFinite(nextSpecMemoryHidden_.data(),
-                   qualified_model::kSpecMemoryHiddenElements) ||
-        !allFinite(nextWaveformMemoryHidden_.data(),
-                   qualified_model::kWaveformMemoryHiddenElements)) {
-      DBG("[ORT] Non-finite streaming output; resetting recurrent state");
-      clearStreamingState();
-      return false;
-    }
-
-    outputValid = hasPreviousAlignedInput_;
-    for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-      for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-        auto& destination = outputChunks[stem][ch];
-        if (destination.size() != static_cast<size_t>(kOutputChunkSize)) {
+  // The accepted export already returns all four deployed stems. Preserve
+  // Other exactly here; an extra residual rewrite would hide graph errors.
+  // OutputWriter applies its final residual only after presentation fades.
+  if (outputValid) {
+    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+      for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
+        double mixture = 0.0;
+        double magnitude = 1.0;
+        for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
+          const double sample = static_cast<double>(outputChunks[stem][ch][i]);
+          mixture += sample;
+          magnitude += std::abs(sample);
+        }
+        // Scale the rounding allowance for valid floating-point audio above
+        // unity and cancellation between stems; do not alter input gain.
+        const double tolerance =
+            8.0 * static_cast<double>(std::numeric_limits<float>::epsilon()) *
+            magnitude;
+        if (!std::isfinite(mixture) ||
+            std::abs(mixture - static_cast<double>(alignedInput[ch][i])) >
+                tolerance) {
           clearStreamingState();
           outputValid = false;
           return false;
         }
-        const size_t offset = (stem * static_cast<size_t>(kNumChannels) + ch) *
-                              static_cast<size_t>(kOutputChunkSize);
-        if (outputValid) {
-          for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-            destination[i] = separatedOutputBuffer_[offset + i];
-          }
-        } else {
-          std::fill(destination.begin(), destination.end(), 0.0f);
-        }
       }
     }
+  }
 
-    // The accepted export already returns all four deployed stems. Preserve
-    // Other exactly here; an extra residual rewrite would hide graph errors.
-    // OutputWriter applies its final residual only after presentation fades.
-    if (outputValid) {
-      for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
-        for (size_t i = 0; i < static_cast<size_t>(kOutputChunkSize); ++i) {
-          double mixture = 0.0;
-          double magnitude = 1.0;
-          for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-            const double sample =
-                static_cast<double>(outputChunks[stem][ch][i]);
-            mixture += sample;
-            magnitude += std::abs(sample);
-          }
-          // Scale the rounding allowance for valid floating-point audio above
-          // unity and cancellation between stems; do not alter input gain.
-          const double tolerance =
-              8.0 * static_cast<double>(std::numeric_limits<float>::epsilon()) *
-              magnitude;
-          if (!std::isfinite(mixture) ||
-              std::abs(mixture - static_cast<double>(alignedInput[ch][i])) >
-                  tolerance) {
-            clearStreamingState();
-            outputValid = false;
-            return false;
-          }
-        }
-      }
-    }
-
-    // Validate the actual native-domain values returned to the queue, without
-    // changing the graph's complete deployed output.
-    bool finalOutputIsFinite = true;
-    for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+  // Validate the actual native-domain values returned to the queue, without
+  // changing the graph's complete deployed output.
+  bool finalOutputIsFinite = true;
+  for (size_t ch = 0; ch < static_cast<size_t>(kNumChannels); ++ch) {
+    finalOutputIsFinite =
+        finalOutputIsFinite &&
+        allFinite(alignedInput[ch].data(), alignedInput[ch].size());
+    for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
       finalOutputIsFinite =
-          finalOutputIsFinite &&
-          allFinite(alignedInput[ch].data(), alignedInput[ch].size());
-      for (size_t stem = 0; stem < static_cast<size_t>(kNumStems); ++stem) {
-        finalOutputIsFinite =
-            finalOutputIsFinite && allFinite(outputChunks[stem][ch].data(),
-                                             outputChunks[stem][ch].size());
-      }
+          finalOutputIsFinite && allFinite(outputChunks[stem][ch].data(),
+                                           outputChunks[stem][ch].size());
     }
-    if (!finalOutputIsFinite) {
-      DBG("[ORT] Non-finite native streaming output; resetting recurrent "
-          "state");
-      outputValid = false;
-      for (auto& channel : alignedInput) {
+  }
+  if (!finalOutputIsFinite) {
+    DBG("[ORT] Non-finite native streaming output; resetting recurrent "
+        "state");
+    outputValid = false;
+    for (auto& channel : alignedInput) {
+      std::fill(channel.begin(), channel.end(), 0.0f);
+    }
+    for (auto& stem : outputChunks) {
+      for (auto& channel : stem) {
         std::fill(channel.begin(), channel.end(), 0.0f);
       }
-      for (auto& stem : outputChunks) {
-        for (auto& channel : stem) {
-          std::fill(channel.begin(), channel.end(), 0.0f);
-        }
-      }
-      clearStreamingState();
-      return false;
     }
+    clearStreamingState();
+    return false;
+  }
 
-    std::memcpy(audioHistory_.data(), nextAudioHistoryBuffer_.data(),
-                historyElements * sizeof(float));
-    std::memcpy(spectralNumeratorTail_.data(),
-                nextSpectralNumeratorTail_.data(),
-                tailElements * sizeof(float));
-    std::memcpy(waveformTail_.data(), nextWaveformTail_.data(),
-                tailElements * sizeof(float));
-    std::memcpy(fusionHidden_.data(), nextFusionHiddenBuffer_.data(),
-                hiddenElements * sizeof(float));
-    std::memcpy(attentionKeys_.data(), nextAttentionKeys_.data(),
-                qualified_model::kAttentionKeyElements * sizeof(float));
-    std::memcpy(attentionValues_.data(), nextAttentionValues_.data(),
-                qualified_model::kAttentionValueElements * sizeof(float));
-    std::memcpy(specMemoryHidden_.data(), nextSpecMemoryHidden_.data(),
-                qualified_model::kSpecMemoryHiddenElements * sizeof(float));
-    std::memcpy(waveformMemoryHidden_.data(), nextWaveformMemoryHidden_.data(),
-                qualified_model::kWaveformMemoryHiddenElements * sizeof(float));
-    std::memcpy(previousAlignedInput_.data(), audioChunkBuffer_.data(),
-                audioElements * sizeof(float));
-    hasPreviousAlignedInput_ = true;
+  for (size_t i = 0; i < states_.size(); ++i) {
+    std::memcpy(states_[i].data(), nextStates_[i].data(),
+                states_[i].size() * sizeof(float));
+  }
+  std::memcpy(previousAlignedInput_.data(), audioChunkBuffer_.data(),
+              audioElements * sizeof(float));
+  hasPreviousAlignedInput_ = true;
 
-    return true;
+  return true;
 }
 
 juce::String OnnxRuntime::getStatusString() const {

@@ -1,138 +1,70 @@
 include_guard(GLOBAL)
 
-# Sole source of model identity, geometry and metadata for runtime and packaging.
-# The source EMA checkpoint scores 4.564402 dB on the development panel.
-# Deployment quality is measured separately. M4 timing remains unqualified.
-# Eight persistent states; 128 graph + 128 queue = 256 samples.
-# The QUALIFIED prefix denotes this identity lock, not a timing guarantee.
-
-set(STEMGENRT_QUALIFIED_CONTRACT_ID "stemgenrt58-teacher004-ema-step45750-int8-pdc256")
-set(STEMGENRT_QUALIFIED_MODEL_SHA256 "77164d6a581fafb2a31f53fd8ffde44c07cf618472952a4cdba14e68dda3b8b9")
-set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE "37529132")
-set(STEMGENRT_QUALIFIED_CHECKPOINT_SHA256 "7fcd444f83985c0aab0c76923c4355fea3c3e11aa32c81410a6bb9388b755154")
-set(STEMGENRT_QUALIFIED_MODEL_STATE_SHA256 "f78c49b3755d6a71b7890482d3a40a5662b417b7a63ed3ad9d393cfb0da0037b")
-set(STEMGENRT_QUALIFIED_SAMPLE_RATE "44100")
-set(STEMGENRT_QUALIFIED_CHANNELS "2")
-set(STEMGENRT_QUALIFIED_STEMS "4")
-set(STEMGENRT_QUALIFIED_HOP_SAMPLES "128")
-set(STEMGENRT_QUALIFIED_ANALYSIS_WINDOW_SAMPLES "1024")
-set(STEMGENRT_QUALIFIED_ANALYSIS_HISTORY_SAMPLES "896")
-set(STEMGENRT_QUALIFIED_SYNTHESIS_FRAME_SAMPLES "256")
-set(STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS "2")
-set(STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE "1000")
-set(STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS "1")
-set(STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS "1")
-set(STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX "0")
-set(STEMGENRT_QUALIFIED_BASS_SOURCE_INDEX "1")
-set(STEMGENRT_QUALIFIED_VOCALS_SOURCE_INDEX "2")
-set(STEMGENRT_QUALIFIED_OTHER_SOURCE_INDEX "3")
-set(STEMGENRT_QUALIFIED_RESIDUAL_SOURCE_INDEX "${STEMGENRT_QUALIFIED_OTHER_SOURCE_INDEX}")
-set(STEMGENRT_QUALIFIED_OUTPUT_ALIGNMENT "previous_input_chunk")
-set(STEMGENRT_QUALIFIED_INPUT_AUDIO_NAME "audio_chunk")
-set(STEMGENRT_QUALIFIED_INPUT_AUDIO_SHAPE "1, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-set(STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_NAME "separated_chunk")
-set(STEMGENRT_QUALIFIED_OUTPUT_SEPARATED_SHAPE "1, ${STEMGENRT_QUALIFIED_STEMS}, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-set(STEMGENRT_QUALIFIED_INPUT_HISTORY_NAME "audio_history")
-set(STEMGENRT_QUALIFIED_INPUT_HISTORY_SHAPE "1, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_ANALYSIS_HISTORY_SAMPLES}")
-set(STEMGENRT_QUALIFIED_OUTPUT_HISTORY_NAME "next_audio_history")
-set(STEMGENRT_QUALIFIED_OUTPUT_HISTORY_SHAPE "1, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_ANALYSIS_HISTORY_SAMPLES}")
-set(STEMGENRT_QUALIFIED_INPUT_HIDDEN_NAME "fusion_hidden")
-set(STEMGENRT_QUALIFIED_INPUT_HIDDEN_SHAPE "${STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS}, 1, ${STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE}")
-set(STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_NAME "next_fusion_hidden")
-set(STEMGENRT_QUALIFIED_OUTPUT_HIDDEN_SHAPE "${STEMGENRT_QUALIFIED_FUSION_HIDDEN_LAYERS}, 1, ${STEMGENRT_QUALIFIED_FUSION_HIDDEN_SIZE}")
-set(STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_NAME "spectral_numerator_tail")
-set(STEMGENRT_QUALIFIED_INPUT_SPECTRAL_TAIL_SHAPE "1, ${STEMGENRT_QUALIFIED_STEMS}, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-set(STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_NAME "next_spectral_numerator_tail")
-set(STEMGENRT_QUALIFIED_OUTPUT_SPECTRAL_TAIL_SHAPE "1, ${STEMGENRT_QUALIFIED_STEMS}, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-set(STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_NAME "waveform_tail")
-set(STEMGENRT_QUALIFIED_INPUT_WAVEFORM_TAIL_SHAPE "1, ${STEMGENRT_QUALIFIED_STEMS}, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-set(STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_NAME "next_waveform_tail")
-set(STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_TAIL_SHAPE "1, ${STEMGENRT_QUALIFIED_STEMS}, ${STEMGENRT_QUALIFIED_CHANNELS}, ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-
-math(EXPR STEMGENRT_QUALIFIED_GRAPH_DELAY_SAMPLES
-     "${STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS} * ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-math(EXPR STEMGENRT_QUALIFIED_QUEUE_DELAY_SAMPLES
-     "${STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS} * ${STEMGENRT_QUALIFIED_HOP_SAMPLES}")
-math(EXPR STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS
-     "${STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS} + ${STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS}")
-math(EXPR STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES
-     "${STEMGENRT_QUALIFIED_GRAPH_DELAY_SAMPLES} + ${STEMGENRT_QUALIFIED_QUEUE_DELAY_SAMPLES}")
-
-set(STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_NAME "attention_keys")
-set(STEMGENRT_QUALIFIED_INPUT_ATTENTION_KEYS_SHAPE "1, 31, 64")
-set(STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_NAME "next_attention_keys")
-set(STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_KEYS_SHAPE "1, 31, 64")
-set(STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_NAME "attention_values")
-set(STEMGENRT_QUALIFIED_INPUT_ATTENTION_VALUES_SHAPE "1, 31, 128")
-set(STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_NAME "next_attention_values")
-set(STEMGENRT_QUALIFIED_OUTPUT_ATTENTION_VALUES_SHAPE "1, 31, 128")
-
-set(STEMGENRT_QUALIFIED_INPUT_SPEC_MEMORY_HIDDEN_NAME "spec_memory_hidden")
-set(STEMGENRT_QUALIFIED_INPUT_SPEC_MEMORY_HIDDEN_SHAPE "1, 1, 500")
-set(STEMGENRT_QUALIFIED_OUTPUT_SPEC_MEMORY_HIDDEN_NAME "next_spec_memory_hidden")
-set(STEMGENRT_QUALIFIED_OUTPUT_SPEC_MEMORY_HIDDEN_SHAPE "1, 1, 500")
-set(STEMGENRT_QUALIFIED_INPUT_WAVEFORM_MEMORY_HIDDEN_NAME "waveform_memory_hidden")
-set(STEMGENRT_QUALIFIED_INPUT_WAVEFORM_MEMORY_HIDDEN_SHAPE "1, 1, 500")
-set(STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_MEMORY_HIDDEN_NAME "next_waveform_memory_hidden")
-set(STEMGENRT_QUALIFIED_OUTPUT_WAVEFORM_MEMORY_HIDDEN_SHAPE "1, 1, 500")
-
-set(STEMGENRT_QUALIFIED_METADATA_RUNTIME_VARIANT [==[branch-memory-seventeen-fused-qkv-u8s8-reduced-precise-v1]==])
-set(STEMGENRT_QUALIFIED_METADATA_STATE_FAMILY [==[latency58-attention-private-branch-gru500-zero-projections-v1]==])
-set(STEMGENRT_QUALIFIED_METADATA_ARCHITECTURE [==[{"additional_audio_buffering_samples": 0, "additional_fft_transforms": 0, "additional_neural_parameters": 4952632, "additional_state_elements_per_stream": 6952, "additional_state_tensors": 4, "branch_memory_added_state_elements_per_stream": 1000, "branch_memory_added_state_tensors": 2, "branch_memory_channels": 500, "branch_memory_input": "normalized refined branch features before attention", "branch_memory_layers": 1, "branch_memory_output": "zero-initialized linear residual after branch normalization", "branch_memory_parameters": 3506000, "carrier_forward_fft_reused_from_features": true, "carrier_n_fft": 1024, "component_semantics": "spectral and waveform are before discrepancy correction", "encoder_initialization": "FP64 effective-kernel window transfer, rounded once to FP32", "encoder_transfer_bf16_equivalence_claimed": false, "extra_audio_buffering_samples": 0, "extra_stream_state_tensors": 0, "feature_history_samples": 896, "feature_n_fft": 1024, "feature_window": "Wang2021 K1024 M128 d0 asymmetric analysis", "fixed_residual_share": 0.0625, "flush_hops": 1, "fusion_refinement": "fused + expand(SiLU(reduce(fused))) before branch normalization", "fusion_refinement_input_features": 1000, "fusion_refinement_parameters": 256000, "fusion_refinement_rank": 128, "future_callbacks_beyond_received_input": 0, "graph_alignment_samples": 128, "hop_samples": 128, "host_queue_implemented_in_this_module": false, "host_queue_samples": 128, "intended_total_latency_samples": 256, "magnitude_features": "log1p(sqrt(real^2+imag^2+1e-12)/sqrt(max(frame_mean_power,1e-8)))", "magnitude_normalization_axes": "current-frame stereo and frequency only", "native_host_qualified": false, "output_policy_version": "latency58-c204-fixed-residual-sixteenth-v1", "phase_correction": "i*carrier times source-centered real coefficients at interior bins", "phase_correction_coordinate": "before inherited source calibration and discrepancy correction", "phase_endpoint_coefficients": "exact zero at DC and Nyquist", "phase_head_parameters": 293632, "phase_head_rank": 64, "precision": "float32", "public_fusion_state_scale": 3.814697265625e-06, "raw_output_semantics": "native DBV plus fixed discrepancy correction; native Other", "recurrent_cadence_changed_from_hann_hop128_parent": false, "sample_rate": 44100, "samplewise_latest_input_minus_output": "255-p for output callback sample p=0..127", "source_order": ["drums", "bass", "vocals", "other"], "spectral_denominator_rule": "sum of the two analysis-synthesis overlap products", "spectral_mask_bins": 513, "spectral_output_crop": [768, 1024], "spectral_synthesis_window": "matched pair with Hann256 analysis-synthesis product", "state_family": "latency58-attention-private-branch-gru500-zero-projections-v1", "state_names": ["audio_history", "fusion_hidden", "spectral_numerator_tail", "waveform_tail", "attention_keys", "attention_values", "spec_memory_hidden", "waveform_memory_hidden"], "synthesis_frame_samples": 256, "temporal_attention": "refined fused features plus causal softmax(Q K.T / sqrt(64)) V output", "temporal_attention_history_samples": 3968, "temporal_attention_key_channels": 64, "temporal_attention_parameters": 384000, "temporal_attention_value_channels": 128, "temporal_attention_window_frames": 32, "version": "latency58-attention-private-branch-gru500-zero-projections-v1", "waveform_synthesis_window": "unchanged periodic Hann256"}]==])
-set(STEMGENRT_QUALIFIED_METADATA_MODEL_STATE_SHA256 [==[f78c49b3755d6a71b7890482d3a40a5662b417b7a63ed3ad9d393cfb0da0037b]==])
-set(STEMGENRT_QUALIFIED_METADATA_SAMPLE_RATE [==[44100]==])
-set(STEMGENRT_QUALIFIED_METADATA_HOP_SAMPLES [==[128]==])
-set(STEMGENRT_QUALIFIED_METADATA_ANALYSIS_FFT_SAMPLES [==[1024]==])
-set(STEMGENRT_QUALIFIED_METADATA_SYNTHESIS_FRAME_SAMPLES [==[256]==])
-set(STEMGENRT_QUALIFIED_METADATA_GRAPH_OUTPUT_DELAY_SAMPLES [==[128]==])
-set(STEMGENRT_QUALIFIED_METADATA_SOURCE_ORDER [==[drums,bass,vocals,other]==])
-set(STEMGENRT_QUALIFIED_METADATA_EXTERNAL_DATA [==[false]==])
-set(STEMGENRT_QUALIFIED_METADATA_STATE_NAMES [==[["audio_history", "fusion_hidden", "spectral_numerator_tail", "waveform_tail", "attention_keys", "attention_values", "spec_memory_hidden", "waveform_memory_hidden"]]==])
-set(STEMGENRT_QUALIFIED_METADATA_STATE_SHAPES [==[[[1, 2, 896], [2, 1, 1000], [1, 4, 2, 128], [1, 4, 2, 128], [1, 31, 64], [1, 31, 128], [1, 1, 500], [1, 1, 500]]]==])
-set(STEMGENRT_QUALIFIED_METADATA_PUBLIC_FUSION_STATE_SCALE [==[3.814697265625e-06]==])
-set(STEMGENRT_QUALIFIED_METADATA_PUBLIC_BRANCH_MEMORY_STATE_SCALE [==[3.814697265625e-06]==])
-set(STEMGENRT_QUALIFIED_METADATA_INITIAL_STATE [==[all_zeros]==])
-set(STEMGENRT_QUALIFIED_METADATA_PREROLL [==[discard_first_output_hop_after_reset]==])
-set(STEMGENRT_QUALIFIED_METADATA_FLUSH_HOPS [==[1]==])
-set(STEMGENRT_QUALIFIED_METADATA_NATIVE_HOST_QUALIFIED [==[false]==])
-set(STEMGENRT_QUALIFIED_METADATA_QUALITY_MEASURED [==[false]==])
-set(STEMGENRT_QUALIFIED_METADATA_OUTPUT_POLICY [==[DBV += (delayed mixture - sum(native raw4))/16; Other = delayed mixture - sum(corrected DBV)]==])
-set(STEMGENRT_QUALIFIED_METADATA_FIXED_RESIDUAL_SHARE [==[0.0625]==])
-set(STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_SHA256 [==[7fcd444f83985c0aab0c76923c4355fea3c3e11aa32c81410a6bb9388b755154]==])
-set(STEMGENRT_QUALIFIED_METADATA_INTEGER_WEIGHT_PRECISION [==[Seventeen S8 symmetric reduced-range matrices [-64,64]]==])
-set(STEMGENRT_QUALIFIED_METADATA_ACTIVATION_QUANTIZATION [==[Dynamic U8 per one-frame projection; FP32 scales and dequantization]==])
-set(STEMGENRT_QUALIFIED_METADATA_INFERENCE_PRECISION [==[FP64 quantizer ancestors; integer projections and output decoding FP32; public states FP32]==])
-set(STEMGENRT_QUALIFIED_METADATA_FLOATING_ADDITIONAL_LAYERS [==[phase factors, fusion refinement, temporal output, GRU biases/nonlinearities]==])
-set(STEMGENRT_QUALIFIED_METADATA_REFINEMENT_SILU_IMPLEMENTATION [==[x / (1 + exp(-x)); FP64 quantizer ancestor]==])
-set(STEMGENRT_QUALIFIED_METADATA_INTEGER_PRECISION_TRANSFORM_SHA256 [==[f53ea1c2023f9ff304e4d5be9bcb57e6faed715947196ea9a719af79b2215dbb]==])
-set(STEMGENRT_QUALIFIED_METADATA_EMBEDDED_QUALITY_SCOPE [==[Source FP32 checkpoint only; deployment graph quality is recorded separately]==])
-set(STEMGENRT_QUALIFIED_METADATA_PARENT_STEMGENRT_PRECISE_NODE_COUNT [==[396]==])
-set(STEMGENRT_QUALIFIED_METADATA_PARENT_STEMGENRT_INTEGER_EXPORTER_SHA256 [==[189ca340d41422ca042131fbeb44d8c5a90968423bc4e7227ac22ded0a2075c9]==])
-set(STEMGENRT_QUALIFIED_METADATA_PARENT_GRAPH_SHA256 [==[91bdbc9319e6513d2320d9914de8d0ff2dacafeb2459ea74229b9b6d332fb359]==])
-set(STEMGENRT_QUALIFIED_METADATA_INTEGER_EXPORTER_SHA256 [==[4a563c2317f245b76e3135059a6f491aafa95b6bff3d13e2beeb9e9198e6f589]==])
-set(STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_BRANCH_INTEGER_PROJECTIONS [==[4]==])
-set(STEMGENRT_QUALIFIED_METADATA_DEPLOYMENT_QUALITY_STATUS [==[unmeasured; parent score does not score this graph]==])
-set(STEMGENRT_QUALIFIED_METADATA_PARENT_FOURTEEN_EXPORTER_SHA256 [==[c547aa9375a58918fd1cc80483ef6c1daaa145716d860ad8d62b61bf9eda0820]==])
-set(STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_BRANCH_OUTPUT_INTEGER_PROJECTIONS [==[2]==])
-set(STEMGENRT_QUALIFIED_METADATA_ATTENTION_FUSION_EXPORTER_SHA256 [==[2b63eeb90d32d378155f73b346258e5ea50eb5c50f280a17d000d53dd351f62b]==])
-set(STEMGENRT_QUALIFIED_METADATA_ATTENTION_PROJECTION_FUSION [==[QKV columns concatenated; FP64 product and original query last-frame slice]==])
-set(STEMGENRT_QUALIFIED_METADATA_PARENT_SIXTEEN_EXPORTER_SHA256 [==[dbb298b58738b98471d4a5e25c31288fa07bb22e211d9973f73555ccbabfdeb5]==])
-set(STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_ATTENTION_INTEGER_PRODUCTS [==[One fused QKV product; three column groups]==])
-set(STEMGENRT_QUALIFIED_METADATA_MODEL_NAME [==[StemgenRT-5.8]==])
-set(STEMGENRT_QUALIFIED_METADATA_CHECKPOINT_WEIGHT_ROLE [==[averaged_inference]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_PLAN_SHA256 [==[2ef8b5720e7a232936b404106a4d526421090aec0262e317f0ed26802a4c36cd]==])
-set(STEMGENRT_QUALIFIED_METADATA_SNAPSHOT_STEP [==[2000]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_UPDATES [==[45750]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_PRECISION [==[bf16 learned operations; FP32 synthesis and public states]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_TEACHER_USED [==[true]==])
-set(STEMGENRT_QUALIFIED_METADATA_TEACHER_USED_IN_INFERENCE [==[false]==])
-set(STEMGENRT_QUALIFIED_METADATA_TEACHER_COEFFICIENT [==[1.0]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_OBJECTIVE [==[prospective-ordinary-primary-sdr-two-fifths-v1]==])
-set(STEMGENRT_QUALIFIED_METADATA_ORDINARY_PRIMARY_SDR_WEIGHT [==[0.4]==])
-set(STEMGENRT_QUALIFIED_METADATA_TRAINING_TRACKS [==[301]==])
-set(STEMGENRT_QUALIFIED_METADATA_SOURCE_CHECKPOINT_FULL14_SDR_DB [==[4.564401858994641]==])
-set(STEMGENRT_QUALIFIED_METADATA_SOURCE_CHECKPOINT_FULL14_RESULT_SHA256 [==[fc1319e23b36524d70a526bb46f1afa8b9bf0285a917d431d5e9d4723166b52c]==])
-set(STEMGENRT_QUALIFIED_METADATA_INTENDED_EXTERNAL_HOST_QUEUE_SAMPLES [==[128]==])
-set(STEMGENRT_QUALIFIED_METADATA_INTENDED_TOTAL_LATENCY_SAMPLES [==[256]==])
-set(STEMGENRT_QUALIFIED_METADATA_ADDITIONAL_AUDIO_BUFFERING_SAMPLES [==[0]==])
-set(STEMGENRT_QUALIFIED_METADATA_EXPORTER_SHA256 [==[19729cb5e8ed185fa6424cb75814bde025f652172b97aeeb3863fcc5db511cf1]==])
+# Generated by scripts/generate-independent-contract.py.
+# Experimental model identity lock; physical M4 performance is not qualified.
+# Analysis window/history constants describe the 1024-point carrier; bass
+# also carries a trailing 4096-point feature window in its own state.
+set(STEMGENRT_QUALIFIED_CONTRACT_ID [==[experimental-independent-dbv-40000-ema-fp32-v1]==])
+set(STEMGENRT_QUALIFIED_MODEL_SHA256 [==[0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7]==])
+set(STEMGENRT_QUALIFIED_MODEL_BYTE_SIZE [==[31946241]==])
+set(STEMGENRT_QUALIFIED_CHECKPOINT_SHA256 [==[b4aa56be31c275d157b96313512e0e45986103ef2fe8b09087e3e2aab8d11c46]==])
+set(STEMGENRT_QUALIFIED_MODEL_STATE_SHA256 [==[b4ea6797d07f0149a6ab45fe0e5e291cfb5114862bb9abcc483d3c87284792d0]==])
+set(STEMGENRT_QUALIFIED_SAMPLE_RATE [==[44100]==])
+set(STEMGENRT_QUALIFIED_CHANNELS [==[2]==])
+set(STEMGENRT_QUALIFIED_STEMS [==[4]==])
+set(STEMGENRT_QUALIFIED_HOP_SAMPLES [==[128]==])
+set(STEMGENRT_QUALIFIED_ANALYSIS_WINDOW_SAMPLES [==[1024]==])
+set(STEMGENRT_QUALIFIED_ANALYSIS_HISTORY_SAMPLES [==[896]==])
+set(STEMGENRT_QUALIFIED_SYNTHESIS_FRAME_SAMPLES [==[256]==])
+set(STEMGENRT_QUALIFIED_MODEL_OUTPUT_DELAY_CHUNKS [==[1]==])
+set(STEMGENRT_QUALIFIED_ASYNC_QUEUE_DELAY_CHUNKS [==[1]==])
+set(STEMGENRT_QUALIFIED_PLUGIN_LATENCY_CHUNKS [==[2]==])
+set(STEMGENRT_QUALIFIED_PLUGIN_LATENCY_SAMPLES [==[256]==])
+set(STEMGENRT_QUALIFIED_OUTPUT_ALIGNMENT [==[previous_input_chunk]==])
+set(STEMGENRT_QUALIFIED_DRUMS_SOURCE_INDEX [==[0]==])
+set(STEMGENRT_QUALIFIED_BASS_SOURCE_INDEX [==[1]==])
+set(STEMGENRT_QUALIFIED_VOCALS_SOURCE_INDEX [==[2]==])
+set(STEMGENRT_QUALIFIED_OTHER_SOURCE_INDEX [==[3]==])
+set(STEMGENRT_QUALIFIED_RESIDUAL_SOURCE_INDEX [==[3]==])
+set(STEMGENRT_QUALIFIED_INPUT_NAMES_CPP [==["audio_chunk",
+    "drums_audio_history",
+    "drums_local_hidden",
+    "drums_global_hidden",
+    "drums_spectral_numerator_tail",
+    "drums_waveform_numerator_tail",
+    "bass_audio_history",
+    "bass_local_hidden",
+    "bass_global_hidden",
+    "bass_spectral_numerator_tail",
+    "vocals_audio_history",
+    "vocals_local_hidden",
+    "vocals_global_hidden",
+    "vocals_spectral_numerator_tail"]==])
+set(STEMGENRT_QUALIFIED_OUTPUT_NAMES_CPP [==["separated_chunk",
+    "next_drums_audio_history",
+    "next_drums_local_hidden",
+    "next_drums_global_hidden",
+    "next_drums_spectral_numerator_tail",
+    "next_drums_waveform_numerator_tail",
+    "next_bass_audio_history",
+    "next_bass_local_hidden",
+    "next_bass_global_hidden",
+    "next_bass_spectral_numerator_tail",
+    "next_vocals_audio_history",
+    "next_vocals_local_hidden",
+    "next_vocals_global_hidden",
+    "next_vocals_spectral_numerator_tail"]==])
+set(STEMGENRT_QUALIFIED_STATE_SHAPES_CPP [==[StateShape{{1, 2, 896, 0}, 3},
+    StateShape{{2, 20, 96, 0}, 3},
+    StateShape{{2, 1, 192, 0}, 3},
+    StateShape{{1, 1, 2, 128}, 4},
+    StateShape{{1, 1, 2, 128}, 4},
+    StateShape{{1, 2, 3968, 0}, 3},
+    StateShape{{2, 17, 80, 0}, 3},
+    StateShape{{2, 1, 160, 0}, 3},
+    StateShape{{1, 1, 2, 128}, 4},
+    StateShape{{1, 2, 896, 0}, 3},
+    StateShape{{2, 20, 96, 0}, 3},
+    StateShape{{2, 1, 192, 0}, 3},
+    StateShape{{1, 1, 2, 128}, 4}]==])
+set(STEMGENRT_QUALIFIED_METADATA_JSON [==[{"architecture": {"flush_hops": 1, "graph_alignment_samples": 128, "hop_samples": 128, "intended_total_latency_samples": 256, "models": {"bass": {"band_edges": [0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 160, 256, 384, 513], "band_packing": "independent equal-width groups", "band_width": 80, "carrier_n_fft": 1024, "feature_history_samples": 3968, "feature_n_fft": 4096, "feature_normalization": "separate current-frame stereo/bin RMS for each FFT; no temporal statistics", "flush_hops": 1, "future_callbacks_beyond_received_input": 0, "global_width": 160, "graph_alignment_samples": 128, "hop_samples": 128, "host_queue_implemented_in_this_module": false, "host_queue_samples": 128, "intended_total_latency_samples": 256, "layers": 2, "long_feature_band_edges": [0, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 640, 1024, 1536, 2049], "long_feature_window": "trailing periodic Hann", "native_host_qualified": false, "output_policy": "one independent complex mask with optional waveform residual; no source correction", "precision": "FP32 throughout; BF16 training is unsupported", "sample_rate": 44100, "source_order": ["bass"], "spectral_mask_bins": 513, "spectral_output_crop": [768, 1024], "state_names": ["audio_history", "local_hidden", "global_hidden", "spectral_numerator_tail"], "synthesis_frame_samples": 256, "version": "causal-independent-stem-specialists-v1", "waveform_basis": 0, "waveform_frame_samples": 0}, "drums": {"band_edges": [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 192, 240, 288, 352, 416, 513], "band_packing": "independent equal-width groups", "band_width": 96, "carrier_n_fft": 1024, "feature_history_samples": 896, "feature_n_fft": 1024, "feature_normalization": "separate current-frame stereo/bin RMS for each FFT; no temporal statistics", "flush_hops": 1, "future_callbacks_beyond_received_input": 0, "global_width": 192, "graph_alignment_samples": 128, "hop_samples": 128, "host_queue_implemented_in_this_module": false, "host_queue_samples": 128, "intended_total_latency_samples": 256, "layers": 2, "long_feature_band_edges": [], "long_feature_window": null, "native_host_qualified": false, "output_policy": "one independent complex mask with optional waveform residual; no source correction", "precision": "FP32 throughout; BF16 training is unsupported", "sample_rate": 44100, "source_order": ["drums"], "spectral_mask_bins": 513, "spectral_output_crop": [768, 1024], "state_names": ["audio_history", "local_hidden", "global_hidden", "spectral_numerator_tail", "waveform_numerator_tail"], "synthesis_frame_samples": 256, "version": "causal-independent-stem-specialists-v1", "waveform_basis": 256, "waveform_frame_samples": 256}, "vocals": {"band_edges": [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 192, 240, 288, 352, 416, 513], "band_packing": "independent equal-width groups", "band_width": 96, "carrier_n_fft": 1024, "feature_history_samples": 896, "feature_n_fft": 1024, "feature_normalization": "current-frame stereo/bin RMS; no temporal statistics", "flush_hops": 1, "future_callbacks_beyond_received_input": 0, "global_width": 192, "graph_alignment_samples": 128, "hop_samples": 128, "host_queue_implemented_in_this_module": false, "host_queue_samples": 128, "intended_total_latency_samples": 256, "layers": 2, "native_host_qualified": false, "output_policy": "independent complex masks; no source correction", "precision": "FP32 throughout; BF16 training is unsupported", "sample_rate": 44100, "source_order": ["vocals"], "spectral_mask_bins": 513, "spectral_output_crop": [768, 1024], "state_names": ["audio_history", "local_hidden", "global_hidden", "spectral_numerator_tail"], "synthesis_frame_samples": 256, "version": "causal-band-local-global-v1"}}, "native_host_qualified": false, "output_policy": "independent DBV; Other is mixture minus DBV", "sample_rate": 44100, "source_order": ["drums", "bass", "vocals", "other"], "version": "independent-dbv-physical-residual-other-v1"}, "child_weight_sha256": {"bass": "5973ee18cc9d808f28879aaaa2f9b443dd43fd6e803139ff0a2affecce2b0a43", "drums": "923701361e50db8418e1b9e17f5b3f1728857e1707024ca1c3820d459f708cf6", "vocals": "8cc9049fcd80875249e2d1e9b116397eb7f218897a9598d8d6166f09371b744e"}, "flush_hops": 1, "graph_alignment_samples": 128, "hop_samples": 128, "initial_state": "all_zeros", "input_level": "unchanged", "interface": {"input_names": ["audio_chunk", "drums_audio_history", "drums_local_hidden", "drums_global_hidden", "drums_spectral_numerator_tail", "drums_waveform_numerator_tail", "bass_audio_history", "bass_local_hidden", "bass_global_hidden", "bass_spectral_numerator_tail", "vocals_audio_history", "vocals_local_hidden", "vocals_global_hidden", "vocals_spectral_numerator_tail"], "input_shapes": [[1, 2, 128], [1, 2, 896], [2, 20, 96], [2, 1, 192], [1, 1, 2, 128], [1, 1, 2, 128], [1, 2, 3968], [2, 17, 80], [2, 1, 160], [1, 1, 2, 128], [1, 2, 896], [2, 20, 96], [2, 1, 192], [1, 1, 2, 128]], "output_names": ["separated_chunk", "next_drums_audio_history", "next_drums_local_hidden", "next_drums_global_hidden", "next_drums_spectral_numerator_tail", "next_drums_waveform_numerator_tail", "next_bass_audio_history", "next_bass_local_hidden", "next_bass_global_hidden", "next_bass_spectral_numerator_tail", "next_vocals_audio_history", "next_vocals_local_hidden", "next_vocals_global_hidden", "next_vocals_spectral_numerator_tail"], "output_shapes": [[1, 4, 2, 128], [1, 2, 896], [2, 20, 96], [2, 1, 192], [1, 1, 2, 128], [1, 1, 2, 128], [1, 2, 3968], [2, 17, 80], [2, 1, 160], [1, 1, 2, 128], [1, 2, 896], [2, 20, 96], [2, 1, 192], [1, 1, 2, 128]], "state_groups": {"bass": {"count": 4, "offset": 5}, "drums": {"count": 5, "offset": 0}, "vocals": {"count": 4, "offset": 9}}, "state_names": ["drums_audio_history", "drums_local_hidden", "drums_global_hidden", "drums_spectral_numerator_tail", "drums_waveform_numerator_tail", "bass_audio_history", "bass_local_hidden", "bass_global_hidden", "bass_spectral_numerator_tail", "vocals_audio_history", "vocals_local_hidden", "vocals_global_hidden", "vocals_spectral_numerator_tail"]}, "native_host_qualified": false, "output_alignment": "previous_input_hop", "precision": "fp32", "preroll": "one_invalid_hop", "provenance": {"bass": {"architecture_version": "causal-independent-stem-specialists-v1", "branch_memory_current_stage_augmentation": {"address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1", "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1", "complete_scored_one_second_windows": 4, "encoding": "FFmpeg float32 stereo in and out", "expanded_crop_samples": 300672, "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128", "formants": ["shifted", "shifted", "preserved", "shifted"], "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1", "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation", "returned_crop_samples": 264576, "scored_samples": 176512, "selected_crop_offset": "expanded addressed read; differs from original crop offset", "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture", "selection_probability": 0.2, "semitones_uniform_inclusive": [-2, 2], "source_order": ["drums", "bass", "vocals", "other"], "tempo_percent_clamp": [-12.0, 12.0], "tempo_percent_normal_std": 5.0, "transients": ["crisp", "smooth", "smooth", "smooth"], "unselected_crop": "original addressed dataset bit exact", "version": "latency58-four-second-score-pitch-tempo-remix-v1", "warmup_samples": 88064}, "checkpoint_weight_role": "averaged_inference", "current_stage_updates": 40000, "initialization": "scratch", "parent_training_updates": 0, "quality_measured": false, "training_updates": 40000, "weight_averaging": {"base_state_sha256": "c59a3e6fc1d4ce23fb6411af3599996bfb813f1282d57f7b6db0bcea93d3b7e0", "decay": 0.995, "ema_parameters_sha256": "b5afa63d8952f2c5bcc964c779d7e9a3f48ab0d786a973f8eab794e6c60a2fed", "raw_state_sha256": "6f937171b24b8206ca6566177545f6eedc5cf31a22b877d350df4c1e98f254e7", "schema": "latency58-branch-parameter-ema-v1", "updates": 40000}}, "drums": {"architecture_version": "causal-independent-stem-specialists-v1", "branch_memory_current_stage_augmentation": {"address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1", "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1", "complete_scored_one_second_windows": 4, "encoding": "FFmpeg float32 stereo in and out", "expanded_crop_samples": 300672, "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128", "formants": ["shifted", "shifted", "preserved", "shifted"], "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1", "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation", "returned_crop_samples": 264576, "scored_samples": 176512, "selected_crop_offset": "expanded addressed read; differs from original crop offset", "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture", "selection_probability": 0.2, "semitones_uniform_inclusive": [-2, 2], "source_order": ["drums", "bass", "vocals", "other"], "tempo_percent_clamp": [-12.0, 12.0], "tempo_percent_normal_std": 5.0, "transients": ["crisp", "smooth", "smooth", "smooth"], "unselected_crop": "original addressed dataset bit exact", "version": "latency58-four-second-score-pitch-tempo-remix-v1", "warmup_samples": 88064}, "checkpoint_weight_role": "averaged_inference", "current_stage_updates": 40000, "initialization": "scratch", "parent_training_updates": 0, "quality_measured": false, "training_updates": 40000, "weight_averaging": {"base_state_sha256": "6c4a21daf65485b13a610715385c96b5da23330e5a0657aa510e9b747b99942a", "decay": 0.995, "ema_parameters_sha256": "c86c1daff864ba765af9e595646390f4ddaa991b6ddb68800574cdbbdfca65da", "raw_state_sha256": "2e1a54caae7ae0f5321288f7da07abd507ad4e1bb542d35ba1388d88cced8ec7", "schema": "latency58-branch-parameter-ema-v1", "updates": 40000}}, "vocals": {"architecture_version": "causal-band-local-global-v1", "branch_memory_current_stage_augmentation": {"address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1", "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1", "complete_scored_one_second_windows": 4, "encoding": "FFmpeg float32 stereo in and out", "expanded_crop_samples": 300672, "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128", "formants": ["shifted", "shifted", "preserved", "shifted"], "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1", "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation", "returned_crop_samples": 264576, "scored_samples": 176512, "selected_crop_offset": "expanded addressed read; differs from original crop offset", "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture", "selection_probability": 0.2, "semitones_uniform_inclusive": [-2, 2], "source_order": ["drums", "bass", "vocals", "other"], "tempo_percent_clamp": [-12.0, 12.0], "tempo_percent_normal_std": 5.0, "transients": ["crisp", "smooth", "smooth", "smooth"], "unselected_crop": "original addressed dataset bit exact", "version": "latency58-four-second-score-pitch-tempo-remix-v1", "warmup_samples": 88064}, "checkpoint_weight_role": "averaged_inference", "current_stage_updates": 40000, "initialization": "scratch", "parent_training_updates": 0, "quality_measured": false, "training_updates": 40000, "weight_averaging": {"base_state_sha256": "df855841a384e07b2e8e7ce3b14241cb56e7d38d4a8d5c768b4a1e982633b661", "decay": 0.995, "ema_parameters_sha256": "3614a0c6fa2b70c08f468e59705ccd48d1d4bc35fbc24ceda901d39245d2aaea", "raw_state_sha256": "81f37d54a7abc6582e608712ea289d7e0e88189a96039fbedde56054d4c2aa33", "schema": "latency58-branch-parameter-ema-v1", "updates": 40000}}}, "quality_measured": false, "residual": "physical_mixture_minus_((drums+bass)+vocals)", "sample_rate": 44100, "schema": "stemgenrt-experimental-independent-onnx-v1", "state_count": 13, "weight_sha256": "b4ea6797d07f0149a6ab45fe0e5e291cfb5114862bb9abcc483d3c87284792d0"}]==])

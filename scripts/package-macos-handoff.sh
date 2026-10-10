@@ -1,5 +1,5 @@
 #!/bin/bash
-# Seal the exact current cropped1024 source snapshot for transfer to the target Mac.
+# Seal the exact current independent DBV source snapshot for transfer to the target Mac.
 
 set -euo pipefail
 
@@ -77,7 +77,7 @@ for required_path in \
     scripts/package-macos-handoff.sh \
     cmake/QualifiedModelContract.cmake \
     cmake/PrintModelContract.cmake \
-    test/fixtures/cropped1024-pytorch.bin \
+    test/fixtures/independent-pytorch.bin \
     test/source/CroppedModelParityTest.cpp \
     test/source/RealtimeStemSanityTest.cpp; do
     grep -Fxq "$required_path" "$FILE_LIST" ||
@@ -112,7 +112,7 @@ cp "$FILE_LIST" "$SOURCE_ROOT/SOURCE_FILES.txt"
 ) > "$SOURCE_ROOT/SOURCE_MANIFEST.sha256"
 
 cat > "$SOURCE_ROOT/HANDOFF_README.md" <<'EOF'
-# Hop128 5.8 ms experimental target-Mac handoff
+# Independent DBV 5.8 ms experimental target-Mac handoff
 
 This is an exact source snapshot, not a promoted release.
 
@@ -144,7 +144,7 @@ EOF
     shasum -a 256 -c HANDOFF_CONTENTS.sha256 >/dev/null
 )
 
-ARCHIVE_NAME="hop128-5ms-source.tar.gz"
+ARCHIVE_NAME="independent-dbv-source.tar.gz"
 ARCHIVE_TMP="$OUTPUT_DIR/.${ARCHIVE_NAME}.tmp"
 tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
     -C "$SOURCE_ROOT" -cf - . | gzip -n > "$ARCHIVE_TMP"

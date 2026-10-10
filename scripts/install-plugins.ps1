@@ -25,7 +25,7 @@ $ProjectRoot = Split-Path -Parent $ScriptDir
 $ArtefactsDir = Join-Path $ProjectRoot "$BuildDir\plugin\AudioPlugin_artefacts"
 
 # Plugin paths (MSBuild puts artifacts in a config subdirectory)
-$VST3Plugin = Join-Path $ArtefactsDir "$Config\VST3\StemgenRT.vst3"
+$VST3Plugin = Join-Path $ArtefactsDir "$Config\VST3\StemgenRT Independent.vst3"
 
 # System plugin directories (Windows standard locations)
 $VST3DestSystem = "C:\Program Files\Common Files\VST3"
@@ -56,7 +56,7 @@ if (Test-Path $VST3Plugin) {
         New-Item -ItemType Directory -Path $VST3Dest -Force | Out-Null
     }
     
-    $DestPath = Join-Path $VST3Dest "StemgenRT.vst3"
+    $DestPath = Join-Path $VST3Dest "StemgenRT Independent.vst3"
     
     # Remove existing plugin
     if (Test-Path $DestPath) {

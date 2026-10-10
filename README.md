@@ -1,97 +1,55 @@
-# StemgenRT
+# StemgenRT Independent — experimental M4 testing
 
-Separate a stereo music mix into **Drums, Bass, Other and Vocals** in your DAW.
-Main carries the complete delayed mix; the four stem outputs reconstruct it.
+This branch integrates three separately trained 40,000-update EMA models for
+Drums, Bass and Vocals into one FP32 ONNX graph. Other is the aligned input minus
+those three estimates. It uses a distinct plug-in name, bundle ID and host ID,
+so **StemgenRT Independent** can be installed alongside released StemgenRT.
 
-StemgenRT uses a trained [HS-TasNet](https://github.com/sweetspotsoundsystem/HS-TasNet)
-model at **44.1 kHz**, processing 128 samples at a time. With a **128-sample host
-buffer**, the plugin reports **256 samples / 5.80 ms** of delay. Inference runs on
-one dedicated CPU worker, and the audio callback never waits for it.
+This is a test build. Native source-model evaluation found three failed Other
+preservation/leakage guards. The combined ONNX graph and this plug-in still need
+physical M4/M4 Pro numerical and timing results; an earlier model's measurements
+do not qualify this one. See [model details](model/README.md).
 
-## Download
+## Build on an M4 Mac
 
-[StemgenRT 0.6.2](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.6.2)
-includes macOS AU and VST3 for Apple Silicon (macOS 14+) and Windows x86-64 VST3.
-The model and ONNX Runtime are bundled. Replace the complete plugin bundle and
-restart the DAW. macOS downloads are ad-hoc signed, without Developer ID signing
-or notarization. Archive checksums accompany the release.
+Requires macOS 14+, native arm64 CMake/Ninja and Xcode command-line tools. The
+repository includes the trained model and independent PyTorch fixtures via Git
+LFS. A supplied source ZIP contains the real files and needs no LFS checkout.
 
-## Use
-
-1. Set the session to **44.1 kHz** and select a **128-sample buffer** for the
-   lowest reported latency.
-2. Insert StemgenRT on a stereo track and enable its additional stereo outputs.
-3. Route **Main, Drums, Bass, Other, Vocals**. Summing the four stems reconstructs
-   Main; adding Main again doubles the mix.
-
-The editor shows the logo with small white latency and fallback-sample readouts.
-The fallback count remains visible at zero. When a result misses
-its deadline, the complete delayed mix goes to Other for that interval. Late
-results are discarded, and separation fades back in over 64 samples when ready.
-Other sample rates use Main/Other fallback.
-
-Host bypass preserves the reported delay: Main and Other carry the complete
-delayed mix, and Drums, Bass and Vocals are silent. The worker keeps processing
-while bypassed so separation can resume on the current timeline with the usual
-recovery fade. Intentional bypass does not increase the fallback counter.
-Host reset requests clear pending audio and model state at the next callback.
-
-| Prepared host buffer | Reported delay | At 44.1 kHz |
-| --- | --- | --- |
-| 64 | 320 samples | 7.26 ms |
-| 128 | 256 samples | 5.80 ms |
-| 256 | 384 samples | 8.71 ms |
-| 512 | 640 samples | 14.51 ms |
-| 1024 | 1152 samples | 26.12 ms |
-
-Smaller host buffers require an extra scheduling reserve after a complete model
-hop arrives. The host must reprepare the plugin after changing its buffer setup.
-The inference queue is allocated during preparation to hold a complete callback
-burst, including large supported buffers up to 65,536 samples. This prevents
-capacity-related drops; meeting playback deadlines still depends on the machine.
-Offline rendering supports varying callbacks and waits for inference. Render the
-reported tail at transport stop to retain the final samples.
-
-## Build and install
-
-Requirements: CMake 3.22+, C++20, Git LFS and the ONNX Runtime 1.26.0 CPU SDK.
-CMake fetches JUCE 8.0.6 and GoogleTest 1.16.0. macOS builds target Apple Silicon
-and macOS 14 or newer; Windows builds produce VST3.
-
-```bash
-git lfs pull
+```sh
+# Git checkout only: git lfs pull
 ./scripts/download-onnxruntime.sh
-cmake --preset release
-cmake --build --preset release
+cmake --preset release -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build --preset release --parallel 4
 ctest --preset release
 ./scripts/install-plugins.sh --release
+./scripts/qualify-macos.sh ../independent-m4-evidence
 ```
 
-On Windows, use the corresponding `.ps1` download and install scripts. The macOS
-installer replaces complete AU/VST3 bundles and verifies signing. Restart your
-DAW after installation. Existing plugin identifiers and output routing remain
-compatible with saved sessions.
+Use 44.1 kHz for DAW tests. Start at a 128-sample host buffer: the declared graph
+and worker latency is 256 samples (5.805 ms). Other buffer sizes include their
+additional scheduling reserve. Buses are Main, Drums, Bass, Other, Vocals.
+Main remains the complete delayed input. The audio callback never waits for
+inference; worker misses use aligned fallback and are recorded by qualification.
 
-For Linux development, install JUCE's ALSA, FreeType, Fontconfig and X11 headers,
-place the ORT CPU SDK in `libs/onnxruntime`, and configure a Release Ninja build.
+The separate `stemgenrt-independent-trained-m4` worker packet compares the single
+graph against three independent ORT sessions. Its `run_macos.py` needs only Python
+3 and Apple's command-line tools; it does not measure DAW callbacks. The plug-in
+qualification script exercises the complete callback/worker path.
 
-## Model and checks
+## Model and training source
 
-This candidate uses the frozen **StemgenRT-5.8 teacher004 EMA** checkpoint.
-The exact integer graph scores **4.564148 dB SDR**, versus 4.455173 dB
-for shipped v0.6.1 on the unchanged development panel. The FP32 source score
-is 4.564402 dB. See [the model report](model/README.md) for per-stem changes,
-leakage, provenance and evidence boundaries.
+The ONNX file has 14 inputs and 14 outputs: audio plus 13 persistent states.
+Initialize states to zero and carry every returned state unchanged. The first
+output after reset is invalid; each later call emits the preceding 128-sample
+input hop. Pad a partial final hop once and submit exactly one zero flush hop.
+All input levels remain unchanged. See `model/independent-model.json` for the
+full contract and `model/independent-checkpoints.json` for EMA identities.
 
-The 17 integer products, eight states, 128-sample hop and **256-sample total
-latency** with a 128-sample host buffer are retained. The teacher is absent
-from inference. Raw input levels, the confidence fade, residual Other routing,
-one inference worker and `mlas.disable_kleidiai=1` are unchanged.
-
-Independent short/long PyTorch parity and 174 Linux native tests pass.
-Physical M4 parity, sustained zero-fallback playback and listening acceptance
-remain pending for these weights. Follow [the M4 instructions](M4_TESTING.md)
-and preserve the shipped v0.6.1 bundles for comparison and rollback.
-
-Built with [JUCE](https://github.com/juce-framework/JUCE) and
-[ONNX Runtime](https://github.com/microsoft/onnxruntime).
+Matching model, training, objectives, data, recovery, evaluation and export code
+is included at `model/training-source/stemgenrt-0.6.2.tar.gz`. The public research branch
+is `codex/independent-combined-onnx-m4` in
+[StemgenRT-5.8](https://github.com/sweetspotsoundsystem/StemgenRT-5.8).
+The exporter is `scripts/export_independent_model.py` in that source package.
+The package's version number is inherited from the research source and does not
+make this experimental model a v0.6.2 release replacement.

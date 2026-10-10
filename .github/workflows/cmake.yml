@@ -25,9 +25,9 @@ jobs:
         build_type: [Release]
         include:
           - os: macos-15
-            artifact_name: StemgenRT-macOS
+            artifact_name: StemgenRT-Independent-macOS
           - os: windows-latest
-            artifact_name: StemgenRT-Windows
+            artifact_name: StemgenRT-Independent-Windows
 
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
@@ -90,34 +90,34 @@ jobs:
     - name: Archive macOS bundles
       if: matrix.os == 'macos-15'
       run: |
-        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 StemgenRT-macOS-VST3.zip
-        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component StemgenRT-macOS-AU.zip
+        ditto -c -k --keepParent "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT Independent.vst3" StemgenRT-Independent-macOS-VST3.zip
+        ditto -c -k --keepParent "build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT Independent.component" StemgenRT-Independent-macOS-AU.zip
 
     - name: Archive Windows VST3
       if: matrix.os == 'windows-latest'
       shell: pwsh
-      run: Compress-Archive -LiteralPath build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 -DestinationPath StemgenRT-Windows-VST3.zip -Force
+      run: Compress-Archive -LiteralPath "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT Independent.vst3" -DestinationPath StemgenRT-Independent-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
       if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: StemgenRT-macOS-VST3.zip
+        path: StemgenRT-Independent-macOS-VST3.zip
 
     - name: Upload AU (macOS)
       if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-AU
-        path: StemgenRT-macOS-AU.zip
+        path: StemgenRT-Independent-macOS-AU.zip
 
     - name: Upload VST3 (Windows)
       if: matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}-VST3
-        path: StemgenRT-Windows-VST3.zip
+        path: StemgenRT-Independent-Windows-VST3.zip
 
   qualify-macos:
     name: Measure real-time performance on Apple Silicon

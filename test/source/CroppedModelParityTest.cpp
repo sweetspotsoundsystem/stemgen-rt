@@ -24,8 +24,8 @@ struct Reference {
 
 std::vector<Reference> readReferences() {
   const juce::File fixture(juce::String(STEMGENRT_TEST_FIXTURE_DIR) +
-                           "/cropped1024-pytorch.bin");
-  const auto metadata = fixture.getSiblingFile("cropped1024-pytorch.json");
+                           "/independent-pytorch.bin");
+  const auto metadata = fixture.getSiblingFile("independent-pytorch.json");
   juce::var identity;
   const auto parsed = juce::JSON::parse(metadata.loadFileAsString(), identity);
   EXPECT_TRUE(parsed.wasOk()) << metadata.getFullPathName().toStdString();

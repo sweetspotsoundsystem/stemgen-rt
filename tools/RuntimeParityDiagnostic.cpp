@@ -89,13 +89,13 @@ int main(int argc, char** argv) {
       if (mode == "optimizations_disabled")
         options.SetGraphOptimizationLevel(ORT_DISABLE_ALL);
       Ort::Session session(env, argv[1], options);
-      require(session.GetInputCount() == 9 && session.GetOutputCount() == 9,
+      require(session.GetInputCount() == 14 && session.GetOutputCount() == 14,
               "Wrong model ABI");
       Ort::AllocatorWithDefaultOptions allocator;
       std::vector<std::string> inputNames, outputNames;
       std::vector<std::vector<int64_t>> shapes;
       std::vector<std::vector<float>> buffers;
-      for (size_t i = 0; i < 9; ++i) {
+      for (size_t i = 0; i < 14; ++i) {
         inputNames.emplace_back(
             session.GetInputNameAllocated(i, allocator).get());
         outputNames.emplace_back(
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
       require(buffers[0].size() == 256, "Wrong audio shape");
       std::vector<const char*> inputs, outputs;
       std::vector<Ort::Value> tensors;
-      for (size_t i = 0; i < 9; ++i) {
+      for (size_t i = 0; i < 14; ++i) {
         inputs.push_back(inputNames[i].c_str());
         outputs.push_back(outputNames[i].c_str());
         tensors.push_back(Ort::Value::CreateTensor<float>(
@@ -135,14 +135,14 @@ int main(int argc, char** argv) {
               buffers[0][ch * 128 + i] = c.input[ch * c.frames + hop * 128 + i];
           const auto start = std::chrono::steady_clock::now();
           auto result = session.Run(Ort::RunOptions{nullptr}, inputs.data(),
-                                    tensors.data(), 9, outputs.data(), 9);
+                                    tensors.data(), 14, outputs.data(), 14);
           elapsed += std::chrono::duration<double>(
                          std::chrono::steady_clock::now() - start)
                          .count();
           require(
               result[0].GetTensorTypeAndShapeInfo().GetElementCount() == 1024,
               "Wrong output shape");
-          for (size_t s = 0; s < 9; ++s) {
+          for (size_t s = 0; s < 14; ++s) {
             const auto info = result[s].GetTensorTypeAndShapeInfo();
             require(
                 info.GetElementType() == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT,

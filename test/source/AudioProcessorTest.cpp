@@ -787,9 +787,13 @@ TEST(ConstantsTest, CroppedAnalysisUsesEightHopsAndSynthesisUsesTwo) {
   EXPECT_EQ(audio_plugin::kSynthesisFrameSize, 256);
 }
 
-TEST(ConstantsTest, FusionHiddenShapeMatchesStatefulContract) {
-  EXPECT_EQ(audio_plugin::kFusionHiddenLayers, 2);
-  EXPECT_EQ(audio_plugin::kFusionHiddenSize, 1000);
+TEST(ConstantsTest, IndependentStatesMatchTrainedContract) {
+  namespace contract = audio_plugin::qualified_model;
+  ASSERT_EQ(contract::kStateShapes.size(), 13U);
+  EXPECT_EQ(contract::kStateShapes[1].elements(), 2U * 20U * 96U);
+  EXPECT_EQ(contract::kStateShapes[5].elements(), 2U * 3968U);
+  EXPECT_EQ(contract::kStateShapes[6].elements(), 2U * 17U * 80U);
+  EXPECT_EQ(contract::kStateShapes[10].elements(), 2U * 20U * 96U);
 }
 
 TEST(ConstantsTest, PluginLatencyIsOneGraphHopPlusOneAsyncQueueHop) {

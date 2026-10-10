@@ -301,8 +301,6 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kOutputChunkSize, contract::kHopSamples);
   EXPECT_EQ(audio_plugin::kAnalysisWindowSize,
             contract::kAnalysisWindowSamples);
-  EXPECT_EQ(audio_plugin::kFusionHiddenLayers, contract::kFusionHiddenLayers);
-  EXPECT_EQ(audio_plugin::kFusionHiddenSize, contract::kFusionHiddenSize);
   EXPECT_EQ(audio_plugin::kStemDrums, contract::kDrumsSourceIndex);
   EXPECT_EQ(audio_plugin::kStemBass, contract::kBassSourceIndex);
   EXPECT_EQ(audio_plugin::kStemVocals, contract::kVocalsSourceIndex);
@@ -311,9 +309,9 @@ TEST(QualifiedModelContractTest,
   EXPECT_EQ(audio_plugin::kModelOutputDelayChunks,
             contract::kModelOutputDelayChunks);
 
-  ASSERT_EQ(contract::kInputNames.size(), 9U);
-  ASSERT_EQ(contract::kOutputNames.size(), 9U);
-  ASSERT_EQ(contract::kMetadata.size(), 60U);
+  ASSERT_EQ(contract::kInputNames.size(), 14U);
+  ASSERT_EQ(contract::kOutputNames.size(), 14U);
+  ASSERT_EQ(contract::kMetadata.size(), 1U);
   for (const std::string_view name : contract::kInputNames) {
     EXPECT_FALSE(name.empty());
   }

@@ -97,7 +97,7 @@ else()
     COMMAND ${CMAKE_COMMAND} -E make_directory "${MODEL_DEST_DIR}"
     COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx.data"
     COMMAND ${CMAKE_COMMAND} -E rm -f "${MODEL_DEST_DIR}/model.onnx"
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${MODEL_SOURCE_DIR}/model.onnx"
       "${MODEL_DEST_DIR}/model.onnx"
     COMMENT "Linking verified ONNX model for tests"

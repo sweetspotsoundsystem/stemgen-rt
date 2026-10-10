@@ -1,0 +1,651 @@
+{
+  "schema": "stemgenrt-experimental-independent-onnx-v1",
+  "architecture": {
+    "version": "independent-dbv-physical-residual-other-v1",
+    "source_order": [
+      "drums",
+      "bass",
+      "vocals",
+      "other"
+    ],
+    "hop_samples": 128,
+    "graph_alignment_samples": 128,
+    "sample_rate": 44100,
+    "flush_hops": 1,
+    "intended_total_latency_samples": 256,
+    "models": {
+      "drums": {
+        "version": "causal-independent-stem-specialists-v1",
+        "source_order": [
+          "drums"
+        ],
+        "band_width": 96,
+        "global_width": 192,
+        "layers": 2,
+        "band_edges": [
+          0,
+          4,
+          8,
+          12,
+          16,
+          20,
+          24,
+          32,
+          40,
+          48,
+          64,
+          80,
+          96,
+          128,
+          160,
+          192,
+          240,
+          288,
+          352,
+          416,
+          513
+        ],
+        "band_packing": "independent equal-width groups",
+        "sample_rate": 44100,
+        "feature_n_fft": 1024,
+        "carrier_n_fft": 1024,
+        "long_feature_band_edges": [],
+        "long_feature_window": null,
+        "waveform_basis": 256,
+        "waveform_frame_samples": 256,
+        "spectral_mask_bins": 513,
+        "spectral_output_crop": [
+          768,
+          1024
+        ],
+        "synthesis_frame_samples": 256,
+        "hop_samples": 128,
+        "feature_history_samples": 896,
+        "graph_alignment_samples": 128,
+        "host_queue_samples": 128,
+        "intended_total_latency_samples": 256,
+        "host_queue_implemented_in_this_module": false,
+        "future_callbacks_beyond_received_input": 0,
+        "flush_hops": 1,
+        "state_names": [
+          "audio_history",
+          "local_hidden",
+          "global_hidden",
+          "spectral_numerator_tail",
+          "waveform_numerator_tail"
+        ],
+        "output_policy": "one independent complex mask with optional waveform residual; no source correction",
+        "feature_normalization": "separate current-frame stereo/bin RMS for each FFT; no temporal statistics",
+        "precision": "FP32 throughout; BF16 training is unsupported",
+        "native_host_qualified": false
+      },
+      "bass": {
+        "version": "causal-independent-stem-specialists-v1",
+        "source_order": [
+          "bass"
+        ],
+        "band_width": 80,
+        "global_width": 160,
+        "layers": 2,
+        "band_edges": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          6,
+          8,
+          12,
+          16,
+          24,
+          32,
+          48,
+          64,
+          96,
+          160,
+          256,
+          384,
+          513
+        ],
+        "band_packing": "independent equal-width groups",
+        "sample_rate": 44100,
+        "feature_n_fft": 4096,
+        "carrier_n_fft": 1024,
+        "long_feature_band_edges": [
+          0,
+          4,
+          8,
+          12,
+          16,
+          24,
+          32,
+          48,
+          64,
+          96,
+          128,
+          192,
+          256,
+          384,
+          640,
+          1024,
+          1536,
+          2049
+        ],
+        "long_feature_window": "trailing periodic Hann",
+        "waveform_basis": 0,
+        "waveform_frame_samples": 0,
+        "spectral_mask_bins": 513,
+        "spectral_output_crop": [
+          768,
+          1024
+        ],
+        "synthesis_frame_samples": 256,
+        "hop_samples": 128,
+        "feature_history_samples": 3968,
+        "graph_alignment_samples": 128,
+        "host_queue_samples": 128,
+        "intended_total_latency_samples": 256,
+        "host_queue_implemented_in_this_module": false,
+        "future_callbacks_beyond_received_input": 0,
+        "flush_hops": 1,
+        "state_names": [
+          "audio_history",
+          "local_hidden",
+          "global_hidden",
+          "spectral_numerator_tail"
+        ],
+        "output_policy": "one independent complex mask with optional waveform residual; no source correction",
+        "feature_normalization": "separate current-frame stereo/bin RMS for each FFT; no temporal statistics",
+        "precision": "FP32 throughout; BF16 training is unsupported",
+        "native_host_qualified": false
+      },
+      "vocals": {
+        "version": "causal-band-local-global-v1",
+        "source_order": [
+          "vocals"
+        ],
+        "band_width": 96,
+        "global_width": 192,
+        "layers": 2,
+        "band_edges": [
+          0,
+          4,
+          8,
+          12,
+          16,
+          20,
+          24,
+          32,
+          40,
+          48,
+          64,
+          80,
+          96,
+          128,
+          160,
+          192,
+          240,
+          288,
+          352,
+          416,
+          513
+        ],
+        "band_packing": "independent equal-width groups",
+        "sample_rate": 44100,
+        "feature_n_fft": 1024,
+        "carrier_n_fft": 1024,
+        "spectral_mask_bins": 513,
+        "spectral_output_crop": [
+          768,
+          1024
+        ],
+        "synthesis_frame_samples": 256,
+        "hop_samples": 128,
+        "feature_history_samples": 896,
+        "graph_alignment_samples": 128,
+        "host_queue_samples": 128,
+        "intended_total_latency_samples": 256,
+        "host_queue_implemented_in_this_module": false,
+        "future_callbacks_beyond_received_input": 0,
+        "flush_hops": 1,
+        "state_names": [
+          "audio_history",
+          "local_hidden",
+          "global_hidden",
+          "spectral_numerator_tail"
+        ],
+        "output_policy": "independent complex masks; no source correction",
+        "feature_normalization": "current-frame stereo/bin RMS; no temporal statistics",
+        "precision": "FP32 throughout; BF16 training is unsupported",
+        "native_host_qualified": false
+      }
+    },
+    "native_host_qualified": false,
+    "output_policy": "independent DBV; Other is mixture minus DBV"
+  },
+  "interface": {
+    "state_names": [
+      "drums_audio_history",
+      "drums_local_hidden",
+      "drums_global_hidden",
+      "drums_spectral_numerator_tail",
+      "drums_waveform_numerator_tail",
+      "bass_audio_history",
+      "bass_local_hidden",
+      "bass_global_hidden",
+      "bass_spectral_numerator_tail",
+      "vocals_audio_history",
+      "vocals_local_hidden",
+      "vocals_global_hidden",
+      "vocals_spectral_numerator_tail"
+    ],
+    "state_groups": {
+      "drums": {
+        "offset": 0,
+        "count": 5
+      },
+      "bass": {
+        "offset": 5,
+        "count": 4
+      },
+      "vocals": {
+        "offset": 9,
+        "count": 4
+      }
+    },
+    "input_names": [
+      "audio_chunk",
+      "drums_audio_history",
+      "drums_local_hidden",
+      "drums_global_hidden",
+      "drums_spectral_numerator_tail",
+      "drums_waveform_numerator_tail",
+      "bass_audio_history",
+      "bass_local_hidden",
+      "bass_global_hidden",
+      "bass_spectral_numerator_tail",
+      "vocals_audio_history",
+      "vocals_local_hidden",
+      "vocals_global_hidden",
+      "vocals_spectral_numerator_tail"
+    ],
+    "output_names": [
+      "separated_chunk",
+      "next_drums_audio_history",
+      "next_drums_local_hidden",
+      "next_drums_global_hidden",
+      "next_drums_spectral_numerator_tail",
+      "next_drums_waveform_numerator_tail",
+      "next_bass_audio_history",
+      "next_bass_local_hidden",
+      "next_bass_global_hidden",
+      "next_bass_spectral_numerator_tail",
+      "next_vocals_audio_history",
+      "next_vocals_local_hidden",
+      "next_vocals_global_hidden",
+      "next_vocals_spectral_numerator_tail"
+    ],
+    "input_shapes": [
+      [
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        896
+      ],
+      [
+        2,
+        20,
+        96
+      ],
+      [
+        2,
+        1,
+        192
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        3968
+      ],
+      [
+        2,
+        17,
+        80
+      ],
+      [
+        2,
+        1,
+        160
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        896
+      ],
+      [
+        2,
+        20,
+        96
+      ],
+      [
+        2,
+        1,
+        192
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ]
+    ],
+    "output_shapes": [
+      [
+        1,
+        4,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        896
+      ],
+      [
+        2,
+        20,
+        96
+      ],
+      [
+        2,
+        1,
+        192
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        3968
+      ],
+      [
+        2,
+        17,
+        80
+      ],
+      [
+        2,
+        1,
+        160
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ],
+      [
+        1,
+        2,
+        896
+      ],
+      [
+        2,
+        20,
+        96
+      ],
+      [
+        2,
+        1,
+        192
+      ],
+      [
+        1,
+        1,
+        2,
+        128
+      ]
+    ]
+  },
+  "weight_sha256": "b4ea6797d07f0149a6ab45fe0e5e291cfb5114862bb9abcc483d3c87284792d0",
+  "precision": "fp32",
+  "quality_measured": false,
+  "native_host_qualified": false,
+  "provenance": {
+    "drums": {
+      "architecture_version": "causal-independent-stem-specialists-v1",
+      "training_updates": 40000,
+      "quality_measured": false,
+      "initialization": "scratch",
+      "parent_training_updates": 0,
+      "current_stage_updates": 40000,
+      "branch_memory_current_stage_augmentation": {
+        "version": "latency58-four-second-score-pitch-tempo-remix-v1",
+        "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1",
+        "address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1",
+        "selection_probability": 0.2,
+        "semitones_uniform_inclusive": [
+          -2,
+          2
+        ],
+        "tempo_percent_normal_std": 5.0,
+        "tempo_percent_clamp": [
+          -12.0,
+          12.0
+        ],
+        "expanded_crop_samples": 300672,
+        "returned_crop_samples": 264576,
+        "selected_crop_offset": "expanded addressed read; differs from original crop offset",
+        "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture",
+        "unselected_crop": "original addressed dataset bit exact",
+        "source_order": [
+          "drums",
+          "bass",
+          "vocals",
+          "other"
+        ],
+        "transients": [
+          "crisp",
+          "smooth",
+          "smooth",
+          "smooth"
+        ],
+        "formants": [
+          "shifted",
+          "shifted",
+          "preserved",
+          "shifted"
+        ],
+        "encoding": "FFmpeg float32 stereo in and out",
+        "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1",
+        "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation",
+        "warmup_samples": 88064,
+        "scored_samples": 176512,
+        "complete_scored_one_second_windows": 4,
+        "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128"
+      },
+      "checkpoint_weight_role": "averaged_inference",
+      "weight_averaging": {
+        "schema": "latency58-branch-parameter-ema-v1",
+        "decay": 0.995,
+        "updates": 40000,
+        "base_state_sha256": "6c4a21daf65485b13a610715385c96b5da23330e5a0657aa510e9b747b99942a",
+        "raw_state_sha256": "2e1a54caae7ae0f5321288f7da07abd507ad4e1bb542d35ba1388d88cced8ec7",
+        "ema_parameters_sha256": "c86c1daff864ba765af9e595646390f4ddaa991b6ddb68800574cdbbdfca65da"
+      }
+    },
+    "bass": {
+      "architecture_version": "causal-independent-stem-specialists-v1",
+      "training_updates": 40000,
+      "quality_measured": false,
+      "initialization": "scratch",
+      "parent_training_updates": 0,
+      "current_stage_updates": 40000,
+      "branch_memory_current_stage_augmentation": {
+        "version": "latency58-four-second-score-pitch-tempo-remix-v1",
+        "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1",
+        "address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1",
+        "selection_probability": 0.2,
+        "semitones_uniform_inclusive": [
+          -2,
+          2
+        ],
+        "tempo_percent_normal_std": 5.0,
+        "tempo_percent_clamp": [
+          -12.0,
+          12.0
+        ],
+        "expanded_crop_samples": 300672,
+        "returned_crop_samples": 264576,
+        "selected_crop_offset": "expanded addressed read; differs from original crop offset",
+        "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture",
+        "unselected_crop": "original addressed dataset bit exact",
+        "source_order": [
+          "drums",
+          "bass",
+          "vocals",
+          "other"
+        ],
+        "transients": [
+          "crisp",
+          "smooth",
+          "smooth",
+          "smooth"
+        ],
+        "formants": [
+          "shifted",
+          "shifted",
+          "preserved",
+          "shifted"
+        ],
+        "encoding": "FFmpeg float32 stereo in and out",
+        "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1",
+        "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation",
+        "warmup_samples": 88064,
+        "scored_samples": 176512,
+        "complete_scored_one_second_windows": 4,
+        "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128"
+      },
+      "checkpoint_weight_role": "averaged_inference",
+      "weight_averaging": {
+        "schema": "latency58-branch-parameter-ema-v1",
+        "decay": 0.995,
+        "updates": 40000,
+        "base_state_sha256": "c59a3e6fc1d4ce23fb6411af3599996bfb813f1282d57f7b6db0bcea93d3b7e0",
+        "raw_state_sha256": "6f937171b24b8206ca6566177545f6eedc5cf31a22b877d350df4c1e98f254e7",
+        "ema_parameters_sha256": "b5afa63d8952f2c5bcc964c779d7e9a3f48ab0d786a973f8eab794e6c60a2fed"
+      }
+    },
+    "vocals": {
+      "architecture_version": "causal-band-local-global-v1",
+      "training_updates": 40000,
+      "quality_measured": false,
+      "initialization": "scratch",
+      "parent_training_updates": 0,
+      "current_stage_updates": 40000,
+      "branch_memory_current_stage_augmentation": {
+        "version": "latency58-four-second-score-pitch-tempo-remix-v1",
+        "pitch_tempo_version": "recorded301-addressed-four-second-score-float32-pitch-tempo-v1",
+        "address_recipe_version": "recorded301-addressed-float32-pitch-tempo-v1",
+        "selection_probability": 0.2,
+        "semitones_uniform_inclusive": [
+          -2,
+          2
+        ],
+        "tempo_percent_normal_std": 5.0,
+        "tempo_percent_clamp": [
+          -12.0,
+          12.0
+        ],
+        "expanded_crop_samples": 300672,
+        "returned_crop_samples": 264576,
+        "selected_crop_offset": "expanded addressed read; differs from original crop offset",
+        "selected_mixture": "sum transformed stems; neutral transform preserves recorded mixture",
+        "unselected_crop": "original addressed dataset bit exact",
+        "source_order": [
+          "drums",
+          "bass",
+          "vocals",
+          "other"
+        ],
+        "transients": [
+          "crisp",
+          "smooth",
+          "smooth",
+          "smooth"
+        ],
+        "formants": [
+          "shifted",
+          "shifted",
+          "preserved",
+          "shifted"
+        ],
+        "encoding": "FFmpeg float32 stereo in and out",
+        "after_pitch_tempo": "quarter_original_quarter_same_crop_half_cross_crop_gain3db_channel_swap_v1",
+        "remix_first_four": "unchanged by remix; may already have pitch/tempo augmentation",
+        "warmup_samples": 88064,
+        "scored_samples": 176512,
+        "complete_scored_one_second_windows": 4,
+        "expanded_length_rule": "ceil(returned_crop_samples / .88 / 128) * 128"
+      },
+      "checkpoint_weight_role": "averaged_inference",
+      "weight_averaging": {
+        "schema": "latency58-branch-parameter-ema-v1",
+        "decay": 0.995,
+        "updates": 40000,
+        "base_state_sha256": "df855841a384e07b2e8e7ce3b14241cb56e7d38d4a8d5c768b4a1e982633b661",
+        "raw_state_sha256": "81f37d54a7abc6582e608712ea289d7e0e88189a96039fbedde56054d4c2aa33",
+        "ema_parameters_sha256": "3614a0c6fa2b70c08f468e59705ccd48d1d4bc35fbc24ceda901d39245d2aaea"
+      }
+    }
+  },
+  "child_weight_sha256": {
+    "drums": "923701361e50db8418e1b9e17f5b3f1728857e1707024ca1c3820d459f708cf6",
+    "bass": "5973ee18cc9d808f28879aaaa2f9b443dd43fd6e803139ff0a2affecce2b0a43",
+    "vocals": "8cc9049fcd80875249e2d1e9b116397eb7f218897a9598d8d6166f09371b744e"
+  },
+  "initial_state": "all_zeros",
+  "preroll": "one_invalid_hop",
+  "flush_hops": 1,
+  "output_alignment": "previous_input_hop",
+  "residual": "physical_mixture_minus_((drums+bass)+vocals)",
+  "input_level": "unchanged",
+  "sample_rate": 44100,
+  "hop_samples": 128,
+  "graph_alignment_samples": 128,
+  "state_count": 13,
+  "onnx_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+  "bytes": 31946241
+}
