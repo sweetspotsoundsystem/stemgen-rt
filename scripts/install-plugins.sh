@@ -160,7 +160,7 @@ install_bundle() {
         esac
         backup_bundle="$backup_root/${destination_bundle##*/}"
         case "$backup_bundle" in
-            "$backup_root"/StemgenRT.component|"$backup_root"/StemgenRT.vst3) ;;
+            "$backup_root/StemgenRT.component"|"$backup_root/StemgenRT.vst3") ;;
             *) fail "refusing unexpected backup bundle '$backup_bundle'" ;;
         esac
 

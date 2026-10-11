@@ -134,25 +134,11 @@ private:
   // recurrent state. Only the inference worker mutates these during normal
   // operation; control paths must join the worker before touching them.
   std::vector<float> audioChunkBuffer_;
-  std::vector<float> audioHistory_;
-  std::vector<float> spectralNumeratorTail_;
-  std::vector<float> waveformTail_;
-  std::vector<float> fusionHidden_;
-  // Received feature history only; these caches add no audio buffering.
-  std::vector<float> attentionKeys_;
-  std::vector<float> attentionValues_;
-  std::vector<float> specMemoryHidden_;
-  std::vector<float> waveformMemoryHidden_;
+  std::array<std::vector<float>, qualified_model::kStateShapes.size()> states_;
+  std::array<std::vector<float>, qualified_model::kStateShapes.size()>
+      nextStates_;
   std::vector<float> previousAlignedInput_;
   std::vector<float> separatedOutputBuffer_;
-  std::vector<float> nextAudioHistoryBuffer_;
-  std::vector<float> nextSpectralNumeratorTail_;
-  std::vector<float> nextWaveformTail_;
-  std::vector<float> nextFusionHiddenBuffer_;
-  std::vector<float> nextAttentionKeys_;
-  std::vector<float> nextAttentionValues_;
-  std::vector<float> nextSpecMemoryHidden_;
-  std::vector<float> nextWaveformMemoryHidden_;
   std::array<OrtValue*, qualified_model::kInputNames.size()>
       inputTensorValues_{};
   std::array<OrtValue*, qualified_model::kOutputNames.size()>

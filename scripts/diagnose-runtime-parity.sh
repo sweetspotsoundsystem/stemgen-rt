@@ -10,7 +10,7 @@ SCRIPT_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 mkdir "$2"
 EVIDENCE_ROOT="$(cd "$2" && pwd -P)"
 MODEL="$SOURCE_ROOT/model/model.onnx"
-FIXTURE="$SOURCE_ROOT/test/fixtures/cropped1024-pytorch.bin"
+FIXTURE="$SOURCE_ROOT/test/fixtures/independent-pytorch.bin"
 cmake "-DSTEMGENRT_SOURCE_ROOT=$SOURCE_ROOT" -P "$SCRIPT_ROOT/cmake/VerifyParityFixture.cmake" > "$EVIDENCE_ROOT/fixture-verification.log" 2>&1 || {
   cat "$EVIDENCE_ROOT/fixture-verification.log" >&2
   exit 2
@@ -26,7 +26,7 @@ esac
   git -C "$SOURCE_ROOT" rev-parse HEAD
   git -C "$SOURCE_ROOT" status --short
   "${CXX:-c++}" --version
-  shasum -a 256 "$MODEL" "$FIXTURE" "$RUNTIME" "$SOURCE_ROOT/test/fixtures/cropped1024-pytorch.json" "$SOURCE_ROOT/cmake/QualifiedModelContract.cmake" "$SCRIPT_ROOT/tools/RuntimeParityDiagnostic.cpp" "$SCRIPT_ROOT/scripts/diagnose-runtime-parity.sh" "$SCRIPT_ROOT/cmake/VerifyParityFixture.cmake"
+  shasum -a 256 "$MODEL" "$FIXTURE" "$RUNTIME" "$SOURCE_ROOT/test/fixtures/independent-pytorch.json" "$SOURCE_ROOT/cmake/QualifiedModelContract.cmake" "$SCRIPT_ROOT/tools/RuntimeParityDiagnostic.cpp" "$SCRIPT_ROOT/scripts/diagnose-runtime-parity.sh" "$SCRIPT_ROOT/cmake/VerifyParityFixture.cmake"
   if [[ "$(uname -s)" == Darwin ]]; then
     sysctl machdep.cpu.brand_string
     sysctl hw.optional.arm.FEAT_SME hw.optional.arm.FEAT_SME2 || true

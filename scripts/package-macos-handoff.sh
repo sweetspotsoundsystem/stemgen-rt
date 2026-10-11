@@ -1,5 +1,5 @@
 #!/bin/bash
-# Seal the exact current cropped1024 source snapshot for transfer to the target Mac.
+# Seal the exact current independent DBV source snapshot for transfer to the target Mac.
 
 set -euo pipefail
 
@@ -77,7 +77,7 @@ for required_path in \
     scripts/package-macos-handoff.sh \
     cmake/QualifiedModelContract.cmake \
     cmake/PrintModelContract.cmake \
-    test/fixtures/cropped1024-pytorch.bin \
+    test/fixtures/independent-pytorch.bin \
     test/source/CroppedModelParityTest.cpp \
     test/source/RealtimeStemSanityTest.cpp; do
     grep -Fxq "$required_path" "$FILE_LIST" ||
@@ -112,9 +112,9 @@ cp "$FILE_LIST" "$SOURCE_ROOT/SOURCE_FILES.txt"
 ) > "$SOURCE_ROOT/SOURCE_MANIFEST.sha256"
 
 cat > "$SOURCE_ROOT/HANDOFF_README.md" <<'EOF'
-# Hop128 5.8 ms experimental target-Mac handoff
+# StemgenRT source and target-Mac validation handoff
 
-This is an exact source snapshot, not a promoted release.
+This is an exact source snapshot of the declared StemgenRT revision.
 
 Before building, verify it from this directory:
 
@@ -125,10 +125,10 @@ outside this tree. Supply the archive hash from the externally verified
 `SHA256SUMS` so the final machine receipt carries the transfer identity:
 
     STEMGENRT_HANDOFF_ARCHIVE_SHA256=<archive-sha256> \
-      ./scripts/qualify-macos.sh /absolute/existing-parent/cropped1024-mac-evidence-v1
+      ./scripts/qualify-macos.sh /absolute/existing-parent/stemgenrt-mac-evidence-v1
 
-A machine pass remains unpromoted until AU/VST3 DAW checks, locked blind
-votes, and explicit user approval are all recorded.
+A synthetic-host pass does not establish sustained AU/VST3 performance in a DAW.
+Record those playback checks separately for this exact model and source.
 EOF
 
 (
@@ -144,7 +144,7 @@ EOF
     shasum -a 256 -c HANDOFF_CONTENTS.sha256 >/dev/null
 )
 
-ARCHIVE_NAME="hop128-5ms-source.tar.gz"
+ARCHIVE_NAME="independent-dbv-source.tar.gz"
 ARCHIVE_TMP="$OUTPUT_DIR/.${ARCHIVE_NAME}.tmp"
 tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
     -C "$SOURCE_ROOT" -cf - . | gzip -n > "$ARCHIVE_TMP"

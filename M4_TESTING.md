@@ -1,80 +1,38 @@
-# Model tests on M4
+# Test StemgenRT 0.7.0 on M4
 
-This candidate exports the frozen StemgenRT-5.8 teacher004 EMA checkpoint.
-The graph SHA-256 begins `77164d6a581f`. It retains seventeen integer products,
-`mlas.disable_kleidiai=1`, one inference worker, eight states and 128-sample
-hops at 44.1 kHz. Graph plus host delay remains 256 samples with a 128-sample
-host buffer. The teacher is not present in the plugin.
+Use native arm64 macOS 14+, 44.1 kHz and the released independent-model graph
+(SHA-256 starts `0a49388dd2a4`). It has 13 states and a 128-sample hop. With a
+128-sample host buffer the graph-plus-worker latency is 256 samples. Previous
+model measurements do not establish this model's real-time performance.
 
-Read [the model report](model/README.md) for this graph's measured quality and
-Linux correctness. Physical M4 parity, sustained fallback counts and listening
-acceptance must be measured for these weights. Historical M4 evidence is
-retained under [the v0.6.1 baseline](model/baseline-v0.6.1/README.md).
+## Correctness and callback timing
 
-## Correctness and identity
+From a clean checkout:
 
-Use a clean checkout of this candidate on native arm64 macOS 14 or newer.
-From the repository root, fetch its LFS model and run the existing full
-qualification script with a new evidence directory outside the source tree:
-
-```bash
+```sh
 git lfs pull
-./scripts/qualify-macos.sh "$HOME/Desktop/stemgen-teacher004-qualification-001"
-bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgen-teacher004-parity-001"
+./scripts/qualify-macos.sh "$HOME/Desktop/stemgenrt-070-qualification"
+bash scripts/diagnose-runtime-parity.sh . "$HOME/Desktop/stemgenrt-070-parity"
 ```
 
-The qualification script makes a fresh Release build with official ONNX
-Runtime 1.26.0, checks the complete native suite and AU/VST3 bundles, and runs
-the short paced callback/worker measurement. The model contract and independent
-fixture must match this checkout. Both ordinary PyTorch parity tests must pass.
+Use new result directories. Qualification builds Release with official ORT
+1.26.0, runs native correctness tests, checks AU/VST3 bundles and measures the
+paced callback/worker path. The diagnostic compares independent PyTorch output
+with three ORT configurations. The deployed `kleidiai_disabled` mode must pass
+every case; a zero script exit alone is not a per-case numerical verdict.
 
-The diagnostic retains three modes: ORT defaults, `kleidiai_disabled`, and
-graph optimizations disabled. The plugin uses `kleidiai_disabled`; every case
-in that mode must pass. The `default` label describes ORT's backend defaults.
-`diagnostic-exit.txt = 0` means that measurements completed; inspect each
-`parity_pass` in `results.jsonl`. Keep `identity.txt`, `stderr.log`, actual
-compiler/process exits and all per-stem errors. These records bind the graph,
-fixture, runtime path/hash/build and CPU capabilities.
+## Sustained playback
 
-## Sustained timing
-
-From the same committed checkout and verified Release build, run two untraced
-30-minute synthetic-host measurements:
-
-```bash
-bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-teacher004-soak-001"
+```sh
+bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgenrt-070-soak"
 ```
 
-The runner retains both raw logs, actual exits, machine/model/source identities,
-and startup and measured fallback counts. Keep its strict pass/fail result.
-For a separate diagnostic of acquisition, inference and publication delays,
-use another directory and enable the complete-duration trace:
+This runs two untraced 30-minute synthetic-host measurements and retains source,
+model, machine, exit status and fallback counts. Use a separate directory with
+`--trace` for diagnostics; tracing changes measurement overhead.
 
-```bash
-bash scripts/extended-soak-macos.sh . "$HOME/Desktop/stemgen-teacher004-trace-001" --trace
-```
-
-The trace allocates about 60 MB for 30 minutes and rejects requests beyond a
-128 MiB bound before starting the worker. It reports omitted timing samples,
-matched and missing requests, and bounded failure-event omissions. Worker
-statistics cover matched requests; total process CPU time includes other
-threads. Tracing adds clock reads and memory traffic, so retain the untraced
-runs as the timing measurements.
-
-Measure this graph with its production runtime setting. Timing from the previous
-checkpoint does not qualify the candidate.
-
-## Installed AU in Ableton
-
-After correctness passes, preserve the prior complete bundle, install with
-`./scripts/install-plugins.sh --release`, and restart Ableton. Use the confirmed
-**M4 / 44.1 kHz / 128-sample buffer** setup with one inference worker and a
-documented DAW load. Record the candidate revision, graph identity, duration,
-and starting/ending cumulative fallback counters. Repeat at least 30 minutes
-of steady playback and require **zero additional steady-playback fallback**.
-Keep startup/reset increments separately and retain all raw counts.
-
-Exercise start/stop, seeks and loops, then listen to instrumental passages,
-quiet real vocals and Other. Synthetic-host success alone leaves this installed
-AU test outstanding. Preserve the complete shipped v0.6.1 bundle outside the plugin folder for
-comparison and rollback.
+Install with `./scripts/install-plugins.sh --release`, restart your DAW and test
+at 44.1 kHz with a documented buffer size and workload. Record startup/reset
+fallback increments separately from steady playback. Check at least 30 minutes
+of playback, seeks, loops, start/stop and all output buses. Retain the previous
+release outside the plug-in directories if you need to roll back.

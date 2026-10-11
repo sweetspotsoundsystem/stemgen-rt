@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 
-// The cropped1024 deployment emits [drums, bass, vocals, other].
+// The independent deployment emits [drums, bass, vocals, other].
 constexpr int kNumStems = qualified_model::kNumStems;
 constexpr int kNumChannels = qualified_model::kNumChannels;
 constexpr int kStemDrums = qualified_model::kDrumsSourceIndex;
@@ -17,15 +17,13 @@ constexpr int kStemVocals = qualified_model::kVocalsSourceIndex;
 constexpr int kStemOther = qualified_model::kOtherSourceIndex;
 
 // Fixed model contract. The graph consumes one 128-sample hop and emits the
-// preceding hop while carrying 896-sample audio history, fusion-GRU and both
-// overlap tails, two received-feature attention caches and two branch memories.
+// preceding hop. Thirteen persistent states carry independent Drums, Bass
+// and Vocals histories, recurrent features and synthesis tails.
 constexpr int kModelSampleRate = qualified_model::kSampleRate;
 constexpr int kOutputChunkSize = qualified_model::kHopSamples;
 constexpr int kAnalysisWindowSize = qualified_model::kAnalysisWindowSamples;
 constexpr int kAnalysisHistorySize = qualified_model::kAnalysisHistorySamples;
 constexpr int kSynthesisFrameSize = qualified_model::kSynthesisFrameSamples;
-constexpr int kFusionHiddenLayers = qualified_model::kFusionHiddenLayers;
-constexpr int kFusionHiddenSize = qualified_model::kFusionHiddenSize;
 
 // The graph delay is one hop. The worker then gets one complete hop to
 // publish that result for the following callback, so total PDC is two hops.

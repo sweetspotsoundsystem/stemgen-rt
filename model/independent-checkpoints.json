@@ -1,0 +1,23 @@
+{
+  "drums": {
+    "sha256": "5cc149c33411866bd2b248992f0af26fd4c79d26b63ba390558266e9311d8104",
+    "role": "ema",
+    "updates": 40000,
+    "state_sha256": "923701361e50db8418e1b9e17f5b3f1728857e1707024ca1c3820d459f708cf6",
+    "ema_parameters_sha256": "c86c1daff864ba765af9e595646390f4ddaa991b6ddb68800574cdbbdfca65da"
+  },
+  "bass": {
+    "sha256": "a75137f77e4c9be4868fc6fe3320cf784410519ff6bf4baeb281342eb99524c7",
+    "role": "ema",
+    "updates": 40000,
+    "state_sha256": "5973ee18cc9d808f28879aaaa2f9b443dd43fd6e803139ff0a2affecce2b0a43",
+    "ema_parameters_sha256": "b5afa63d8952f2c5bcc964c779d7e9a3f48ab0d786a973f8eab794e6c60a2fed"
+  },
+  "vocals": {
+    "sha256": "fa310fb6b059fdf4da0e57a67525a9b10582aade3dccc576a00b8dd52abd46b5",
+    "role": "ema",
+    "updates": 40000,
+    "state_sha256": "8cc9049fcd80875249e2d1e9b116397eb7f218897a9598d8d6166f09371b744e",
+    "ema_parameters_sha256": "3614a0c6fa2b70c08f468e59705ccd48d1d4bc35fbc24ceda901d39245d2aaea"
+  }
+}

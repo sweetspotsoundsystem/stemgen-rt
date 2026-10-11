@@ -1,0 +1,97 @@
+{
+  "schema": "stemgenrt-release-validation-v1",
+  "version": "0.7.0",
+  "model_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+  "onnxruntime": "1.26.0",
+  "native_reference": {
+    "framework": "independent CPU PyTorch",
+    "streamed_hops": 192,
+    "combined_graph": {
+      "status": "pass",
+      "compared_hops": 192,
+      "maximum_absolute_errors": {
+        "independent-dbv-residual-fp32": {
+          "separated_chunk": 3.8743019104003906e-07,
+          "next_drums_audio_history": 0.0,
+          "next_drums_local_hidden": 4.380941390991211e-06,
+          "next_drums_global_hidden": 4.32133674621582e-06,
+          "next_drums_spectral_numerator_tail": 2.5331974029541016e-07,
+          "next_drums_waveform_numerator_tail": 6.28642737865448e-09,
+          "next_bass_audio_history": 0.0,
+          "next_bass_local_hidden": 3.546476364135742e-06,
+          "next_bass_global_hidden": 4.231929779052734e-06,
+          "next_bass_spectral_numerator_tail": 1.4901161193847656e-08,
+          "next_vocals_audio_history": 0.0,
+          "next_vocals_local_hidden": 9.47713851928711e-06,
+          "next_vocals_global_hidden": 1.220405101776123e-05,
+          "next_vocals_spectral_numerator_tail": 2.2351741790771484e-07
+        }
+      },
+      "reference_scope": "same numerical variant, each output and state, every preflight hop"
+    },
+    "three_sessions": {
+      "status": "pass",
+      "compared_hops": 192,
+      "maximum_absolute_errors": {
+        "drums-ema-fp32": {
+          "separated_chunk": 2.60770320892334e-07,
+          "next_audio_history": 0.0,
+          "next_local_hidden": 4.380941390991211e-06,
+          "next_global_hidden": 4.32133674621582e-06,
+          "next_spectral_numerator_tail": 2.5331974029541016e-07,
+          "next_waveform_numerator_tail": 6.28642737865448e-09
+        },
+        "bass-ema-fp32": {
+          "separated_chunk": 1.7695128917694092e-08,
+          "next_audio_history": 0.0,
+          "next_local_hidden": 3.546476364135742e-06,
+          "next_global_hidden": 4.231929779052734e-06,
+          "next_spectral_numerator_tail": 1.4901161193847656e-08
+        },
+        "vocals-ema-fp32": {
+          "separated_chunk": 3.03611159324646e-07,
+          "next_audio_history": 0.0,
+          "next_local_hidden": 9.47713851928711e-06,
+          "next_global_hidden": 1.220405101776123e-05,
+          "next_spectral_numerator_tail": 2.2351741790771484e-07
+        },
+        "assembly": {
+          "other": 3.8743019104003906e-07,
+          "physical_history": 0.0,
+          "mixture_closure": 3.725290298461914e-09
+        }
+      },
+      "reference_scope": "same numerical variant, each output and state, every preflight hop"
+    },
+    "fixture_lengths": [
+      1,
+      127,
+      128,
+      129,
+      255,
+      256,
+      257,
+      16521
+    ]
+  },
+  "model_adapter_platform_checks": {
+    "source_commit": "96b1cae1c3908e3966ba3b4940f60ecdd32f8bfa",
+    "workflow": "https://github.com/sweetspotsoundsystem/stemgen-rt/actions/runs/38094032541",
+    "macos_arm64": "pass",
+    "windows_x86_64": "pass",
+    "scope": "Same graph and DSP adapter before restoration of the StemgenRT product identity; final release builds are checked separately."
+  },
+  "listening_feedback": {
+    "source": "project maintainer",
+    "date": "2026-10-11",
+    "preferred": "independent models",
+    "observations": [
+      "cleaner vocals and better silence behavior",
+      "less vocal bleed in drums and bass",
+      "Other inherits remaining combined errors"
+    ]
+  },
+  "physical_m4_timing_measured": false,
+  "sustained_daw_deadlines_qualified": false,
+  "release_build_checks": "See the workflow linked from the v0.7.0 release notes."
+}

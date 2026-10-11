@@ -90,13 +90,13 @@ jobs:
     - name: Archive macOS bundles
       if: matrix.os == 'macos-15'
       run: |
-        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 StemgenRT-macOS-VST3.zip
-        ditto -c -k --keepParent build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component StemgenRT-macOS-AU.zip
+        ditto -c -k --keepParent "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3" StemgenRT-macOS-VST3.zip
+        ditto -c -k --keepParent "build/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component" StemgenRT-macOS-AU.zip
 
     - name: Archive Windows VST3
       if: matrix.os == 'windows-latest'
       shell: pwsh
-      run: Compress-Archive -LiteralPath build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3 -DestinationPath StemgenRT-Windows-VST3.zip -Force
+      run: Compress-Archive -LiteralPath "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3" -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
       if: matrix.os == 'macos-15'

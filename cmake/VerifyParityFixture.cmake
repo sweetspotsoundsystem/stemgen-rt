@@ -3,8 +3,8 @@
 # cmake -DSTEMGENRT_SOURCE_ROOT=/path/to/checkout -P VerifyParityFixture.cmake
 function(stemgenrt_verify_parity_fixture source_root)
   include("${source_root}/cmake/QualifiedModelContract.cmake")
-  set(fixture "${source_root}/test/fixtures/cropped1024-pytorch.bin")
-  set(metadata "${source_root}/test/fixtures/cropped1024-pytorch.json")
+  set(fixture "${source_root}/test/fixtures/independent-pytorch.bin")
+  set(metadata "${source_root}/test/fixtures/independent-pytorch.json")
   set(model "${source_root}/model/model.onnx")
   foreach(path IN ITEMS "${fixture}" "${metadata}" "${model}")
     if(NOT EXISTS "${path}")
