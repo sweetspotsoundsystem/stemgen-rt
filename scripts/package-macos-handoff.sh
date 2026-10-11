@@ -112,9 +112,9 @@ cp "$FILE_LIST" "$SOURCE_ROOT/SOURCE_FILES.txt"
 ) > "$SOURCE_ROOT/SOURCE_MANIFEST.sha256"
 
 cat > "$SOURCE_ROOT/HANDOFF_README.md" <<'EOF'
-# Independent DBV 5.8 ms experimental target-Mac handoff
+# StemgenRT source and target-Mac validation handoff
 
-This is an exact source snapshot, not a promoted release.
+This is an exact source snapshot of the declared StemgenRT revision.
 
 Before building, verify it from this directory:
 
@@ -125,10 +125,10 @@ outside this tree. Supply the archive hash from the externally verified
 `SHA256SUMS` so the final machine receipt carries the transfer identity:
 
     STEMGENRT_HANDOFF_ARCHIVE_SHA256=<archive-sha256> \
-      ./scripts/qualify-macos.sh /absolute/existing-parent/cropped1024-mac-evidence-v1
+      ./scripts/qualify-macos.sh /absolute/existing-parent/stemgenrt-mac-evidence-v1
 
-A machine pass remains unpromoted until AU/VST3 DAW checks, locked blind
-votes, and explicit user approval are all recorded.
+A synthetic-host pass does not establish sustained AU/VST3 performance in a DAW.
+Record those playback checks separately for this exact model and source.
 EOF
 
 (

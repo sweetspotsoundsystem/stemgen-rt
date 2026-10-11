@@ -382,8 +382,8 @@ awk -v maximum_growth="$MAX_POST_WARMUP_RSS_GROWTH_KIB" \
     ' "$RSS_LOG" > "$EVIDENCE_DIR/memory-summary.txt" ||
     fail "paced process memory growth exceeded the declared gates"
 
-AU_BUNDLE="$PROJECT_ROOT/build-release/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT Independent.component"
-VST3_BUNDLE="$PROJECT_ROOT/build-release/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT Independent.vst3"
+AU_BUNDLE="$PROJECT_ROOT/build-release/plugin/AudioPlugin_artefacts/Release/AU/StemgenRT.component"
+VST3_BUNDLE="$PROJECT_ROOT/build-release/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3"
 for bundle in "$AU_BUNDLE" "$VST3_BUNDLE"; do
     [[ -d "$bundle" ]] || fail "verified bundle is missing: $bundle"
     cmake -DSTEMGENRT_BUNDLE_PATH="$bundle" -DSTEMGENRT_VERIFY_ONLY=ON \
@@ -401,10 +401,10 @@ if ! (
 fi
 
 shasum -a 256 "$TEST_BINARY" \
-    "$AU_BUNDLE/Contents/MacOS/StemgenRT Independent" \
+    "$AU_BUNDLE/Contents/MacOS/StemgenRT" \
     "$AU_BUNDLE/Contents/Frameworks/libonnxruntime.dylib" \
     "$AU_BUNDLE/Contents/Resources/model.onnx" \
-    "$VST3_BUNDLE/Contents/MacOS/StemgenRT Independent" \
+    "$VST3_BUNDLE/Contents/MacOS/StemgenRT" \
     "$VST3_BUNDLE/Contents/Frameworks/libonnxruntime.dylib" \
     "$VST3_BUNDLE/Contents/Resources/model.onnx" \
     > "$EVIDENCE_DIR/built-artifacts.sha256"

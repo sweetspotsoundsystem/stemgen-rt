@@ -1,6 +1,6 @@
 # Working on StemgenRT
 
-StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The experimental model uses a 128-sample hop at 44.1 kHz with thirteen persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging. The host identity is StemgenRT Independent and must remain distinct from released StemgenRT.
+StemgenRT is a JUCE/ONNX Runtime stereo source-separation plugin. The released independent model uses a 128-sample hop at 44.1 kHz with thirteen persistent states. Graph delay plus asynchronous scheduling totals 256 samples with a 128-sample host buffer. Keep model identity and streaming behavior synchronized across runtime, tests and packaging. Use the established StemgenRT product name, bundle ID and plug-in code for release compatibility.
 
 ## Commands
 

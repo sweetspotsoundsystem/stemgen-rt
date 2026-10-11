@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # Version is needed by JUCE.
-project(AudioPlugin VERSION 0.6.2)
+project(AudioPlugin VERSION 0.7.0)
 
 # Adding a directory with the library/application name as a subfolder of the
 # include folder is a good practice. It helps avoid name clashes later on.
@@ -32,15 +32,15 @@ juce_add_plugin(
   PLUGIN_MANUFACTURER_CODE
   Swee
   PLUGIN_CODE
-  SgIn
+  Stem
   FORMATS
   Standalone
   VST3
   AU
   PRODUCT_NAME
-  "StemgenRT Independent"
+  "StemgenRT"
   BUNDLE_ID
-  "com.sweetspot.StemgenRTIndependent"
+  "com.sweetspot.StemgenRT"
 )
 
 # Binary data for logo asset

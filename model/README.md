@@ -1,33 +1,31 @@
-# Experimental independent DBV + residual Other
+# StemgenRT 0.7.0 model
 
-`model.onnx` is one complete FP32 graph containing independent Drums, Bass and
-Vocals models, each using its authenticated 40,000-update EMA checkpoint.
-Other is computed inside the graph as the previous input hop minus DBV.
-There are no shared learned parameters and no extra audio lookahead.
+The bundled FP32 graph contains independent Drums, Bass and Vocals models,
+each using its final 40,000-update parameter EMA. Other is the previous input
+hop minus `((Drums + Bass) + Vocals)`. There are no shared learned parameters.
 
-- ONNX SHA256: `0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7`
-- Size: 31,946,241 bytes; self-contained, no external tensor file.
-- Input: stereo float32 `[1,2,128]`, 44.1 kHz; unchanged input level.
-- Output: float32 `[1,4,2,128]`, Drums/Bass/Vocals/Other.
-- States: 5 Drums + 4 Bass + 4 Vocals; all zero initially.
-- Delay: one graph hop; one invalid pre-roll output and exactly one EOF flush.
-- Host: ORT 1.26.0 CPU, sequential, one intra/inter-op thread, spinning disabled,
-  KleidiAI disabled, preallocated buffers.
+- SHA-256: `0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7`.
+- Size: 31,946,241 bytes; self-contained with no external tensor file.
+- Input/output: stereo `[1,2,128]` / `[1,4,2,128]` float32 at 44.1 kHz.
+- Graph source order: Drums, Bass, Vocals, Other.
+- States: five Drums, four Bass and four Vocals, all initially zero.
+- Lifecycle: one invalid pre-roll output, previous-hop alignment, one EOF flush.
+- Runtime: ORT 1.26.0 CPU, one worker, sequential execution, one intra/inter-op
+  thread, spinning and KleidiAI disabled, preallocated buffers.
 
-The authoritative identity and shape lock is
-`cmake/QualifiedModelContract.cmake`. Its historical QUALIFIED variable prefix
-means identity checking; this candidate is experimental and has no physical M4
-qualification. Regenerate it using `scripts/generate-independent-contract.py`
-with this ONNX file and checkpoint manifest. Loading fails closed on changed
-hash, size, names, shapes, tensor types or metadata.
+`cmake/QualifiedModelContract.cmake` locks the graph identity, geometry and
+metadata. Configuration verifies size/hash; loading verifies names, shapes,
+types and metadata. Its historical QUALIFIED prefix describes identity checks,
+not physical M4 timing certification. The frozen graph's original experimental
+schema/key remains unchanged to preserve its verified bytes.
 
-`independent-model.json` records each child's architecture, training provenance,
-state shapes and model-state hash. `independent-checkpoints.json` binds all three
-checkpoint files and their EMA parameters. Matching training code is included at `training-source/stemgenrt-0.6.2.tar.gz`.
+`independent-model.json` records architecture and state shapes;
+`independent-checkpoints.json` identifies the three EMA endpoints. The matching
+model/training/data/loss/recovery/evaluation/export source is bundled at
+`training-source/stemgenrt-0.7.0.tar.gz` with its checksum.
 
-Native PyTorch source-model evaluation improved the combined development mean,
-but three Other preservation/leakage guards failed. That source-model quality
-result is separate from deployment-graph quality. The independent synthetic
-fixtures test every stem, alignment, reset and partial EOF; they do not measure
-musical quality or qualify real-time performance. M4/M4 Pro timing remains to be
-measured on the actual hardware, including the complete plug-in worker path.
+Independent PyTorch fixtures cover all four stems, reset, alignment and partial
+EOF. Full plugin tests cover queue epochs, fallback, offline variable callbacks
+and real-time allocation rules. See `release-validation.json` for release checks.
+Physical M4/M4 Pro sustained timing and DAW deadline measurements remain pending.
+Other can regress because it inherits the net error from the three learned stems.

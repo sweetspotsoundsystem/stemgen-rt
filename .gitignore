@@ -461,3 +461,9 @@ StemgenRT.als
 
 # App-scoped development dependencies (no system installation)
 .local-linux-deps/
+
+# Private manuscripts and experiment artifacts
+/paper/
+/papers/
+/research/
+/runs/
