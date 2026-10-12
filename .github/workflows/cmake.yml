@@ -98,6 +98,41 @@ jobs:
       shell: pwsh
       run: Compress-Archive -LiteralPath "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3" -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
+    - name: Download pluginval (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        $tools = Join-Path $env:RUNNER_TEMP 'stemgenrt-pluginval'
+        New-Item -ItemType Directory -Path $tools | Out-Null
+        $archive = Join-Path $tools 'pluginval.zip'
+        Invoke-WebRequest 'https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip' -OutFile $archive
+        Expand-Archive -LiteralPath $archive -DestinationPath $tools
+
+    - name: Validate packaged Windows VST3 in a host
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      timeout-minutes: 15
+      run: |
+        ./scripts/validate-windows-package.ps1 `
+          -PluginArchive './StemgenRT-Windows-VST3.zip' `
+          -PluginvalPath (Join-Path $env:RUNNER_TEMP 'stemgenrt-pluginval/pluginval.exe') `
+          -ExpectedOrtDll './libs/onnxruntime/lib/onnxruntime.dll' `
+          -OutputDirectory (Join-Path $env:RUNNER_TEMP 'stemgenrt-windows-validation')
+
+    - name: Upload Windows validation evidence and symbols
+      if: always() && matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: StemgenRT-Windows-diagnostics-${{ github.sha }}
+        path: |
+          ${{ runner.temp }}/stemgenrt-windows-validation/*.log
+          ${{ runner.temp }}/stemgenrt-windows-validation/*.json
+          ${{ runner.temp }}/stemgenrt-windows-validation/pluginval
+          build/windows-symbols/Release
+          StemgenRT-Windows-VST3.zip
+        if-no-files-found: warn
+        retention-days: 30
+
     - name: Upload VST3 (macOS)
       if: matrix.os == 'macos-15'
       uses: actions/upload-artifact@v4

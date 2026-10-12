@@ -737,7 +737,10 @@ void AudioPluginAudioProcessor::releaseResources() {
   // Stop the inference thread
   inferenceQueue_.stopThread();
   activeLatencySamples_.store(0, std::memory_order_release);
-  setLatencySamples(0);
+  // Deactivation suspends processing without changing the prepared PDC
+  // contract. A host may deactivate/reactivate after a latency notification;
+  // reporting zero here would make every reactivation request another restart.
+  // The next prepare advertises any real configuration change or startup failure.
 #endif
   preparedHostBlockSize_.store(0, std::memory_order_release);
   lastHostBlockSize_.store(0, std::memory_order_release);
