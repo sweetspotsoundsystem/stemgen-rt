@@ -58,6 +58,16 @@ set_source_files_properties(${REALTIME_SAFETY_SOURCES} PROPERTIES
 # This needs to be set up only for your projects, not 3rd party
 set_source_files_properties(${SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
 
+if(APPLE)
+  # JUCE's native workgroup factory is compiled as Objective-C++. Apple's
+  # os_workgroup_t has a different C++ type in that language mode, so test
+  # sources constructing native contexts must use the same mode to link it.
+  set_source_files_properties(
+    source/MacWorkgroupTest.cpp
+    source/RealtimeSafetyTest.cpp
+    PROPERTIES COMPILE_FLAGS "-x objective-c++")
+endif()
+
 # Adds googletest-specific CMake commands at our disposal.
 include(GoogleTest)
 
