@@ -70,6 +70,8 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/Constants.h
   ${INCLUDE_DIR}/OnnxRuntime.h
   ${INCLUDE_DIR}/InferenceQueue.h
+  ${INCLUDE_DIR}/RealtimeContextMailbox.h
+  ${INCLUDE_DIR}/WorkerWorkgroup.h
   ${INCLUDE_DIR}/StreamingSampleRateAdapter.h
   ${INCLUDE_DIR}/ModelOutputScheduler.h
   ${INCLUDE_DIR}/OverlapAddProcessor.h
