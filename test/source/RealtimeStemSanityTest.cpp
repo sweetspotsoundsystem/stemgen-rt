@@ -1,5 +1,5 @@
-#include <StemgenRT/PluginProcessor.h>
 #include <StemgenRT/MacThreadPolicy.h>
+#include <StemgenRT/PluginProcessor.h>
 #include <gtest/gtest.h>
 
 #include "PacedQualificationTrace.h"
@@ -461,11 +461,11 @@ TEST(RealtimeStemSanityTest,
   const bool callbackPriorityApplied =
       configureAndVerifyCallbackThreadPriority();
   const int workerRealtime =
-      integerEnvironment(kWorkerRealtimeEnvironment, 0, 0, 1);
+      integerEnvironment(kWorkerRealtimeEnvironment, 2, 0, 1);
   const int callbackRealtime =
       integerEnvironment(kCallbackRealtimeEnvironment, 0, 0, 1);
-  ASSERT_GE(workerRealtime, 0)
-      << kWorkerRealtimeEnvironment << " must be 0 or 1";
+  ASSERT_GE(workerRealtime, 0) << kWorkerRealtimeEnvironment
+                               << " must be unset (playback default), 0 or 1";
   ASSERT_GE(callbackRealtime, 0)
       << kCallbackRealtimeEnvironment << " must be 0 or 1";
 
@@ -487,7 +487,9 @@ TEST(RealtimeStemSanityTest,
   std::vector<CallbackTimingSample> callbackTrace(
       traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
-  ASSERT_TRUE(processor.setDiagnosticWorkerScheduling(workerRealtime != 0));
+  if (workerRealtime != 2) {
+    ASSERT_TRUE(processor.setDiagnosticWorkerScheduling(workerRealtime != 0));
+  }
   if (ortThreads != 0) {
     ASSERT_TRUE(processor.setDiagnosticOrtIntraOpThreads(ortThreads));
   }
@@ -495,6 +497,8 @@ TEST(RealtimeStemSanityTest,
     ASSERT_TRUE(processor.setWorkerTimingTrace(&workerTrace));
   }
   processor.prepareToPlay(kSampleRate, kBlockSize);
+  const bool workerRealtimeRequested =
+      processor.isRealtimeWorkerSchedulingRequested();
 
   ASSERT_GT(processor.getLatencySamples(), 0)
       << "Qualified model/runtime failed to load: "
@@ -778,7 +782,14 @@ TEST(RealtimeStemSanityTest,
              callbackTrace.size() * sizeof(CallbackTimingSample)
       << " ort_intra_op_threads_override=" << ortThreads
       << " ort_intra_op_threads=" << configuredOrtThreads
-      << " worker_scheduling=" << (workerRealtime != 0 ? "realtime" : "qos")
+      << " worker_scheduling=" << (workerRealtimeRequested ? "realtime" : "qos")
+      << " worker_scheduling_override="
+      << (workerRealtime == 2   ? "none"
+          : workerRealtime == 1 ? "realtime"
+                                : "qos")
+      << " host_workgroup_supplied=0"
+      << " worker_workgroup_overflows="
+      << processor.getWorkerWorkgroupOverflowCount()
       << " callback_scheduling=" << (callbackRealtime != 0 ? "realtime" : "qos")
       << " worker_computation_ns=2700000 callback_computation_ns=500000"
       << " callback_constraint_ns=1000000"

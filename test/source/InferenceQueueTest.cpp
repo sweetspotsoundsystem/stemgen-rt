@@ -12,7 +12,7 @@
 namespace audio_plugin {
 
 class InferenceQueueTestPeer {
-public:
+ public:
   using RunCallback = bool (*)(void*, InferenceRequest&);
   using ResetCallback = void (*)(void*);
 
@@ -78,7 +78,7 @@ InferenceRequest* waitForOutput(InferenceQueue& queue, uint32_t epoch) {
 }
 
 class FakeRuntime {
-public:
+ public:
   static bool runCallback(void* context, InferenceRequest& request) {
     return static_cast<FakeRuntime*>(context)->process(request);
   }
@@ -279,6 +279,53 @@ TEST(InferenceQueueTest,
             InferenceQueue::WorkerPriorityStatus::Unsupported);
 #endif
   EXPECT_TRUE(queue.setDiagnosticScheduling(false));
+}
+
+TEST(InferenceQueueTest, PlaybackDefaultAndOfflinePolicySurviveWorkerRestarts) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+  for (const bool realtime : {true, false, true}) {
+    ASSERT_TRUE(queue.setRealtimePlayback(realtime));
+#if defined(__APPLE__)
+    EXPECT_EQ(queue.isRealtimeSchedulingRequested(), realtime);
+#else
+    EXPECT_FALSE(queue.isRealtimeSchedulingRequested());
+#endif
+    InferenceQueueTestPeer::startThread(
+        queue, &runtime, FakeRuntime::runCallback, FakeRuntime::resetCallback);
+    ASSERT_TRUE(queue.isThreadRunning());
+    EXPECT_FALSE(queue.setRealtimePlayback(!realtime));
+    submit(queue, queue.getEpoch(), 0U);
+    ASSERT_NE(waitForOutput(queue, queue.getEpoch()), nullptr);
+    queue.releaseOutputSlot();
+    queue.stopThread();
+#if defined(__APPLE__)
+    EXPECT_EQ(queue.getSchedulingInitialStatus(),
+              InferenceQueue::WorkerPriorityStatus::Applied);
+    EXPECT_EQ(queue.getSchedulingFinalStatus(),
+              InferenceQueue::WorkerPriorityStatus::Applied);
+#else
+    EXPECT_EQ(queue.getSchedulingInitialStatus(),
+              InferenceQueue::WorkerPriorityStatus::Unsupported);
+#endif
+    queue.fullReset();
+  }
+}
+
+TEST(InferenceQueueTest, HostContextIsConsumedEvenWithoutAnAudioRequest) {
+  InferenceQueue queue;
+  queue.allocate();
+  queue.audioWorkgroupContextChanged({});
+  InferenceQueueTestPeer::startThread(queue, nullptr, nullptr, nullptr);
+  ASSERT_TRUE(
+      waitUntil([&] { return queue.getWorkgroupConsumedGeneration() == 1U; }));
+  queue.audioWorkgroupContextChanged({});
+  ASSERT_TRUE(
+      waitUntil([&] { return queue.getWorkgroupConsumedGeneration() == 2U; }));
+  queue.stopThread();
+  EXPECT_EQ(queue.getWorkgroupStatus(),
+            audio_plugin::WorkerWorkgroupStatus::Stopped);
 }
 
 #if defined(__APPLE__)

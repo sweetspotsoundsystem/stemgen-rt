@@ -310,8 +310,10 @@ PACED_LOG="$EVIDENCE_DIR/logs/paced-async-10000.log"
 RSS_LOG="$EVIDENCE_DIR/paced-rss-kib.tsv"
 : > "$RSS_LOG"
 printf '%s\n' "Running paced-async-10000 (10,000 measured callbacks plus warmup)..."
+unset STEMGENRT_PACED_WORKER_REALTIME
 env STEMGENRT_QUALIFICATION_CALLBACKS="$EXPECTED_CALLBACKS" \
     STEMGENRT_TRACE_WORKER=0 STEMGENRT_PACED_ORT_THREADS=0 \
+    STEMGENRT_PACED_CALLBACK_REALTIME=1 \
     "$TEST_BINARY" --gtest_also_run_disabled_tests \
     --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
     > "$PACED_LOG" 2>&1 &
@@ -352,6 +354,11 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
     fail "qualification must use the production automatic thread policy"
 [[ "$PACED_SUMMARY" == *" ort_intra_op_threads=1 "* ]] ||
     fail "qualification requires exactly one ORT inference thread"
+[[ "$PACED_SUMMARY" == *" worker_scheduling_override=none "* &&
+   "$PACED_SUMMARY" == *" worker_scheduling=realtime "* ]] ||
+    fail "qualification requires the installed playback scheduling default"
+[[ "$PACED_SUMMARY" == *" callback_scheduling=realtime "* ]] ||
+    fail "qualification requires the real-time synthetic callback"
 [[ "$PACED_SUMMARY" == *" callback_samples=${EXPECTED_CALLBACK_SAMPLES} "* ]] ||
     fail "paced summary callback size changed"
 [[ "$PACED_SUMMARY" == *" sample_rate=${EXPECTED_SAMPLE_RATE} "* ]] ||

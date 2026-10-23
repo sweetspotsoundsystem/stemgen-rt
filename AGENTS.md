@@ -36,6 +36,7 @@ Only the inference worker advances/resets model state. Audio-thread resets inval
 - Preserve the linked confidence envelope: instantaneous open, 50 ms hold, 60 dB/100 ms release, smoothstep from -96 to -72 dBFS peak. Changes need new numerical/listening evidence.
 - Keep `mlas.disable_kleidiai=1` in production sessions. The retained exact-parent M4 Pro diagnostic fails independent numerical parity with backend defaults and passes with this setting. A new graph still requires its own physical M4 parity and timing evidence.
 - Production inference uses one dedicated worker on every platform: ORT sequential execution, intra-op 1, inter-op 1, and spinning disabled. Explicit overrides are for measurement only; qualification must report an actual configured count of one. A previous model's timing does not qualify this one.
+- The macOS scheduling candidate requests a time-constraint worker for playback and QoS when prepared offline. AU context changes use the bounded mailbox; only the worker joins/leaves and retires retained workgroups. Preserve overflow invalidation and stop/start ownership. Qualify the default playback path without a diagnostic scheduling override, and keep native membership tests distinct from installed DAW evidence.
 
 ## Verification
 

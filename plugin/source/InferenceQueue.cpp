@@ -256,6 +256,7 @@ bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
                                  std::memory_order_release);
   schedulingFinalStatus_.store(WorkerPriorityStatus::NotAttempted,
                                std::memory_order_release);
+  threadRunning_.store(true, std::memory_order_release);
   try {
     thread_ = std::make_unique<std::thread>(
         &InferenceQueue::inferenceThreadFunc, this, callbacks);
@@ -264,7 +265,19 @@ bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
     threadRunning_.store(false, std::memory_order_release);
     return false;
   }
-  threadRunning_.store(true, std::memory_order_release);
+  // Lifecycle only: report a rejected scheduling policy before admitting
+  // audio. The worker publishes its readback before touching model state.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (getSchedulingInitialStatus() == WorkerPriorityStatus::NotAttempted &&
+         std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  if (getSchedulingInitialStatus() == WorkerPriorityStatus::NotAttempted ||
+      getSchedulingInitialStatus() == WorkerPriorityStatus::Failed) {
+    stopThread();
+    return false;
+  }
   return true;
 }
 
@@ -298,6 +311,22 @@ bool InferenceQueue::setDiagnosticScheduling(bool realtime) noexcept {
   diagnosticScheduling_ = true;
   diagnosticRealtime_ = realtime;
   return true;
+}
+
+bool InferenceQueue::setRealtimePlayback(bool realtime) noexcept {
+  if (isThreadRunning()) {
+    return false;
+  }
+  realtimePlayback_ = realtime;
+  return true;
+}
+
+bool InferenceQueue::isRealtimeSchedulingRequested() const noexcept {
+#if defined(__APPLE__)
+  return diagnosticScheduling_ ? diagnosticRealtime_ : realtimePlayback_;
+#else
+  return false;
+#endif
 }
 
 InferenceRequest* InferenceQueue::getWriteSlot() {
@@ -661,17 +690,25 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
     DBG("[InferenceQueue] Failed to raise inference worker priority");
   }
   MacThreadPolicy scheduling;
-  if (diagnosticScheduling_) {
 #if defined(__APPLE__)
-    const bool applied = scheduling.start(diagnosticRealtime_, 2700000);
-    schedulingInitialStatus_.store(
-        applied ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
-        std::memory_order_release);
-#else
-    schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
+  const bool applied =
+      priorityStatus == WorkerPriorityStatus::Applied &&
+      scheduling.start(isRealtimeSchedulingRequested(), 2700000);
+  if (!applied) {
+    static_cast<void>(scheduling.finish());
+    schedulingFinalStatus_.store(WorkerPriorityStatus::Failed,
+                                 std::memory_order_release);
+    schedulingInitialStatus_.store(WorkerPriorityStatus::Failed,
                                    std::memory_order_release);
-#endif
+    return;
   }
+  schedulingInitialStatus_.store(WorkerPriorityStatus::Applied,
+                                 std::memory_order_release);
+#else
+  schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
+                                 std::memory_order_release);
+#endif
+  workgroup_.workerStarted(isRealtimeSchedulingRequested());
   DBG("[InferenceQueue] Thread running");
 
   uint64_t lastSeenEpochControl = epochControl_.load(std::memory_order_acquire);
@@ -725,6 +762,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   };
 
   while (!shouldStop_.load(std::memory_order_acquire)) {
+    workgroup_.poll();
     synchronizeEpoch();
 
     // Audio-thread publication is atomic-only. When idle, the worker owns the
@@ -754,6 +792,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       if (shouldStop_.load(std::memory_order_acquire)) {
         break;
       }
+
+      workgroup_.poll();
 
       const uint64_t currentEpochControl = synchronizeEpoch();
       const uint32_t currentEpoch = epochFromControl(currentEpochControl);
@@ -906,17 +946,17 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
     }
   }
 
-  if (diagnosticScheduling_) {
+  // The workgroup token must leave on this thread, before policy restoration.
+  workgroup_.workerStopped();
 #if defined(__APPLE__)
-    const bool verified = scheduling.finish();
-    schedulingFinalStatus_.store(
-        verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
-        std::memory_order_release);
+  const bool verified = scheduling.finish();
+  schedulingFinalStatus_.store(
+      verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
+      std::memory_order_release);
 #else
-    schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,
-                                 std::memory_order_release);
+  schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,
+                               std::memory_order_release);
 #endif
-  }
   DBG("[InferenceQueue] Thread exiting");
 }
 

@@ -5,6 +5,10 @@ using three independently trained models. Other is the input minus those three
 estimates. The plug-in retains the **StemgenRT** name, host IDs and controls.
 This release replaces the previous joint separation model.
 
+This development branch adds a [runtime scheduling candidate](RUNTIME_SCHEDULING.md):
+real-time macOS playback workers and AU host workgroup handling. It uses the
+same model and has not yet passed sustained installed-DAW qualification.
+
 [Download the release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.7.0)
 for Apple Silicon macOS 14+ (AU/VST3) or Windows x86-64 (VST3). The model and ONNX
 Runtime 1.26.0 are bundled. macOS packages are ad-hoc signed, not notarized.
@@ -25,7 +29,8 @@ released-graph trial. A later complete plugin-path comparison observed zero
 misses over four short trials and one five-minute trial with both synthetic
 callback and worker on real-time policy (145,000 measured callbacks). With the
 same callback policy, the QoS worker had seven measured misses. Longer playback
-and installed-DAW qualification remain pending; production keeps QoS scheduling.
+and installed-DAW qualification remain pending. The published 0.7.0 bundles use
+QoS scheduling; the candidate in this branch changes the playback default.
 Correctness tests and algorithmic latency do not establish the CPU deadline.
 The audio callback never waits for inference; missed output uses aligned fallback.
 See [model details](model/README.md) and [M4 testing](M4_TESTING.md).
@@ -78,8 +83,8 @@ python3 scripts/compare-paced-scheduling-macos.py \
 Allow about 20 minutes after building. Return the result ZIP. Initial and final
 Mach policy readbacks, callback timing, queue misses, underruns and reconstruction
 must all pass their existing gates. Failed timing trials are retained while the
-comparison continues. Production scheduling remains unchanged; these controls
-do not install a plugin or qualify a DAW. See [the protocol](M4_TESTING.md).
+comparison continues. These explicit controls do not install a plugin or qualify
+a DAW. See [the protocol](M4_TESTING.md).
 
 For the next qualification stage, use `--protocol long-soak`. It runs two
 separate 30-minute real-time-worker trials with a 30-minute QoS-worker control

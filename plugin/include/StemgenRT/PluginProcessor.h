@@ -2,13 +2,13 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <array>
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
-#include <array>
-#include <atomic>
-#include <cstdint>
 #include "Constants.h"
 #include "InferenceQueue.h"
 #include "OnnxRuntime.h"
@@ -19,7 +19,7 @@
 namespace audio_plugin {
 
 class AudioPluginAudioProcessor : public juce::AudioProcessor {
-public:
+ public:
   AudioPluginAudioProcessor();
   ~AudioPluginAudioProcessor() override;
 
@@ -79,6 +79,12 @@ public:
   // production policy, 1..4 select a fresh session's immutable thread count.
   bool setDiagnosticOrtIntraOpThreads(int count) noexcept;
   int getConfiguredOrtIntraOpThreads() const noexcept;
+  bool isRealtimeWorkerSchedulingRequested() const noexcept;
+  WorkerWorkgroupStatus getWorkerWorkgroupStatus() const noexcept;
+  uint64_t getWorkerWorkgroupOverflowCount() const noexcept;
+
+  void audioWorkgroupContextChanged(
+      const juce::AudioWorkgroup& workgroup) override;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -114,7 +120,7 @@ public:
   // Reset streaming buffers to zeros (call when playback stops/restarts)
   void resetStreamingBuffers();
 
-private:
+ private:
   friend class AudioPluginProcessorTestPeer;
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   // ONNX Runtime wrapper (handles the CPU session and persistent graph state)

@@ -10,6 +10,7 @@
 #include "Constants.h"
 #include "StreamingSampleRateAdapter.h"
 #include "WorkerTimingTrace.h"
+#include "WorkerWorkgroup.h"
 
 namespace audio_plugin {
 
@@ -62,7 +63,7 @@ struct InferenceRequest {
   uint32_t getEpoch() const;
   bool isProcessed() const { return getState() == SlotState::Processed; }
 
-private:
+ private:
   friend class InferenceQueue;
 
   static constexpr uint64_t makeControl(uint32_t epoch, SlotState state) {
@@ -89,7 +90,7 @@ static_assert(
 // Audio thread produces requests, inference thread consumes them.
 // Uses epoch tracking to handle resets without cross-thread buffer clearing.
 class InferenceQueue {
-public:
+ public:
   enum class WorkerPriorityStatus : uint8_t {
     NotAttempted,
     Applied,
@@ -147,15 +148,34 @@ public:
   // Optional diagnostic. Configure only from the lifecycle thread while the
   // worker is stopped; concurrent start/stop/configuration is unsupported.
   bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
-  // Measurement only, configured while stopped. Production keeps its existing
-  // QoS policy. This enables explicit initial/final Mach readbacks for both
-  // control and real-time conditions of the macOS diagnostic.
+  // Lifecycle only. macOS playback uses a Mach time-constraint worker by
+  // default. An offline prepare uses QoS. Diagnostics may override either.
+  bool setRealtimePlayback(bool realtime) noexcept;
+  bool isRealtimeSchedulingRequested() const noexcept;
+  // Measurement only, configured while stopped. Retains the explicit QoS
+  // control condition without changing the installed playback default.
   bool setDiagnosticScheduling(bool realtime) noexcept;
   WorkerPriorityStatus getSchedulingInitialStatus() const noexcept {
     return schedulingInitialStatus_.load(std::memory_order_acquire);
   }
   WorkerPriorityStatus getSchedulingFinalStatus() const noexcept {
     return schedulingFinalStatus_.load(std::memory_order_acquire);
+  }
+
+  // Audio-thread publication only. Joining/leaving and retired-handle
+  // destruction take place on the worker. No wake, wait or heap operation.
+  void audioWorkgroupContextChanged(
+      const juce::AudioWorkgroup& workgroup) noexcept {
+    static_cast<void>(workgroup_.publish(workgroup));
+  }
+  WorkerWorkgroupStatus getWorkgroupStatus() const noexcept {
+    return workgroup_.getStatus();
+  }
+  uint64_t getWorkgroupOverflowCount() const noexcept {
+    return workgroup_.getOverflowCount();
+  }
+  uint64_t getWorkgroupConsumedGeneration() const noexcept {
+    return workgroup_.getConsumedGeneration();
   }
 
   // Check if a write slot is available (called from audio thread)
@@ -210,7 +230,7 @@ public:
   // Get current epoch
   uint32_t getEpoch() const;
 
-private:
+ private:
   struct WorkerCallbacks {
     void* context{nullptr};
     bool (*run)(void*, InferenceRequest&){nullptr};
@@ -261,6 +281,8 @@ private:
   std::atomic<WorkerPriorityStatus> workerPriorityStatus_{
       WorkerPriorityStatus::NotAttempted};
   WorkerTimingTrace* workerTimingTrace_{nullptr};
+  WorkerWorkgroup workgroup_;
+  bool realtimePlayback_{true};
   bool diagnosticScheduling_{false};
   bool diagnosticRealtime_{false};
   std::atomic<WorkerPriorityStatus> schedulingInitialStatus_{
