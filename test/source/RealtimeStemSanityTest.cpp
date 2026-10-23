@@ -1,4 +1,5 @@
 #include <StemgenRT/PluginProcessor.h>
+#include <StemgenRT/MacThreadPolicy.h>
 #include <gtest/gtest.h>
 
 #include "PacedQualificationTrace.h"
@@ -10,6 +11,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -38,6 +40,10 @@ constexpr std::string_view kQualificationCallbacksEnvironment =
 constexpr std::string_view kWorkerTimingEnvironment = "STEMGENRT_TRACE_WORKER";
 constexpr std::string_view kOrtThreadsEnvironment =
     "STEMGENRT_PACED_ORT_THREADS";
+constexpr std::string_view kWorkerRealtimeEnvironment =
+    "STEMGENRT_PACED_WORKER_REALTIME";
+constexpr std::string_view kCallbackRealtimeEnvironment =
+    "STEMGENRT_PACED_CALLBACK_REALTIME";
 
 constexpr float kPi = 3.14159265358979323846f;
 
@@ -91,6 +97,7 @@ int qualificationCallbackCount() {
 struct CallbackTimingSample {
   std::chrono::steady_clock::time_point started;
   std::chrono::steady_clock::time_point finished;
+  std::chrono::steady_clock::time_point scheduled;
 };
 
 // Bound collection memory before playback, while retaining the entire
@@ -453,6 +460,14 @@ TEST(RealtimeStemSanityTest,
 
   const bool callbackPriorityApplied =
       configureAndVerifyCallbackThreadPriority();
+  const int workerRealtime =
+      integerEnvironment(kWorkerRealtimeEnvironment, 0, 0, 1);
+  const int callbackRealtime =
+      integerEnvironment(kCallbackRealtimeEnvironment, 0, 0, 1);
+  ASSERT_GE(workerRealtime, 0)
+      << kWorkerRealtimeEnvironment << " must be 0 or 1";
+  ASSERT_GE(callbackRealtime, 0)
+      << kCallbackRealtimeEnvironment << " must be 0 or 1";
 
   const int traceWorker = integerEnvironment(kWorkerTimingEnvironment, 0, 0, 1);
   ASSERT_GE(traceWorker, 0) << kWorkerTimingEnvironment << " must be 0 or 1";
@@ -472,6 +487,7 @@ TEST(RealtimeStemSanityTest,
   std::vector<CallbackTimingSample> callbackTrace(
       traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
+  ASSERT_TRUE(processor.setDiagnosticWorkerScheduling(workerRealtime != 0));
   if (ortThreads != 0) {
     ASSERT_TRUE(processor.setDiagnosticOrtIntraOpThreads(ortThreads));
   }
@@ -510,6 +526,12 @@ TEST(RealtimeStemSanityTest,
   const auto blockDurationTicks =
       std::chrono::duration_cast<std::chrono::steady_clock::duration>(
           blockDuration);
+  audio_plugin::MacThreadPolicy callbackPolicy;
+  // The synthetic host does only input/output bookkeeping and processBlock.
+  // Use 0.5 ms compute within a 1 ms constraint. XNU raises a smaller compute
+  // estimate to constraint/2; this avoids an implicit policy adjustment.
+  const bool callbackPolicyInitial =
+      callbackPolicy.start(callbackRealtime != 0, 500000, 1000000);
   auto scheduledCallbackStart = std::chrono::steady_clock::now();
   auto previousCallbackStart = scheduledCallbackStart;
   bool havePreviousCallbackStart = false;
@@ -540,7 +562,8 @@ TEST(RealtimeStemSanityTest,
     processor.processBlock(buffer, midiBuffer);
     const auto processFinished = std::chrono::steady_clock::now();
     if (traceWorker != 0) {
-      callbackTrace[static_cast<size_t>(b)] = {processStarted, processFinished};
+      callbackTrace[static_cast<size_t>(b)] = {processStarted, processFinished,
+                                               scheduledCallbackStart};
     }
 
     const double startLatenessMicroseconds =
@@ -634,6 +657,7 @@ TEST(RealtimeStemSanityTest,
     std::this_thread::sleep_until(scheduledCallbackStart);
   }
 
+  const bool callbackPolicyFinal = callbackPolicy.finish();
   ASSERT_EQ(completeCallbackMicroseconds.size(),
             static_cast<size_t>(measureBlocks));
   ASSERT_EQ(callbackStartInterarrivalMicroseconds.size(),
@@ -652,7 +676,8 @@ TEST(RealtimeStemSanityTest,
       << " warmup_underrun_samples=" << warmupFailures.underrunSamples
       << " measured_underrun_samples=" << measuredFailures.underrunSamples
       << " warmup_output_discard_events=" << warmupFailures.lateDiscardEvents
-      << " measured_output_discard_events=" << measuredFailures.lateDiscardEvents
+      << " measured_output_discard_events="
+      << measuredFailures.lateDiscardEvents
       << " retained_events=" << failureTrace.size()
       << " omitted_events=" << failureTrace.omittedEvents() << '\n';
   for (size_t index = 0; index < failureTrace.size(); ++index) {
@@ -702,6 +727,19 @@ TEST(RealtimeStemSanityTest,
   const bool workerPriorityApplied =
       workerPriorityStatus ==
       audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied;
+  const int configuredOrtThreads = processor.getConfiguredOrtIntraOpThreads();
+  const int reportedLatency = processor.getLatencySamples();
+  // Capture all callback counters and PDC before releaseResources resets them.
+  // Joining the worker establishes its final policy readback and trace bounds.
+  processor.releaseResources();
+  const auto workerPolicyInitial = processor.getWorkerSchedulingInitialStatus();
+  const auto workerPolicyFinal = processor.getWorkerSchedulingFinalStatus();
+  const bool policiesVerified =
+      callbackPolicyInitial && callbackPolicyFinal &&
+      workerPolicyInitial ==
+          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied &&
+      workerPolicyFinal ==
+          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied;
   const bool retainedSourcesPresent =
       std::all_of(maxAbsRetainedStems.begin(), maxAbsRetainedStems.end(),
                   [](float peak) { return peak > 1.0e-3f; });
@@ -710,7 +748,8 @@ TEST(RealtimeStemSanityTest,
                   maxAbsRetainedPairDifferences.end(),
                   [](float difference) { return difference > 1.0e-5f; });
   const bool qualificationPassed =
-      failureTrace.countersMonotonic() && completeCallbackDeadlineMisses == 0U &&
+      failureTrace.countersMonotonic() &&
+      completeCallbackDeadlineMisses == 0U &&
       callbackStartDeadlineMisses == 0U &&
       callbackStartCatchupIntervals == 0U &&
       callbackTiming.p999 < callbackDeadlineMicroseconds &&
@@ -722,7 +761,7 @@ TEST(RealtimeStemSanityTest,
       underrunBlocks == 0U && !underrunActive && queueFullDrops == 0U &&
       ringOverflowEvents == 0U && ringOverflowSamples == 0U &&
       !unsafeRealtimeCallback && unsafeRealtimeCallbacks == 0U &&
-      callbackPriorityApplied && workerPriorityApplied &&
+      callbackPriorityApplied && workerPriorityApplied && policiesVerified &&
       allOutputSamplesFinite && retainedSourcesPresent &&
       retainedSourcesDistinct && maxAbsReconstructionError <= 1.0e-6f;
 
@@ -738,10 +777,21 @@ TEST(RealtimeStemSanityTest,
       << traceCapacity * sizeof(audio_plugin::WorkerTimingSample) +
              callbackTrace.size() * sizeof(CallbackTimingSample)
       << " ort_intra_op_threads_override=" << ortThreads
-      << " ort_intra_op_threads=" << processor.getConfiguredOrtIntraOpThreads()
+      << " ort_intra_op_threads=" << configuredOrtThreads
+      << " worker_scheduling=" << (workerRealtime != 0 ? "realtime" : "qos")
+      << " callback_scheduling=" << (callbackRealtime != 0 ? "realtime" : "qos")
+      << " worker_computation_ns=2700000 callback_computation_ns=500000"
+      << " callback_constraint_ns=1000000"
+      << " worker_policy_initial="
+      << workerPriorityStatusName(workerPolicyInitial)
+      << " worker_policy_final=" << workerPriorityStatusName(workerPolicyFinal)
+      << " callback_policy_initial="
+      << (callbackPolicyInitial ? "applied" : "failed")
+      << " callback_policy_final="
+      << (callbackPolicyFinal ? "applied" : "failed")
       << " callback_samples=" << kBlockSize
       << " sample_rate=" << static_cast<int>(kSampleRate)
-      << " pdc_samples=" << processor.getLatencySamples()
+      << " pdc_samples=" << reportedLatency
       << " deadline_us=" << callbackDeadlineMicroseconds
       << " min_us=" << callbackTiming.minimum
       << " mean_us=" << callbackTiming.mean << " p50_us=" << callbackTiming.p50
@@ -826,6 +876,8 @@ TEST(RealtimeStemSanityTest,
          "QOS_CLASS_USER_INTERACTIVE";
   EXPECT_EQ(workerPriorityStatus,
             audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied);
+  EXPECT_TRUE(policiesVerified)
+      << "Initial/final scheduling policy verification failed";
   EXPECT_EQ(completeCallbackDeadlineMisses, 0U)
       << "Complete processBlock deadline misses; maximum callback was "
       << callbackTiming.maximum << " us";
@@ -837,11 +889,49 @@ TEST(RealtimeStemSanityTest,
   EXPECT_LT(callbackTiming.maximum, callbackDeadlineMicroseconds);
   EXPECT_TRUE(qualificationPassed);
 
-  processor.releaseResources();
   if (traceWorker != 0) {
     printWorkerTiming(workerTrace, callbackTrace, failureTrace);
     EXPECT_EQ(workerTrace.omitted(), 0U)
         << "The worker trace did not retain the complete requested interval";
+    const auto prefix = juce::SystemStats::getEnvironmentVariable(
+                            "STEMGENRT_PACED_TRACE_PATH", {})
+                            .toStdString();
+    if (!prefix.empty()) {
+      const auto epoch = callbackTrace.front().scheduled;
+      const auto nanoseconds = [epoch](auto value) {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(value -
+                                                                    epoch)
+            .count();
+      };
+      std::ofstream callbacks(prefix + "-callbacks.csv");
+      callbacks << "callback,scheduled_ns,started_ns,finished_ns\n";
+      for (size_t i = 0; i < callbackTrace.size(); ++i) {
+        const auto& sample = callbackTrace[i];
+        callbacks << i << ',' << nanoseconds(sample.scheduled) << ','
+                  << nanoseconds(sample.started) << ','
+                  << nanoseconds(sample.finished) << '\n';
+      }
+      callbacks.close();
+      EXPECT_TRUE(callbacks.good()) << "Could not save callback trace";
+      std::ofstream worker(prefix + "-worker.csv");
+      worker
+          << std::setprecision(12)
+          << "epoch,input_sequence,acquired_ns,run_started_ns,run_finished_ns,"
+             "publish_started_ns,publish_finished_ns,process_cpu_us,inference_"
+             "ok\n";
+      for (const auto& sample : workerTrace.samples()) {
+        worker << sample.epoch << ',' << sample.inputSequence << ','
+               << nanoseconds(sample.acquired) << ','
+               << nanoseconds(sample.runStarted) << ','
+               << nanoseconds(sample.runFinished) << ','
+               << nanoseconds(sample.publishStarted) << ','
+               << nanoseconds(sample.publishFinished) << ','
+               << sample.processCpuMicroseconds() << ','
+               << (sample.inferenceOk ? 1 : 0) << '\n';
+      }
+      worker.close();
+      EXPECT_TRUE(worker.good()) << "Could not save worker trace";
+    }
     ASSERT_TRUE(processor.setWorkerTimingTrace(nullptr));
   }
 }

@@ -3,6 +3,7 @@
 #endif
 
 #include "StemgenRT/InferenceQueue.h"
+#include "StemgenRT/MacThreadPolicy.h"
 #include "StemgenRT/OnnxRuntime.h"
 
 #include <algorithm>
@@ -43,8 +44,8 @@ InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
   }
   qos_class_t observedClass{};
   int relativePriority = 0;
-  const int getResult = pthread_get_qos_class_np(
-      pthread_self(), &observedClass, &relativePriority);
+  const int getResult = pthread_get_qos_class_np(pthread_self(), &observedClass,
+                                                 &relativePriority);
   return getResult == 0 && observedClass == QOS_CLASS_USER_INTERACTIVE
              ? InferenceQueue::WorkerPriorityStatus::Applied
              : InferenceQueue::WorkerPriorityStatus::Failed;
@@ -174,13 +175,11 @@ bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
   }
 
   constexpr uint64_t kChunkSize = static_cast<uint64_t>(kOutputChunkSize);
-  if (request.chunkSequence <
-      static_cast<uint64_t>(kModelOutputDelayChunks)) {
+  if (request.chunkSequence < static_cast<uint64_t>(kModelOutputDelayChunks)) {
     return false;
   }
   const uint64_t alignedSequence =
-      request.chunkSequence -
-      static_cast<uint64_t>(kModelOutputDelayChunks);
+      request.chunkSequence - static_cast<uint64_t>(kModelOutputDelayChunks);
   if (alignedSequence > std::numeric_limits<uint64_t>::max() / kChunkSize) {
     return false;
   }
@@ -253,6 +252,10 @@ bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
   shouldStop_.store(false, std::memory_order_release);
   workerPriorityStatus_.store(WorkerPriorityStatus::NotAttempted,
                               std::memory_order_release);
+  schedulingInitialStatus_.store(WorkerPriorityStatus::NotAttempted,
+                                 std::memory_order_release);
+  schedulingFinalStatus_.store(WorkerPriorityStatus::NotAttempted,
+                               std::memory_order_release);
   try {
     thread_ = std::make_unique<std::thread>(
         &InferenceQueue::inferenceThreadFunc, this, callbacks);
@@ -280,6 +283,20 @@ bool InferenceQueue::setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept {
     return false;
   }
   workerTimingTrace_ = trace;
+  return true;
+}
+
+bool InferenceQueue::setDiagnosticScheduling(bool realtime) noexcept {
+  if (isThreadRunning()) {
+    return false;
+  }
+#if !defined(__APPLE__)
+  if (realtime) {
+    return false;
+  }
+#endif
+  diagnosticScheduling_ = true;
+  diagnosticRealtime_ = realtime;
   return true;
 }
 
@@ -643,6 +660,18 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   if (priorityStatus == WorkerPriorityStatus::Failed) {
     DBG("[InferenceQueue] Failed to raise inference worker priority");
   }
+  MacThreadPolicy scheduling;
+  if (diagnosticScheduling_) {
+#if defined(__APPLE__)
+    const bool applied = scheduling.start(diagnosticRealtime_, 2700000);
+    schedulingInitialStatus_.store(
+        applied ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
+        std::memory_order_release);
+#else
+    schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
+                                   std::memory_order_release);
+#endif
+  }
   DBG("[InferenceQueue] Thread running");
 
   uint64_t lastSeenEpochControl = epochControl_.load(std::memory_order_acquire);
@@ -877,6 +906,17 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
     }
   }
 
+  if (diagnosticScheduling_) {
+#if defined(__APPLE__)
+    const bool verified = scheduling.finish();
+    schedulingFinalStatus_.store(
+        verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
+        std::memory_order_release);
+#else
+    schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,
+                                 std::memory_order_release);
+#endif
+  }
   DBG("[InferenceQueue] Thread exiting");
 }
 

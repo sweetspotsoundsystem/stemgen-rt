@@ -87,6 +87,9 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ctest -C ${{ matrix.build_type }} --output-on-failure
 
+    - name: Check scheduling evidence validation
+      run: python -m unittest discover -s scripts/tests -v
+
     - name: Archive macOS bundles
       if: matrix.os == 'macos-15'
       run: |

@@ -7,6 +7,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include "StemgenRT/InferenceQueue.h"
+#include "StemgenRT/MacThreadPolicy.h"
 
 namespace audio_plugin {
 
@@ -237,6 +238,65 @@ TEST(InferenceQueueTest, WorkerPublishesPriorityConfigurationResult) {
   queue.stopThread();
   EXPECT_EQ(queue.getWorkerPriorityStatus(), status);
 }
+
+TEST(InferenceQueueTest,
+     SchedulingDiagnosticIsStoppedOnlyAndPersistsReadbacks) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+#if !defined(__APPLE__)
+  EXPECT_FALSE(queue.setDiagnosticScheduling(true));
+#endif
+  ASSERT_TRUE(queue.setDiagnosticScheduling(false));
+  EXPECT_EQ(queue.getSchedulingInitialStatus(),
+            InferenceQueue::WorkerPriorityStatus::NotAttempted);
+  EXPECT_EQ(queue.getSchedulingFinalStatus(),
+            InferenceQueue::WorkerPriorityStatus::NotAttempted);
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  EXPECT_FALSE(queue.setDiagnosticScheduling(false));
+  ASSERT_TRUE(waitUntil([&] {
+    return queue.getSchedulingInitialStatus() !=
+           InferenceQueue::WorkerPriorityStatus::NotAttempted;
+  }));
+  EXPECT_EQ(queue.getSchedulingFinalStatus(),
+            InferenceQueue::WorkerPriorityStatus::NotAttempted);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0U);
+  const auto* output = waitForOutput(queue, epoch);
+  ASSERT_NE(output, nullptr);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+#if defined(__APPLE__)
+  EXPECT_EQ(queue.getSchedulingInitialStatus(),
+            InferenceQueue::WorkerPriorityStatus::Applied);
+  EXPECT_EQ(queue.getSchedulingFinalStatus(),
+            InferenceQueue::WorkerPriorityStatus::Applied);
+#else
+  EXPECT_EQ(queue.getSchedulingInitialStatus(),
+            InferenceQueue::WorkerPriorityStatus::Unsupported);
+  EXPECT_EQ(queue.getSchedulingFinalStatus(),
+            InferenceQueue::WorkerPriorityStatus::Unsupported);
+#endif
+  EXPECT_TRUE(queue.setDiagnosticScheduling(false));
+}
+
+#if defined(__APPLE__)
+TEST(InferenceQueueTest, MachDiagnosticPolicyReadsBackAndRestoresOnItsThread) {
+  bool began = false, ended = false, restored = false;
+  std::thread thread([&] {
+    audio_plugin::MacThreadPolicy policy;
+    began = policy.start(true, 500000, 1000000);
+    ended = policy.finish();
+    audio_plugin::MacThreadPolicy control;
+    restored = control.start(false, 500000, 1000000) && control.finish();
+  });
+  thread.join();
+  EXPECT_TRUE(began);
+  EXPECT_TRUE(ended);
+  EXPECT_TRUE(restored);
+}
+#endif
 
 TEST(InferenceQueueTest, CompatibilityWaitObservesProcessedPreroll) {
   FakeRuntime runtime;
