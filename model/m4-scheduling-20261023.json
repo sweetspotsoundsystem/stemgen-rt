@@ -1,0 +1,252 @@
+{
+  "schema": "stemgenrt-returned-m4-scheduling-review-v1",
+  "date": "2026-10-23",
+  "chip": "Apple M4",
+  "host": {
+    "hw.model": "Mac16,10",
+    "hw.memsize": "17179869184",
+    "hw.physicalcpu": "10",
+    "hw.perflevel0.physicalcpu": "4",
+    "hw.perflevel1.physicalcpu": "6"
+  },
+  "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t26.4\nBuildVersion:\t\t25E246",
+  "packet_manifest_sha256": "a1d40e73839c6f496f318a04af874484ce4cd00d9a700130b95359f28c91e25b",
+  "returned_archives_sha256": {
+    "native.zip": "9288c368df4c6e436122db4675beccb2f7456132e3d46d771976dab931476015",
+    "plugin.zip": "755baf6fc457e9d01efa6a43006a115c1e34fc128ac15f7032343b61ed7a845b"
+  },
+  "model_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+  "ort_version": "1.26.0",
+  "plugin_source_commit": "288842a1213424fda303ae5270c24027c8c143fe",
+  "sample_rate": 44100,
+  "callback_samples": 128,
+  "pdc_samples": 256,
+  "aggregates": [
+    {
+      "phase": "short",
+      "case": "callback_qos_worker_qos",
+      "trials": 4,
+      "trials_passing_all_gates": 0,
+      "measured_callbacks": 40000,
+      "warmup_callbacks": 400,
+      "measured_due_boundary_misses": 5,
+      "warmup_due_boundary_misses": 1,
+      "measured_underrun_samples": 640,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 1,
+      "callback_catchup_intervals": 2,
+      "maximum_callback_execution_us": 30.75
+    },
+    {
+      "phase": "short",
+      "case": "callback_qos_worker_rt",
+      "trials": 4,
+      "trials_passing_all_gates": 2,
+      "measured_callbacks": 40000,
+      "warmup_callbacks": 400,
+      "measured_due_boundary_misses": 2,
+      "warmup_due_boundary_misses": 0,
+      "measured_underrun_samples": 256,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 0,
+      "callback_catchup_intervals": 1,
+      "maximum_callback_execution_us": 19.292
+    },
+    {
+      "phase": "short",
+      "case": "callback_rt_worker_qos",
+      "trials": 4,
+      "trials_passing_all_gates": 3,
+      "measured_callbacks": 40000,
+      "warmup_callbacks": 400,
+      "measured_due_boundary_misses": 2,
+      "warmup_due_boundary_misses": 0,
+      "measured_underrun_samples": 256,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 0,
+      "callback_catchup_intervals": 0,
+      "maximum_callback_execution_us": 17.667
+    },
+    {
+      "phase": "short",
+      "case": "callback_rt_worker_rt",
+      "trials": 4,
+      "trials_passing_all_gates": 4,
+      "measured_callbacks": 40000,
+      "warmup_callbacks": 400,
+      "measured_due_boundary_misses": 0,
+      "warmup_due_boundary_misses": 0,
+      "measured_underrun_samples": 0,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 0,
+      "callback_catchup_intervals": 0,
+      "maximum_callback_execution_us": 16.0
+    },
+    {
+      "phase": "endurance",
+      "case": "callback_rt_worker_qos",
+      "trials": 1,
+      "trials_passing_all_gates": 0,
+      "measured_callbacks": 105000,
+      "warmup_callbacks": 100,
+      "measured_due_boundary_misses": 5,
+      "warmup_due_boundary_misses": 0,
+      "measured_underrun_samples": 640,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 0,
+      "callback_catchup_intervals": 0,
+      "maximum_callback_execution_us": 17.583
+    },
+    {
+      "phase": "endurance",
+      "case": "callback_rt_worker_rt",
+      "trials": 1,
+      "trials_passing_all_gates": 1,
+      "measured_callbacks": 105000,
+      "warmup_callbacks": 100,
+      "measured_due_boundary_misses": 0,
+      "warmup_due_boundary_misses": 0,
+      "measured_underrun_samples": 0,
+      "callback_execution_deadline_misses": 0,
+      "callback_start_deadline_misses": 0,
+      "callback_catchup_intervals": 0,
+      "maximum_callback_execution_us": 21.083
+    }
+  ],
+  "traced_diagnostics": {
+    "callback_rt_worker_qos": {
+      "callback_rows": 10100,
+      "worker_rows": 10101,
+      "matched_measured_requests": 10000,
+      "all_reported_trace_metrics_recomputed": true,
+      "process_cpu_scope": "all process threads, not isolated worker CPU",
+      "run": {
+        "min_us": 1138.708,
+        "mean_us": 1198.4962853,
+        "p50_us": 1182.875,
+        "p95_us": 1265.230899999998,
+        "p99_us": 1592.50125,
+        "p99.9_us": 1639.5489160000013,
+        "max_us": 2433.959
+      },
+      "process_cpu": {
+        "min_us": 1139.0,
+        "mean_us": 1199.8271,
+        "p50_us": 1184.0,
+        "p95_us": 1266.2999999999956,
+        "p99_us": 1595.0,
+        "p99.9_us": 1640.0120000000024,
+        "max_us": 2452.0
+      },
+      "dispatch_lower": {
+        "min_us": 0.0,
+        "mean_us": 83.8747638,
+        "p50_us": 85.25,
+        "p95_us": 150.584,
+        "p99_us": 154.125,
+        "p99.9_us": 157.16708300000002,
+        "max_us": 2122.125
+      },
+      "dispatch_upper": {
+        "min_us": 2.292,
+        "mean_us": 87.5380223,
+        "p50_us": 88.833,
+        "p95_us": 154.625,
+        "p99_us": 158.00041000000002,
+        "p99.9_us": 161.41708300000002,
+        "max_us": 2131.166
+      },
+      "published_after_due_callback": 2,
+      "inference_wall_over_hop": 0,
+      "failure_details": [
+        {
+          "callback": 8072,
+          "input_sequence": 8071,
+          "dispatch_lower_us": 2122.125,
+          "dispatch_upper_us": 2131.166,
+          "run_us": 2433.959,
+          "process_cpu_us": 2452.0,
+          "publish_after_due_start_us": 1669.291,
+          "publish_after_due_finish_lower_us": 1664.0
+        },
+        {
+          "callback": 8073,
+          "input_sequence": 8072,
+          "dispatch_lower_us": 1664.167,
+          "dispatch_upper_us": 1669.458,
+          "run_us": 1833.5,
+          "process_cpu_us": 1849.0,
+          "publish_after_due_start_us": 606.083,
+          "publish_after_due_finish_lower_us": 603.208
+        }
+      ],
+      "excluded_from_uninstrumented_timing": true
+    },
+    "callback_rt_worker_rt": {
+      "callback_rows": 10100,
+      "worker_rows": 10101,
+      "matched_measured_requests": 10000,
+      "all_reported_trace_metrics_recomputed": true,
+      "process_cpu_scope": "all process threads, not isolated worker CPU",
+      "run": {
+        "min_us": 1138.209,
+        "mean_us": 1188.4703476,
+        "p50_us": 1173.0,
+        "p95_us": 1249.0204999999992,
+        "p99_us": 1567.41642,
+        "p99.9_us": 1611.9615830000005,
+        "max_us": 1714.333
+      },
+      "process_cpu": {
+        "min_us": 1140.0,
+        "mean_us": 1189.9762,
+        "p50_us": 1175.0,
+        "p95_us": 1250.0499999999993,
+        "p99_us": 1569.0,
+        "p99.9_us": 1613.0030000000006,
+        "max_us": 1716.0
+      },
+      "dispatch_lower": {
+        "min_us": 0.0,
+        "mean_us": 50.3167001,
+        "p50_us": 50.7915,
+        "p95_us": 97.58305,
+        "p99_us": 102.70801,
+        "p99.9_us": 106.37504200000001,
+        "max_us": 107.334
+      },
+      "dispatch_upper": {
+        "min_us": 2.333,
+        "mean_us": 54.0325944,
+        "p50_us": 54.458,
+        "p95_us": 101.541,
+        "p99_us": 107.0,
+        "p99.9_us": 111.00008300000002,
+        "max_us": 113.25
+      },
+      "published_after_due_callback": 0,
+      "inference_wall_over_hop": 0,
+      "failure_details": [],
+      "excluded_from_uninstrumented_timing": true
+    }
+  },
+  "native": {
+    "qos_preflight": "independent waveform/all-state parity recomputed and passed",
+    "realtime_preflight_exit": 1,
+    "error": "Cannot apply user-interactive QoS",
+    "realtime_preflight_elapsed_seconds": 0.663723,
+    "complete_native_timing_comparison": false,
+    "workgroup_measured": false,
+    "operator_profile_available": false
+  },
+  "limits": [
+    "One physical M4 and one workload session.",
+    "Short trials balanced; endurance and trace orders sequential.",
+    "Zero observed misses in 145000 measured callbacks is not a guarantee of sustained reliability.",
+    "Older native-worker completion misses are a different metric and cannot be directly compared to plugin boundary misses.",
+    "Native scheduling comparison and operator profiling did not complete.",
+    "The synthetic host exercised processBlock; no installed DAW/audio driver was measured."
+  ],
+  "production_defaults_changed": false,
+  "promotion_approved": false
+}
