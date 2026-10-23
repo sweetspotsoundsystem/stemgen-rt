@@ -70,6 +70,11 @@ public:
   InferenceQueue::WorkerPriorityStatus getInferenceWorkerPriorityStatus() const;
   // Diagnostic only: attach before prepareToPlay, read after releaseResources.
   bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
+  bool setDiagnosticWorkerScheduling(bool realtime) noexcept;
+  InferenceQueue::WorkerPriorityStatus getWorkerSchedulingInitialStatus()
+      const noexcept;
+  InferenceQueue::WorkerPriorityStatus getWorkerSchedulingFinalStatus()
+      const noexcept;
   // Measurement only; call before the first prepareToPlay. Zero retains the
   // production policy, 1..4 select a fresh session's immutable thread count.
   bool setDiagnosticOrtIntraOpThreads(int count) noexcept;

@@ -299,6 +299,34 @@ bool AudioPluginAudioProcessor::setWorkerTimingTrace(
 #endif
 }
 
+bool AudioPluginAudioProcessor::setDiagnosticWorkerScheduling(
+    bool realtime) noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.setDiagnosticScheduling(realtime);
+#else
+  juce::ignoreUnused(realtime);
+  return false;
+#endif
+}
+
+InferenceQueue::WorkerPriorityStatus
+AudioPluginAudioProcessor::getWorkerSchedulingInitialStatus() const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.getSchedulingInitialStatus();
+#else
+  return InferenceQueue::WorkerPriorityStatus::Unsupported;
+#endif
+}
+
+InferenceQueue::WorkerPriorityStatus
+AudioPluginAudioProcessor::getWorkerSchedulingFinalStatus() const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.getSchedulingFinalStatus();
+#else
+  return InferenceQueue::WorkerPriorityStatus::Unsupported;
+#endif
+}
+
 int AudioPluginAudioProcessor::getConfiguredOrtIntraOpThreads() const noexcept {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   return onnxRuntime_ ? onnxRuntime_->getConfiguredIntraOpThreadCount() : 0;

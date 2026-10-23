@@ -147,6 +147,16 @@ public:
   // Optional diagnostic. Configure only from the lifecycle thread while the
   // worker is stopped; concurrent start/stop/configuration is unsupported.
   bool setWorkerTimingTrace(WorkerTimingTrace* trace) noexcept;
+  // Measurement only, configured while stopped. Production keeps its existing
+  // QoS policy. This enables explicit initial/final Mach readbacks for both
+  // control and real-time conditions of the macOS diagnostic.
+  bool setDiagnosticScheduling(bool realtime) noexcept;
+  WorkerPriorityStatus getSchedulingInitialStatus() const noexcept {
+    return schedulingInitialStatus_.load(std::memory_order_acquire);
+  }
+  WorkerPriorityStatus getSchedulingFinalStatus() const noexcept {
+    return schedulingFinalStatus_.load(std::memory_order_acquire);
+  }
 
   // Check if a write slot is available (called from audio thread)
   // Returns pointer to the request if available, nullptr if queue is full
@@ -251,6 +261,12 @@ private:
   std::atomic<WorkerPriorityStatus> workerPriorityStatus_{
       WorkerPriorityStatus::NotAttempted};
   WorkerTimingTrace* workerTimingTrace_{nullptr};
+  bool diagnosticScheduling_{false};
+  bool diagnosticRealtime_{false};
+  std::atomic<WorkerPriorityStatus> schedulingInitialStatus_{
+      WorkerPriorityStatus::NotAttempted};
+  std::atomic<WorkerPriorityStatus> schedulingFinalStatus_{
+      WorkerPriorityStatus::NotAttempted};
 };
 
 }  // namespace audio_plugin

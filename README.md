@@ -20,7 +20,8 @@ buffers include their additional scheduling reserve in reported latency.
 
 The listening comparison favored cleaner vocals, better silence behavior and
 less vocal bleed in drums and bass. Other can contain stronger residual errors.
-Physical M4/M4 Pro sustained timing remains unmeasured for these weights.
+The returned M4 worker probe missed 7.21% of deadlines in its five-minute
+released-graph trial. Plugin callback and DAW qualification remain pending.
 Correctness tests and algorithmic latency do not establish the CPU deadline.
 The audio callback never waits for inference; missed output uses aligned fallback.
 See [model details](model/README.md) and [M4 testing](M4_TESTING.md).
@@ -54,3 +55,24 @@ evaluation and export code is maintained in
 [StemgenRT-5.8](https://github.com/sweetspotsoundsystem/StemgenRT-5.8), with a
 matching source archive at `model/training-source/stemgenrt-0.7.0.tar.gz`.
 Private experiment archives and draft papers are excluded from this release.
+
+## Scheduling diagnostics
+
+The optional macOS comparison independently controls synthetic callback and
+worker scheduling while retaining this exact graph and the production ORT
+configuration. It runs four balanced short rounds, two five-minute endurance
+trials with a real-time synthetic callback, then separate worker traces:
+
+```sh
+git lfs pull
+./scripts/download-onnxruntime.sh
+python3 scripts/compare-paced-scheduling-macos.py \
+  --output /path/to/new-scheduling-results \
+  --power-notes "AC; Low Power Mode off; actual workloads"
+```
+
+Allow about 20 minutes after building. Return the result ZIP. Initial and final
+Mach policy readbacks, callback timing, queue misses, underruns and reconstruction
+must all pass their existing gates. Failed timing trials are retained while the
+comparison continues. Production scheduling remains unchanged; these controls
+do not install a plugin or qualify a DAW. See [the protocol](M4_TESTING.md).
