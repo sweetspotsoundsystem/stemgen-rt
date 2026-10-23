@@ -28,6 +28,10 @@ Independent PyTorch fixtures cover all four stems, reset, alignment and partial
 EOF. Full plugin tests cover queue epochs, fallback, offline variable callbacks
 and real-time allocation rules. See `release-validation.json` for release checks.
 The returned M4 worker probe missed 7,575 / 105,000 deadlines (7.21%) during its
-five-minute released-graph run. Complete plugin callback and DAW qualification
-remain pending, as does fresh M4 Pro evidence. See [M4 testing](../M4_TESTING.md).
+five-minute released-graph run. A later plugin-path comparison with real-time
+synthetic callback and worker observed zero boundary misses across four short
+trials and one five-minute trial (145,000 measured callbacks), versus seven with
+the same callback and QoS worker. These are different metrics from the earlier
+native probe. Longer plugin runs, installed-DAW qualification and fresh M4 Pro
+evidence remain pending. See [M4 testing](../M4_TESTING.md).
 Other can regress because it inherits the net error from the three learned stems.

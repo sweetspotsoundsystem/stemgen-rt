@@ -25,6 +25,24 @@ CASES = {
 NAMES = list(CASES)
 ORDER = [[NAMES[i] for i in row] for row in ((0, 1, 3, 2), (1, 2, 0, 3), (2, 3, 1, 0), (3, 0, 2, 1))]
 ENDURANCE = NAMES[2:]
+LONG_SOAK_CALLBACKS = (1800 * 44100 + 127) // 128
+
+
+def trial_plan(protocol):
+    """Return the complete exposure before any build or measurement starts."""
+    def item(name, case, count, traced=False):
+        return dict(name=name, case=case, measured_callbacks=count, traced=traced)
+    if protocol == 'comparison':
+        planned = [item('round' + str(index) + '-' + case, case, 10000)
+                   for index, order in enumerate(ORDER, 1) for case in order]
+        planned += [item('endurance-' + case, case, 105000) for case in ENDURANCE]
+        planned += [item('trace-' + case, case, 10000, True) for case in ENDURANCE]
+        return planned
+    if protocol == 'long-soak':
+        return [item('soak1-callback_rt_worker_rt', NAMES[3], LONG_SOAK_CALLBACKS),
+                item('control-callback_rt_worker_qos', NAMES[2], LONG_SOAK_CALLBACKS),
+                item('soak2-callback_rt_worker_rt', NAMES[3], LONG_SOAK_CALLBACKS)]
+    raise ValueError('Unknown scheduling protocol: ' + protocol)
 
 
 def require(condition, message):
@@ -120,6 +138,7 @@ def run(args, output):
     chip = capture(['sysctl', '-n', 'machdep.cpu.brand_string'])
     require(chip in ('Apple M4', 'Apple M4 Pro'), 'Use a physical Apple M4 or M4 Pro')
     before = source_inventory()
+    planned = trial_plan(args.protocol)
     # Build a fresh, explicit Release configuration. These overrides belong to
     # other builds and can otherwise change compiler/runtime identity silently.
     overrides=('CC','CXX','CFLAGS','CXXFLAGS','CPPFLAGS','LDFLAGS','OBJCFLAGS','ARCHFLAGS',
@@ -130,15 +149,14 @@ def run(args, output):
                    | {key for key in os.environ if key.startswith('DYLD_')})
     for key in removed:
         os.environ.pop(key)
-    write(output / 'plan.json', dict(schema='stemgenrt-plugin-scheduling-v1', frozen_utc=utc(),
+    write(output / 'plan.json', dict(schema='stemgenrt-plugin-scheduling-v2', frozen_utc=utc(),
         chip=chip, machine=platform.machine(), macos=capture(['sw_vers']), power_notes=args.power_notes,
         compiler=capture(['xcrun','clang++','--version']), cmake=capture(['cmake','--version']),
         ignored_build_override_names=removed,
         host={key:capture(['sysctl','-n',key],optional=True) for key in
             ('hw.model','hw.memsize','hw.physicalcpu','hw.perflevel0.physicalcpu','hw.perflevel1.physicalcpu')},
-        source_files=before, cases=CASES, round_order=ORDER, measured_callbacks=10000,
-        endurance_order=ENDURANCE, endurance_callbacks=105000, traced_diagnostic_order=ENDURANCE,
-        traced_diagnostic_callbacks=10000, promotion_automatic=False, daw_qualified=False))
+        source_files=before, cases=CASES, protocol=args.protocol, planned_trials=planned,
+        warmup_callbacks=100, promotion_automatic=False, daw_qualified=False))
     write(output / 'power-before.json', dict(source=capture(['pmset', '-g', 'batt']),
         settings=capture(['pmset', '-g', 'custom']), thermal=capture(['pmset', '-g', 'therm'], optional=True)))
 
@@ -192,6 +210,10 @@ def run(args, output):
         env.pop('STEMGENRT_PACED_TRACE_PATH', None)
         if traced:
             env['STEMGENRT_PACED_TRACE_PATH'] = str(output / name)
+        if args.protocol == 'long-soak':
+            write(output / (name + '-power-before.json'), dict(
+                source=capture(['pmset', '-g', 'batt']),
+                thermal=capture(['pmset', '-g', 'therm'], optional=True)))
         code = stage(name, [str(binary), '--gtest_also_run_disabled_tests', '--gtest_color=no',
             '--gtest_filter=' + FILTER], timeout=60 + 3 * count * 128 / 44100,
             env=env, allow_timing_failure=True)
@@ -205,32 +227,43 @@ def run(args, output):
             require((output / (name + '-worker.csv')).stat().st_size>100, 'Missing worker trace')
         results.append(dict(name=name, case=case, traced=traced, exit_code=code, summary=row))
         write(output / 'partial-results.json', results)
+        if args.protocol == 'long-soak':
+            write(output / (name + '-power-after.json'), dict(
+                source=capture(['pmset', '-g', 'batt']),
+                thermal=capture(['pmset', '-g', 'therm'], optional=True)))
 
-    for index, order in enumerate(ORDER, 1):
-        for case in order:
-            trial('round' + str(index) + '-' + case, case, 10000)
-    for case in ENDURANCE:
-        trial('endurance-' + case, case, 105000)
-    for case in ENDURANCE:
-        trial('trace-' + case, case, 10000, traced=True)
+    for item in planned:
+        trial(item['name'], item['case'], item['measured_callbacks'], item['traced'])
     require(source_inventory() == before, 'Source changed during comparison')
     require(all(sha(path) == digest for path, digest in identities.items()), 'Binary/model/runtime changed')
     write(output / 'power-after.json', dict(source=capture(['pmset', '-g', 'batt']),
         thermal=capture(['pmset', '-g', 'therm'], optional=True)))
-    write(output / 'results.json', dict(status='comparison_completed', chip=chip, trials=results,
+    candidates = [row for row in results if row['case'] == NAMES[3] and not row['traced']]
+    interpretation = ('Two separate thirty-minute real-time-worker trials bracket one thirty-minute '
+        'QoS-worker control. The synthetic callback keeps real-time scheduling throughout, and tracing '
+        'is disabled. Power/thermal snapshots surround each trial. Sequential order cannot eliminate '
+        'all thermal/time confounding. Installed DAW behavior is not measured.'
+        if args.protocol == 'long-soak' else
+        'Four order-balanced rounds of the complete callback/worker path; two separate '
+        'five-minute endurance trials hold the synthetic callback at real-time policy. '
+        'Worker trace diagnostics run last and are excluded from uninstrumented timing. '
+        'Endurance order is sequential; installed DAW behavior is not measured.')
+    write(output / 'results.json', dict(status='comparison_completed', chip=chip,
+        protocol=args.protocol, planned_trials=planned, trials=results,
         all_timing_gates_passed=all(row['exit_code'] == 0 for row in results if not row['traced']),
+        candidate_trials=len(candidates),
+        candidate_all_timing_gates_passed=bool(candidates) and all(row['exit_code'] == 0 for row in candidates),
         daw_qualified=False, promotion_automatic=False,
-        interpretation='Four order-balanced rounds of the complete callback/worker path; two separate '
-            'five-minute endurance trials hold the synthetic callback at real-time policy. '
-            'Worker trace diagnostics run last and are excluded from uninstrumented timing. '
-            'All original callback, underrun, reconstruction and zero-wait gates remain required. '
-            'Endurance order is sequential; installed DAW behavior is not measured.'))
+        interpretation=interpretation + ' All original callback, underrun, reconstruction and zero-wait '
+            'gates remain required. A completed comparison is not a production promotion.'))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--power-notes', required=True)
+    parser.add_argument('--protocol', choices=('comparison', 'long-soak'), default='comparison',
+        help='Original balanced comparison, or two 30-minute real-time-worker trials around a 30-minute QoS control')
     args = parser.parse_args()
     if sys.platform != 'darwin' or platform.machine() != 'arm64':
         parser.error('Use native arm64 Python on a physical target Mac')

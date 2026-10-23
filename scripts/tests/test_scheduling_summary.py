@@ -70,6 +70,37 @@ class SchedulingSummaryTest(unittest.TestCase):
         for row in PROBE.ORDER:
             self.assertEqual(set(row),set(PROBE.CASES))
 
+    def test_comparison_plan_preserves_original_exposure_and_trace_separation(self):
+        plan = PROBE.trial_plan('comparison')
+        self.assertEqual(len(plan), 20)
+        self.assertEqual(len({row['name'] for row in plan}), 20)
+        self.assertEqual([row['case'] for row in plan[:16]],
+                         [case for order in PROBE.ORDER for case in order])
+        self.assertEqual([row['measured_callbacks'] for row in plan],
+                         [10000] * 16 + [105000] * 2 + [10000] * 2)
+        self.assertEqual([row['traced'] for row in plan], [False] * 18 + [True] * 2)
+
+    def test_long_soak_repeats_candidate_around_qos_control_without_tracing(self):
+        plan = PROBE.trial_plan('long-soak')
+        self.assertEqual(len(plan), 3)
+        self.assertEqual(len({row['name'] for row in plan}), 3)
+        self.assertEqual([row['case'] for row in plan],
+                         ['callback_rt_worker_rt', 'callback_rt_worker_qos', 'callback_rt_worker_rt'])
+        for row in plan:
+            self.assertFalse(row['traced'])
+            self.assertEqual(row['measured_callbacks'], 620157)
+            self.assertGreaterEqual(row['measured_callbacks'] * 128 / 44100, 1800)
+            self.assertLess((row['measured_callbacks'] - 1) * 128 / 44100, 1800)
+        with self.assertRaises(ValueError):
+            PROBE.trial_plan('unknown')
+
+    def test_long_soak_summary_requires_complete_exposure(self):
+        self.row['measured_callbacks'] = '620157'
+        self.assertEqual(PROBE.parse_summary(self.log(), self.case, 620157, False), self.row)
+        self.row['measured_callbacks'] = '620156'
+        with self.assertRaises(ValueError):
+            PROBE.parse_summary(self.log(), self.case, 620157, False)
+
 
 if __name__ == '__main__':
     unittest.main()

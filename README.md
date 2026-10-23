@@ -21,7 +21,11 @@ buffers include their additional scheduling reserve in reported latency.
 The listening comparison favored cleaner vocals, better silence behavior and
 less vocal bleed in drums and bass. Other can contain stronger residual errors.
 The returned M4 worker probe missed 7.21% of deadlines in its five-minute
-released-graph trial. Plugin callback and DAW qualification remain pending.
+released-graph trial. A later complete plugin-path comparison observed zero
+misses over four short trials and one five-minute trial with both synthetic
+callback and worker on real-time policy (145,000 measured callbacks). With the
+same callback policy, the QoS worker had seven measured misses. Longer playback
+and installed-DAW qualification remain pending; production keeps QoS scheduling.
 Correctness tests and algorithmic latency do not establish the CPU deadline.
 The audio callback never waits for inference; missed output uses aligned fallback.
 See [model details](model/README.md) and [M4 testing](M4_TESTING.md).
@@ -76,3 +80,10 @@ Mach policy readbacks, callback timing, queue misses, underruns and reconstructi
 must all pass their existing gates. Failed timing trials are retained while the
 comparison continues. Production scheduling remains unchanged; these controls
 do not install a plugin or qualify a DAW. See [the protocol](M4_TESTING.md).
+
+For the next qualification stage, use `--protocol long-soak`. It runs two
+separate 30-minute real-time-worker trials with a 30-minute QoS-worker control
+between them, all with a real-time synthetic callback and tracing disabled.
+Allow about 90 minutes after compilation. The plan records every trial and its
+exact exposure before measurement; all original correctness and timing gates
+remain required.
