@@ -17,9 +17,9 @@ using Clock = std::chrono::steady_clock;
 using Audio = std::array<std::vector<float>, kNumChannels>;
 using Stems = std::array<Audio, kNumStems>;
 long setting(const char* key, long fallback) {
-  const char* value = std::getenv(key);
-  if (!value)
-    return fallback;
+  const auto text =
+      juce::SystemStats::getEnvironmentVariable(key, juce::String(fallback));
+  const char* value = text.toRawUTF8();
   char* end{};
   const long parsed = std::strtol(value, &end, 10);
   return end != value && *end == '\0' ? parsed : -1;
@@ -37,8 +37,9 @@ TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
   ASSERT_TRUE(workers == 1 || workers == 3);
   ASSERT_GE(measured, 10000);
   ASSERT_LE(measured, 620157);
-  const char* path = std::getenv("STEMGENRT_PARALLEL_NATIVE_CSV");
-  ASSERT_NE(path, nullptr);
+  const auto path = juce::SystemStats::getEnvironmentVariable(
+      "STEMGENRT_PARALLEL_NATIVE_CSV", {});
+  ASSERT_TRUE(path.isNotEmpty());
   constexpr size_t warmup = 1024;
   const size_t count = static_cast<size_t>(measured), total = count + warmup;
   std::vector<Audio> inputs(total);
@@ -111,7 +112,7 @@ TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
   }
   const bool final = policy.finish();
   runtime.stopAuxiliaryWorkers();
-  std::ofstream csv(path);
+  std::ofstream csv(path.toStdString());
   ASSERT_TRUE(csv.good());
   csv << std::setprecision(12)
       << "hop,run_wall_us,start_lateness_us,completion_from_arrival_us,"
