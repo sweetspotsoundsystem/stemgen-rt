@@ -7,6 +7,8 @@
 #include <span>
 #include <vector>
 
+#include "InferenceTiming.h"
+
 namespace audio_plugin {
 
 struct WorkerTimingSample {
@@ -22,7 +24,14 @@ struct WorkerTimingSample {
   // synthetic-host threads. It is not the dedicated worker's CPU time alone.
   std::clock_t processCpuStarted{static_cast<std::clock_t>(-1)};
   std::clock_t processCpuFinished{static_cast<std::clock_t>(-1)};
+  int64_t threadCpuStarted{-1};
+  int64_t threadCpuFinished{-1};
+  InferenceRunTiming ort;
   bool inferenceOk{};
+
+  double threadCpuMicroseconds() const noexcept {
+    return cpuMicrosecondsBetween(threadCpuFinished, threadCpuStarted);
+  }
 
   double processCpuMicroseconds() const noexcept {
     if (processCpuStarted == static_cast<std::clock_t>(-1) ||

@@ -13,19 +13,19 @@ namespace audio_plugin {
 
 class InferenceQueueTestPeer {
  public:
-  using RunCallback = bool (*)(void*, InferenceRequest&);
-  using ResetCallback = void (*)(void*);
+   using RunCallback = bool (*)(void*, InferenceRequest&, InferenceRunTiming*);
+   using ResetCallback = void (*)(void*);
 
-  static void startThread(InferenceQueue& queue,
-                          void* context,
-                          RunCallback run,
-                          ResetCallback reset) {
-    InferenceQueue::WorkerCallbacks callbacks;
-    callbacks.context = context;
-    callbacks.run = run;
-    callbacks.reset = reset;
-    queue.startThreadWithCallbacks(callbacks);
-  }
+   static void startThread(InferenceQueue& queue,
+                           void* context,
+                           RunCallback run,
+                           ResetCallback reset) {
+     InferenceQueue::WorkerCallbacks callbacks;
+     callbacks.context = context;
+     callbacks.run = run;
+     callbacks.reset = reset;
+     queue.startThreadWithCallbacks(callbacks);
+   }
 };
 
 }  // namespace audio_plugin
@@ -79,9 +79,14 @@ InferenceRequest* waitForOutput(InferenceQueue& queue, uint32_t epoch) {
 
 class FakeRuntime {
  public:
-  static bool runCallback(void* context, InferenceRequest& request) {
-    return static_cast<FakeRuntime*>(context)->process(request);
-  }
+   std::atomic<bool> timingReceived{false};
+   static bool runCallback(void* context,
+                           InferenceRequest& request,
+                           audio_plugin::InferenceRunTiming* timing) {
+     auto* runtime = static_cast<FakeRuntime*>(context);
+     runtime->timingReceived.store(timing != nullptr);
+     return runtime->process(request);
+   }
 
   static void resetCallback(void* context) {
     static_cast<FakeRuntime*>(context)->resetState();
@@ -195,6 +200,9 @@ TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
 #else
   EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
 #endif
+  EXPECT_TRUE(runtime.timingReceived.load());
+  EXPECT_GE(sample.threadCpuMicroseconds(), 0.0);
+  EXPECT_FALSE(sample.ort.observed);  // Fake runtime never calls ORT.
   EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
 }
 
@@ -648,7 +656,7 @@ TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
   queue.allocate();
   InferenceQueueTestPeer::startThread(
       queue, nullptr,
-      [](void*, InferenceRequest& request) {
+      [](void*, InferenceRequest& request, audio_plugin::InferenceRunTiming*) {
         request.outputValid = true;
         request.hostOutputValid = true;
         return false;
@@ -663,4 +671,18 @@ TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
   EXPECT_FALSE(result->hostOutputValid);
   queue.releaseOutputSlot();
   queue.stopThread();
+}
+
+TEST(InferenceQueueTest, DisabledTracingPassesNoTimingPointer) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0);
+  ASSERT_NE(waitForOutput(queue, epoch), nullptr);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+  EXPECT_FALSE(runtime.timingReceived.load());
 }

@@ -13,6 +13,7 @@ set(SOURCE_FILES
   source/CroppedModelParityTest.cpp
   source/AudioProcessorTest.cpp
   source/InferenceQueueTest.cpp
+  source/InferenceTimingTest.cpp
   source/WorkerWorkgroupTest.cpp
   source/MacWorkgroupTest.cpp
   source/StreamingSampleRateAdapterTest.cpp

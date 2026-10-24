@@ -219,32 +219,32 @@ void printWorkerTiming(const audio_plugin::WorkerTimingTrace& trace,
   const auto processCpu = summarizeTiming(processCpuTimes);
   const auto dispatchLower = summarizeTiming(dispatchLowerBounds);
   const auto dispatchUpper = summarizeTiming(dispatchUpperBounds);
-  std::cerr << std::fixed << std::setprecision(3)
-            << "STEMGENRT_WORKER_TIMING scope=matched_measured_due_requests"
-            << " traced_samples=" << trace.samples().size()
-            << " omitted_samples=" << trace.omitted()
-            << " storage_complete=" << (trace.omitted() == 0U ? 1 : 0)
-            << " measured_due_requests="
-            << callbacks.size() - static_cast<size_t>(kWarmupBlocks)
-            << " matched_measured_requests=" << runTimes.size()
-            << " missing_measured_requests=" << missingMeasuredRequests
-            << " duplicate_sequences=" << duplicateSequences
-            << " published_after_due_callback=" << publishedAfterDueCallback
-            << " run_mean_us=" << run.mean << " run_p99_us=" << run.p99
-            << " run_max_us=" << run.maximum
-            << " process_cpu_scope=all_process_threads"
-            << " process_cpu_samples=" << processCpuTimes.size()
-            << " missing_cpu_samples=" << missingCpuSamples
-            << " process_cpu_mean_us="
-            << (processCpuTimes.empty() ? -1.0 : processCpu.mean)
-            << " process_cpu_p99_us="
-            << (processCpuTimes.empty() ? -1.0 : processCpu.p99)
-            << " process_cpu_max_us="
-            << (processCpuTimes.empty() ? -1.0 : processCpu.maximum)
-            << " dispatch_lower_p99_us=" << dispatchLower.p99
-            << " dispatch_upper_p99_us=" << dispatchUpper.p99
-            << " dispatch_lower_max_us=" << dispatchLower.maximum
-            << " dispatch_upper_max_us=" << dispatchUpper.maximum << '\n';
+  std::cerr
+      << std::fixed << std::setprecision(3)
+      << "STEMGENRT_WORKER_TIMING scope=matched_measured_due_requests schema=2"
+      << " traced_samples=" << trace.samples().size()
+      << " omitted_samples=" << trace.omitted()
+      << " storage_complete=" << (trace.omitted() == 0U ? 1 : 0)
+      << " measured_due_requests="
+      << callbacks.size() - static_cast<size_t>(kWarmupBlocks)
+      << " matched_measured_requests=" << runTimes.size()
+      << " missing_measured_requests=" << missingMeasuredRequests
+      << " duplicate_sequences=" << duplicateSequences
+      << " published_after_due_callback=" << publishedAfterDueCallback
+      << " run_mean_us=" << run.mean << " run_p99_us=" << run.p99
+      << " run_max_us=" << run.maximum
+      << " process_cpu_scope=all_process_threads"
+      << " process_cpu_samples=" << processCpuTimes.size()
+      << " missing_cpu_samples=" << missingCpuSamples << " process_cpu_mean_us="
+      << (processCpuTimes.empty() ? -1.0 : processCpu.mean)
+      << " process_cpu_p99_us="
+      << (processCpuTimes.empty() ? -1.0 : processCpu.p99)
+      << " process_cpu_max_us="
+      << (processCpuTimes.empty() ? -1.0 : processCpu.maximum)
+      << " dispatch_lower_p99_us=" << dispatchLower.p99
+      << " dispatch_upper_p99_us=" << dispatchUpper.p99
+      << " dispatch_lower_max_us=" << dispatchLower.maximum
+      << " dispatch_upper_max_us=" << dispatchUpper.maximum << '\n';
 
   for (size_t index = 0; index < failures.size(); ++index) {
     const auto& failure = failures.events()[index];
@@ -536,6 +536,16 @@ TEST(RealtimeStemSanityTest,
   // estimate to constraint/2; this avoids an implicit policy adjustment.
   const bool callbackPolicyInitial =
       callbackPolicy.start(callbackRealtime != 0, 500000, 1000000);
+  // One bounded bridge to Instruments' wall-clock timeline, outside callbacks.
+  const auto anchorBefore = traceWorker != 0
+                                ? std::chrono::steady_clock::now()
+                                : std::chrono::steady_clock::time_point{};
+  const auto anchorUtc = traceWorker != 0
+                             ? std::chrono::system_clock::now()
+                             : std::chrono::system_clock::time_point{};
+  const auto anchorAfter = traceWorker != 0
+                               ? std::chrono::steady_clock::now()
+                               : std::chrono::steady_clock::time_point{};
   auto scheduledCallbackStart = std::chrono::steady_clock::now();
   auto previousCallbackStart = scheduledCallbackStart;
   bool havePreviousCallbackStart = false;
@@ -914,6 +924,14 @@ TEST(RealtimeStemSanityTest,
                                                                     epoch)
             .count();
       };
+      std::cerr << "STEMGENRT_TRACE_CLOCK schema=2 steady_before_ns="
+                << nanoseconds(anchorBefore)
+                << " steady_after_ns=" << nanoseconds(anchorAfter)
+                << " unix_ns="
+                << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       anchorUtc.time_since_epoch())
+                       .count()
+                << '\n';
       std::ofstream callbacks(prefix + "-callbacks.csv");
       callbacks << "callback,scheduled_ns,started_ns,finished_ns\n";
       for (size_t i = 0; i < callbackTrace.size(); ++i) {
@@ -929,7 +947,9 @@ TEST(RealtimeStemSanityTest,
           << std::setprecision(12)
           << "epoch,input_sequence,acquired_ns,run_started_ns,run_finished_ns,"
              "publish_started_ns,publish_finished_ns,process_cpu_us,inference_"
-             "ok\n";
+             "ok,thread_cpu_started_ns,thread_cpu_finished_ns,ort_observed,"
+             "ort_started_ns,ort_finished_ns,ort_cpu_started_ns,ort_cpu_"
+             "finished_ns\n";
       for (const auto& sample : workerTrace.samples()) {
         worker << sample.epoch << ',' << sample.inputSequence << ','
                << nanoseconds(sample.acquired) << ','
@@ -938,7 +958,14 @@ TEST(RealtimeStemSanityTest,
                << nanoseconds(sample.publishStarted) << ','
                << nanoseconds(sample.publishFinished) << ','
                << sample.processCpuMicroseconds() << ','
-               << (sample.inferenceOk ? 1 : 0) << '\n';
+               << (sample.inferenceOk ? 1 : 0) << ',' << sample.threadCpuStarted
+               << ',' << sample.threadCpuFinished << ','
+               << (sample.ort.observed ? 1 : 0) << ','
+               << (sample.ort.observed ? nanoseconds(sample.ort.started) : -1)
+               << ','
+               << (sample.ort.observed ? nanoseconds(sample.ort.finished) : -1)
+               << ',' << sample.ort.cpuStarted << ',' << sample.ort.cpuFinished
+               << '\n';
       }
       worker.close();
       EXPECT_TRUE(worker.good()) << "Could not save worker trace";

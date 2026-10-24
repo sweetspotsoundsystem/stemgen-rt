@@ -804,7 +804,10 @@ bool OnnxRuntime::runInference(
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
         outputChunks,
     std::array<std::vector<float>, kNumChannels>& alignedInput,
-    bool& outputValid) {
+    bool& outputValid,
+    InferenceRunTiming* timing) {
+  if (timing != nullptr)
+    *timing = {};
   outputValid = false;
   if (!inferenceReady_.load(std::memory_order_acquire) ||
       !modelLoaded_.load(std::memory_order_acquire) || !ortSession_ ||
@@ -875,10 +878,19 @@ bool OnnxRuntime::runInference(
     outputNames[index] = qualified_model::kOutputNames[index].data();
   auto runOutputValues = outputTensorValues_;
 
+  if (timing != nullptr) {
+    timing->cpuStarted = currentThreadCpuNanoseconds();
+    timing->started = InferenceRunTiming::Clock::now();
+  }
   OrtStatus* runStatus =
       api->Run(ortSession_.get(), nullptr, inputNames.data(),
                constInputValues.data(), inputNames.size(), outputNames.data(),
                outputNames.size(), runOutputValues.data());
+  if (timing != nullptr) {
+    timing->finished = InferenceRunTiming::Clock::now();
+    timing->cpuFinished = currentThreadCpuNanoseconds();
+    timing->observed = true;
+  }
 
   // With every output pre-bound, ORT must retain the supplied OrtValue
   // pointers. Release any unexpected replacement without disturbing the
@@ -1064,7 +1076,10 @@ bool OnnxRuntime::runInference(
     const std::array<std::vector<float>, kNumChannels>&,
     std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&,
     std::array<std::vector<float>, kNumChannels>&,
-    bool& outputValid) {
+    bool& outputValid,
+    InferenceRunTiming* timing) {
+  if (timing != nullptr)
+    *timing = {};
   outputValid = false;
   return false;
 }

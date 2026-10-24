@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InferenceTiming.h"
+
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -93,7 +95,8 @@ public:
       std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
           outputChunks,
       std::array<std::vector<float>, kNumChannels>& alignedInput,
-      bool& outputValid);
+      bool& outputValid,
+      InferenceRunTiming* timing = nullptr);
 
   // Get a status string suitable for display
   juce::String getStatusString() const;

@@ -59,6 +59,7 @@ set(SOURCE_FILES
   source/PluginProcessor.cpp
   source/OnnxRuntime.cpp
   source/InferenceQueue.cpp
+  source/InferenceTiming.cpp
   source/StreamingSampleRateAdapter.cpp
   source/OverlapAddProcessor.cpp
   source/OutputWriter.cpp
@@ -70,6 +71,8 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/Constants.h
   ${INCLUDE_DIR}/OnnxRuntime.h
   ${INCLUDE_DIR}/InferenceQueue.h
+  ${INCLUDE_DIR}/InferenceTiming.h
+  ${INCLUDE_DIR}/WorkerTimingTrace.h
   ${INCLUDE_DIR}/RealtimeContextMailbox.h
   ${INCLUDE_DIR}/WorkerWorkgroup.h
   ${INCLUDE_DIR}/StreamingSampleRateAdapter.h

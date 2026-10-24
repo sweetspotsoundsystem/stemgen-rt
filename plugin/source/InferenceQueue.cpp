@@ -231,11 +231,12 @@ bool InferenceQueue::startThread(OnnxRuntime* runtime) {
   WorkerCallbacks callbacks;
   callbacks.context = runtime;
   if (runtime != nullptr) {
-    callbacks.run = [](void* context, InferenceRequest& request) {
+    callbacks.run = [](void* context, InferenceRequest& request,
+                       InferenceRunTiming* timing) {
       auto* onnxRuntime = static_cast<OnnxRuntime*>(context);
       return onnxRuntime->runInference(request.inputChunk, request.outputChunk,
                                        request.alignedInput,
-                                       request.outputValid);
+                                       request.outputValid, timing);
     };
     callbacks.reset = [](void* context) {
       static_cast<OnnxRuntime*>(context)->resetStreamingState();
@@ -684,6 +685,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   // Keep subnormal arithmetic from imposing unpredictable per-hop CPU cost.
   const juce::ScopedNoDenormals noDenormals;
   auto* const timingTrace = workerTimingTrace_;
+  if (timingTrace != nullptr)
+    juce::Thread::setCurrentThreadName("StemgenRT inference");
   const WorkerPriorityStatus priorityStatus = configureCurrentThreadPriority();
   workerPriorityStatus_.store(priorityStatus, std::memory_order_release);
   if (priorityStatus == WorkerPriorityStatus::Failed) {
@@ -867,15 +870,19 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // arrives concurrently.
       if (timingTrace != nullptr) {
         timing.processCpuStarted = processCpuClock();
+        timing.threadCpuStarted = currentThreadCpuNanoseconds();
         timing.runStarted = WorkerTimingSample::Clock::now();
       }
       if (epochControl_.load(std::memory_order_acquire) ==
               currentEpochControl &&
           callbacks.run != nullptr) {
-        inferenceOk = callbacks.run(callbacks.context, *request);
+        inferenceOk =
+            callbacks.run(callbacks.context, *request,
+                          timingTrace != nullptr ? &timing.ort : nullptr);
       }
       if (timingTrace != nullptr) {
         timing.runFinished = WorkerTimingSample::Clock::now();
+        timing.threadCpuFinished = currentThreadCpuNanoseconds();
         timing.processCpuFinished = processCpuClock();
       }
 

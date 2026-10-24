@@ -233,7 +233,7 @@ class InferenceQueue {
  private:
   struct WorkerCallbacks {
     void* context{nullptr};
-    bool (*run)(void*, InferenceRequest&){nullptr};
+    bool (*run)(void*, InferenceRequest&, InferenceRunTiming*){nullptr};
     void (*reset)(void*){nullptr};
   };
 
