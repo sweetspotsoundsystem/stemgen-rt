@@ -45,3 +45,15 @@ Use C++20, Chromium clang-format and warnings as errors. Keep ONNX compile defin
 Streaming changes require model identity/ABI checks; all-four-stem PyTorch parity; first-call invalid pre-roll; one-flush/partial-EOF recovery; reset determinism; queue gap/epoch races; exact PDC/Main alignment; non-finite input handling; fallback reconstruction; and variable offline callback coverage. Fixtures are synthetic float32 audio from independent CPU PyTorch reconstruction of the declared native FP32 models, with portable identity and format metadata in `test/fixtures/independent-pytorch.json`. Keep the independent PyTorch reference; never regenerate expected outputs from ORT. Record deployment-graph quality separately from the source checkpoint's FP32 score.
 
 Keep timing qualification separate from correctness. The disabled paced test measures the complete plugin callback/worker path; direct `Run` timings alone cannot establish DAW readiness. Keep the concise model quality and timing limitations in `model/README.md`. Distinguish user-reported machine results from independently inspected evidence.
+
+## Experimental independent-worker candidate
+
+The default source build still selects one worker. This experimental PR's CI
+artifacts explicitly use `STEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3`. The queue
+worker runs Bass and gathers persistent Drums/Vocals helpers; each ORT session
+remains single-threaded. Preserve the atomic callback path and whole-hop epoch
+ownership. Never publish a partial set of stem outputs. The current schema-2
+worker trace is single-worker only; do not label gather time as a single ORT run
+or primary-thread CPU as total inference CPU. Compare modes using the native
+complete-hop benchmark and the uninstrumented actual-plugin paced harness.
+Retain the full matching model/training partition exporter and parent graph.

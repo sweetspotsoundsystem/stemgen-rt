@@ -49,6 +49,17 @@ if(EXISTS
     "Obsolete model.onnx.data must not be packaged in ${STEMGENRT_BUNDLE_PATH}")
 endif()
 
+include("${CMAKE_CURRENT_LIST_DIR}/ParallelModelContract.cmake")
+foreach(stem IN ITEMS drums bass vocals)
+  string(TOUPPER "${stem}" upper)
+  set(path "${STEMGENRT_BUNDLE_PATH}/Contents/Resources/parallel/${stem}.onnx")
+  file(SHA256 "${path}" digest)
+  file(SIZE "${path}" bytes)
+  if(NOT digest STREQUAL STEMGENRT_PARALLEL_${upper}_SHA256 OR NOT bytes EQUAL STEMGENRT_PARALLEL_${upper}_BYTES)
+    message(FATAL_ERROR "Experimental partition identity mismatch: ${path}")
+  endif()
+endforeach()
+
 file(GLOB _stemgenrt_bundle_executables LIST_DIRECTORIES FALSE
      "${STEMGENRT_BUNDLE_PATH}/Contents/MacOS/*")
 list(LENGTH _stemgenrt_bundle_executables _stemgenrt_executable_count)

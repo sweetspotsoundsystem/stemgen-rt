@@ -78,6 +78,10 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor {
   // Measurement only; call before the first prepareToPlay. Zero retains the
   // production policy, 1..4 select a fresh session's immutable thread count.
   bool setDiagnosticOrtIntraOpThreads(int count) noexcept;
+  bool setDiagnosticIndependentWorkers(int count) noexcept;
+  int getIndependentWorkerCount() const noexcept;
+  int getAuxiliaryInitialPolicy(size_t index) const noexcept;
+  int getAuxiliaryFinalPolicy(size_t index) const noexcept;
   int getConfiguredOrtIntraOpThreads() const noexcept;
   bool isRealtimeWorkerSchedulingRequested() const noexcept;
   WorkerWorkgroupStatus getWorkerWorkgroupStatus() const noexcept;

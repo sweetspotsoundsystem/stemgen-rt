@@ -14,6 +14,8 @@ set(SOURCE_FILES
   source/AudioProcessorTest.cpp
   source/InferenceQueueTest.cpp
   source/InferenceTimingTest.cpp
+  source/ParallelInferenceTest.cpp
+  source/ParallelBenchmarkTest.cpp
   source/WorkerWorkgroupTest.cpp
   source/MacWorkgroupTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
@@ -102,6 +104,7 @@ if(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${MODEL_SOURCE_DIR}/model.onnx"
       "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_SOURCE_DIR}/parallel" "${MODEL_DEST_DIR}/parallel"
     COMMENT "Copying verified ONNX model for tests"
     VERBATIM
   )
@@ -113,6 +116,7 @@ else()
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${MODEL_SOURCE_DIR}/model.onnx"
       "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_SOURCE_DIR}/parallel" "${MODEL_DEST_DIR}/parallel"
     COMMENT "Linking verified ONNX model for tests"
     VERBATIM
   )

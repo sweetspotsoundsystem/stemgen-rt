@@ -32,6 +32,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   // Initialize the environment early so availability is visible before the
   // host starts playback. Model loading still happens in prepareToPlay().
   onnxRuntime_ = std::make_unique<OnnxRuntime>();
+  static_cast<void>(onnxRuntime_->setIndependentWorkerCount(
+      STEMGENRT_DEFAULT_INDEPENDENT_WORKERS));
 #endif
 }
 
@@ -367,6 +369,42 @@ int AudioPluginAudioProcessor::getConfiguredOrtIntraOpThreads() const noexcept {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   return onnxRuntime_ ? onnxRuntime_->getConfiguredIntraOpThreadCount() : 0;
 #else
+  return 0;
+#endif
+}
+
+bool AudioPluginAudioProcessor::setDiagnosticIndependentWorkers(
+    int count) noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return !inferenceQueue_.isThreadRunning() && onnxRuntime_ &&
+         onnxRuntime_->setIndependentWorkerCount(count);
+#else
+  juce::ignoreUnused(count);
+  return false;
+#endif
+}
+int AudioPluginAudioProcessor::getIndependentWorkerCount() const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->getIndependentWorkerCount() : 0;
+#else
+  return 0;
+#endif
+}
+int AudioPluginAudioProcessor::getAuxiliaryInitialPolicy(
+    size_t index) const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->auxiliaryInitialPolicy(index) : 0;
+#else
+  juce::ignoreUnused(index);
+  return 0;
+#endif
+}
+int AudioPluginAudioProcessor::getAuxiliaryFinalPolicy(
+    size_t index) const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->auxiliaryFinalPolicy(index) : 0;
+#else
+  juce::ignoreUnused(index);
   return 0;
 #endif
 }

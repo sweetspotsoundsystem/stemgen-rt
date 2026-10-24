@@ -487,6 +487,16 @@ TEST(RealtimeStemSanityTest,
   std::vector<CallbackTimingSample> callbackTrace(
       traceWorker != 0 ? totalCallbacks : 0U);
   audio_plugin::AudioPluginAudioProcessor processor;
+  const int independentWorkers =
+      integerEnvironment("STEMGENRT_PACED_INDEPENDENT_WORKERS", 0, 0, 3);
+  ASSERT_TRUE(independentWorkers == 0 || independentWorkers == 1 ||
+              independentWorkers == 3);
+  if (independentWorkers != 0) {
+    ASSERT_TRUE(processor.setDiagnosticIndependentWorkers(independentWorkers));
+  }
+  ASSERT_TRUE(traceWorker == 0 || processor.getIndependentWorkerCount() == 1)
+      << "Single-worker timing schema does not attribute parallel helper CPU; "
+         "use uninstrumented comparison";
   if (workerRealtime != 2) {
     ASSERT_TRUE(processor.setDiagnosticWorkerScheduling(workerRealtime != 0));
   }
@@ -753,7 +763,12 @@ TEST(RealtimeStemSanityTest,
       workerPolicyInitial ==
           audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied &&
       workerPolicyFinal ==
-          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied;
+          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied &&
+      (processor.getIndependentWorkerCount() == 1 ||
+       (processor.getAuxiliaryInitialPolicy(0) == 1 &&
+        processor.getAuxiliaryInitialPolicy(1) == 1 &&
+        processor.getAuxiliaryFinalPolicy(0) == 1 &&
+        processor.getAuxiliaryFinalPolicy(1) == 1));
   const bool retainedSourcesPresent =
       std::all_of(maxAbsRetainedStems.begin(), maxAbsRetainedStems.end(),
                   [](float peak) { return peak > 1.0e-3f; });
@@ -792,6 +807,15 @@ TEST(RealtimeStemSanityTest,
              callbackTrace.size() * sizeof(CallbackTimingSample)
       << " ort_intra_op_threads_override=" << ortThreads
       << " ort_intra_op_threads=" << configuredOrtThreads
+      << " independent_workers=" << processor.getIndependentWorkerCount()
+      << " helper_drums_policy_initial="
+      << processor.getAuxiliaryInitialPolicy(0)
+      << " helper_vocals_policy_initial="
+      << processor.getAuxiliaryInitialPolicy(1)
+      << " helper_drums_policy_final=" << processor.getAuxiliaryFinalPolicy(0)
+      << " helper_vocals_policy_final=" << processor.getAuxiliaryFinalPolicy(1)
+      << " helper_computation_ns="
+      << (processor.getIndependentWorkerCount() == 3 ? 1500000 : 0)
       << " worker_scheduling=" << (workerRealtimeRequested ? "realtime" : "qos")
       << " worker_scheduling_override="
       << (workerRealtime == 2   ? "none"

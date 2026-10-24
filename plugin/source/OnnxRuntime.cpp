@@ -29,6 +29,28 @@
 
 namespace audio_plugin {
 
+bool OnnxRuntime::setIndependentWorkerCount(int count) noexcept {
+  if ((count != 1 && count != 3) || isModelLoaded())
+    return false;
+  independentWorkers_ = count;
+  return true;
+}
+bool OnnxRuntime::startAuxiliaryWorkers(
+    bool realtime,
+    std::array<WorkerWorkgroup*, 2> groups) {
+  return !parallel_ || parallel_->start(realtime, groups);
+}
+void OnnxRuntime::stopAuxiliaryWorkers() {
+  if (parallel_)
+    parallel_->stop();
+}
+int OnnxRuntime::auxiliaryInitialPolicy(size_t i) const noexcept {
+  return parallel_ ? parallel_->initialPolicy(i) : 0;
+}
+int OnnxRuntime::auxiliaryFinalPolicy(size_t i) const noexcept {
+  return parallel_ ? parallel_->finalPolicy(i) : 0;
+}
+
 std::string OnnxRuntime::getExecutionProvider() const {
   std::lock_guard<std::mutex> lock(statusMutex_);
   return executionProvider_;
@@ -193,7 +215,7 @@ const OrtApi* OnnxRuntime::getSafeOrtApi() noexcept {
 
 bool OnnxRuntime::validateModelContract(juce::String& errorMessage) const {
   const OrtApi* api = getSafeOrtApi();
-  if (api == nullptr || !ortSession_) {
+  if (api == nullptr || (!ortSession_ && !parallel_)) {
     errorMessage = "Cannot validate model without an ORT session";
     return false;
   }
@@ -438,6 +460,7 @@ OnnxRuntime::OnnxRuntime() : api_(getSafeOrtApi()) {
 }
 
 OnnxRuntime::~OnnxRuntime() {
+  parallel_.reset();
   releasePreallocatedTensorValues();
   if (ortMemoryInfo_ != nullptr) {
     const OrtApi* api = getSafeOrtApi();
@@ -451,10 +474,16 @@ OnnxRuntime::~OnnxRuntime() {
 bool OnnxRuntime::loadModel(const juce::String& modelPath,
                             juce::String& errorMessage,
                             std::optional<int> intraOpThreadCount) {
+  parallel_.reset();
   // A new load attempt invalidates any tensor bindings associated with the
   // preceding session, even if this attempt later fails.
   inferenceReady_.store(false, std::memory_order_release);
   modelLoaded_.store(false, std::memory_order_release);
+  if (independentWorkers_ == 3 && intraOpThreadCount.value_or(1) != 1) {
+    configuredIntraOpThreads_.store(0, std::memory_order_release);
+    errorMessage = "Parallel stems require one ORT thread per session";
+    return false;
+  }
   configuredIntraOpThreads_.store(0, std::memory_order_release);
   {
     std::lock_guard<std::mutex> lock(statusMutex_);
@@ -620,6 +649,19 @@ bool OnnxRuntime::loadModel(const juce::String& modelPath,
     return false;
   }
 
+  if (independentWorkers_ == 3) {
+    auto partitioned = std::make_unique<ParallelInference>();
+    if (!partitioned->load(api, ortEnv_.get(),
+                           modelFile.getSiblingFile("parallel"),
+                           errorMessage)) {
+      ortSession_.reset();
+      return false;
+    }
+    parallel_ = std::move(partitioned);
+    // Retain exactly three child sessions during playback; the parent was
+    // loaded only to validate its complete unchanged model contract.
+    ortSession_.reset();
+  }
   {
     std::lock_guard<std::mutex> lock(statusMutex_);
     modelLoadError_.clear();
@@ -721,7 +763,8 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     return false;
   };
 
-  if (!modelLoaded_.load(std::memory_order_acquire) || !ortSession_) {
+  if (!modelLoaded_.load(std::memory_order_acquire) ||
+      (!ortSession_ && !parallel_)) {
     return failPreparation("Cannot prepare inference: model is not loaded");
   }
 
@@ -778,6 +821,11 @@ bool OnnxRuntime::prepareForInference(juce::String& errorMessage) {
     return failPreparation(message);
   }
 
+  if (parallel_ && !parallel_->prepare(
+                       ortMemoryInfo_, inputTensorValues_, outputTensorValues_,
+                       separatedOutputBuffer_.data(), errorMessage)) {
+    return failPreparation(errorMessage);
+  }
   {
     std::lock_guard<std::mutex> statusLock(statusMutex_);
     inferencePreparationError_.clear();
@@ -809,9 +857,11 @@ bool OnnxRuntime::runInference(
   if (timing != nullptr)
     *timing = {};
   outputValid = false;
+  if (parallel_ && timing != nullptr)
+    return false;
   if (!inferenceReady_.load(std::memory_order_acquire) ||
-      !modelLoaded_.load(std::memory_order_acquire) || !ortSession_ ||
-      !ortMemoryInfo_) {
+      !modelLoaded_.load(std::memory_order_acquire) ||
+      (!ortSession_ && !parallel_) || !ortMemoryInfo_) {
     return false;
   }
 
@@ -882,10 +932,27 @@ bool OnnxRuntime::runInference(
     timing->cpuStarted = currentThreadCpuNanoseconds();
     timing->started = InferenceRunTiming::Clock::now();
   }
-  OrtStatus* runStatus =
-      api->Run(ortSession_.get(), nullptr, inputNames.data(),
-               constInputValues.data(), inputNames.size(), outputNames.data(),
-               outputNames.size(), runOutputValues.data());
+  OrtStatus* runStatus = nullptr;
+  if (parallel_) {
+    if (!parallel_->run()) {
+      clearStreamingState();
+      return false;
+    }
+    // Match the parent graph's exact source-addition order and raw-domain
+    // delayed input. Each branch wrote only its own output/state region.
+    for (size_t i = 0; i < audioElements; ++i) {
+      separatedOutputBuffer_[3 * audioElements + i] =
+          previousAlignedInput_[i] -
+          ((separatedOutputBuffer_[i] +
+            separatedOutputBuffer_[audioElements + i]) +
+           separatedOutputBuffer_[2 * audioElements + i]);
+    }
+  } else {
+    runStatus =
+        api->Run(ortSession_.get(), nullptr, inputNames.data(),
+                 constInputValues.data(), inputNames.size(), outputNames.data(),
+                 outputNames.size(), runOutputValues.data());
+  }
   if (timing != nullptr) {
     timing->finished = InferenceRunTiming::Clock::now();
     timing->cpuFinished = currentThreadCpuNanoseconds();

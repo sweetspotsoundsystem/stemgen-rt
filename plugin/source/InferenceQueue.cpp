@@ -228,6 +228,17 @@ bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
 }
 
 bool InferenceQueue::startThread(OnnxRuntime* runtime) {
+  if (thread_ && thread_->joinable())
+    return true;
+  if (runtime && runtime->getIndependentWorkerCount() == 3 &&
+      workerTimingTrace_)
+    return false;
+  auxiliaryEnabled_ = runtime && runtime->getIndependentWorkerCount() == 3;
+  if (runtime && !runtime->startAuxiliaryWorkers(
+                     isRealtimeSchedulingRequested(),
+                     {&auxiliaryWorkgroups_[0], &auxiliaryWorkgroups_[1]}))
+    return false;
+  activeRuntime_ = runtime;
   WorkerCallbacks callbacks;
   callbacks.context = runtime;
   if (runtime != nullptr) {
@@ -242,7 +253,12 @@ bool InferenceQueue::startThread(OnnxRuntime* runtime) {
       static_cast<OnnxRuntime*>(context)->resetStreamingState();
     };
   }
-  return startThreadWithCallbacks(callbacks);
+  const bool started = startThreadWithCallbacks(callbacks);
+  if (!started && activeRuntime_) {
+    activeRuntime_->stopAuxiliaryWorkers();
+    activeRuntime_ = nullptr;
+  }
+  return started;
 }
 
 bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
@@ -289,6 +305,10 @@ void InferenceQueue::stopThread() {
     thread_->join();
   }
   thread_.reset();
+  if (activeRuntime_) {
+    activeRuntime_->stopAuxiliaryWorkers();
+    activeRuntime_ = nullptr;
+  }
   threadRunning_.store(false, std::memory_order_release);
 }
 
@@ -685,7 +705,9 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   // Keep subnormal arithmetic from imposing unpredictable per-hop CPU cost.
   const juce::ScopedNoDenormals noDenormals;
   auto* const timingTrace = workerTimingTrace_;
-  if (timingTrace != nullptr)
+  if (activeRuntime_ && activeRuntime_->getIndependentWorkerCount() == 3)
+    juce::Thread::setCurrentThreadName("StemgenRT bass");
+  else if (timingTrace != nullptr)
     juce::Thread::setCurrentThreadName("StemgenRT inference");
   const WorkerPriorityStatus priorityStatus = configureCurrentThreadPriority();
   workerPriorityStatus_.store(priorityStatus, std::memory_order_release);

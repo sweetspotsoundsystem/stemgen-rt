@@ -167,12 +167,18 @@ class InferenceQueue {
   void audioWorkgroupContextChanged(
       const juce::AudioWorkgroup& workgroup) noexcept {
     static_cast<void>(workgroup_.publish(workgroup));
+    for (auto& auxiliary : auxiliaryWorkgroups_)
+      static_cast<void>(auxiliary.publish(workgroup));
   }
   WorkerWorkgroupStatus getWorkgroupStatus() const noexcept {
     return workgroup_.getStatus();
   }
   uint64_t getWorkgroupOverflowCount() const noexcept {
-    return workgroup_.getOverflowCount();
+    return workgroup_.getOverflowCount() +
+           (auxiliaryEnabled_.load(std::memory_order_acquire)
+                ? auxiliaryWorkgroups_[0].getOverflowCount() +
+                      auxiliaryWorkgroups_[1].getOverflowCount()
+                : 0U);
   }
   uint64_t getWorkgroupConsumedGeneration() const noexcept {
     return workgroup_.getConsumedGeneration();
@@ -282,6 +288,10 @@ class InferenceQueue {
       WorkerPriorityStatus::NotAttempted};
   WorkerTimingTrace* workerTimingTrace_{nullptr};
   WorkerWorkgroup workgroup_;
+  std::array<WorkerWorkgroup, 2> auxiliaryWorkgroups_;
+  OnnxRuntime* activeRuntime_{};  // Lifecycle only; helpers stop after the
+                                  // calling worker joins.
+  std::atomic<bool> auxiliaryEnabled_{false};
   bool realtimePlayback_{true};
   bool diagnosticScheduling_{false};
   bool diagnosticRealtime_{false};
