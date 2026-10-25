@@ -1,5 +1,14 @@
-#include <StemgenRT/OnnxRuntime.h>
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <StemgenRT/MacThreadPolicy.h>
+#include <StemgenRT/OnnxRuntime.h>
+#include <StemgenRT/WindowsThreadPolicy.h>
+#include <StemgenRT/WindowsWorkerTimer.h>
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <chrono>
@@ -10,6 +19,7 @@
 #include <iostream>
 #include <numeric>
 #include <thread>
+#include "MacBenchmarkActivity.h"
 
 namespace {
 using namespace audio_plugin;
@@ -32,6 +42,10 @@ double us(Clock::duration duration) {
 // input/state handling and physical residual. It is separate from plugin/DAW
 // qualification.
 TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
+  audio_plugin_test::MacBenchmarkActivity activity;
+#if defined(__APPLE__)
+  ASSERT_TRUE(activity.isActive());
+#endif
   const auto workers = setting("STEMGENRT_PACED_INDEPENDENT_WORKERS", 1);
   const auto measured = setting("STEMGENRT_QUALIFICATION_CALLBACKS", 10000);
   ASSERT_TRUE(workers == 1 || workers == 3);
@@ -80,23 +94,41 @@ TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
 #if defined(__APPLE__)
   ASSERT_EQ(pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0), 0);
   constexpr bool realtime = true;
+#elif defined(_WIN32)
+  ASSERT_NE(SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST), 0);
+  ASSERT_EQ(GetThreadPriority(GetCurrentThread()), THREAD_PRIORITY_HIGHEST);
+  constexpr bool realtime = true;
 #else
   constexpr bool realtime = false;
 #endif
   ASSERT_TRUE(runtime.startAuxiliaryWorkers(realtime, {nullptr, nullptr}));
   const juce::ScopedNoDenormals noDenormals;
+#if defined(_WIN32)
+  WindowsThreadPolicy policy;
+  const bool initial = policy.start(realtime) &&
+                       policy.status() == WindowsThreadPolicy::Status::Applied;
+#else
   MacThreadPolicy policy;
   const bool initial = policy.start(realtime, 2700000);
-#if defined(__APPLE__)
+#endif
+#if defined(__APPLE__) || defined(_WIN32)
   ASSERT_TRUE(initial);
 #endif
   const auto period = std::chrono::duration_cast<Clock::duration>(
       std::chrono::duration<double>(128.0 / 44100.0));
+#if defined(_WIN32)
+  WindowsWorkerTimer hostTimer;
+  ASSERT_TRUE(hostTimer.isValid());
+#endif
   const auto epoch = Clock::now() + std::chrono::milliseconds(10);
   size_t failures = 0;
   for (size_t hop = 0; hop < total; ++hop) {
     const auto due = epoch + period * static_cast<Clock::duration::rep>(hop);
+#if defined(_WIN32)
+    ASSERT_TRUE(hostTimer.waitUntil(due));
+#else
     std::this_thread::sleep_until(due);
+#endif
     bool valid = false;
     const auto began = Clock::now();
     const bool ok = runtime.runInference(inputs[hop], output, aligned, valid);
@@ -111,6 +143,11 @@ TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
     }
   }
   const bool final = policy.finish();
+#if defined(_WIN32)
+  const bool windowsPriorityFinal =
+      GetThreadPriority(GetCurrentThread()) == THREAD_PRIORITY_HIGHEST;
+  EXPECT_TRUE(windowsPriorityFinal);
+#endif
   runtime.stopAuxiliaryWorkers();
   std::ofstream csv(path.toStdString());
   ASSERT_TRUE(csv.good());
@@ -131,27 +168,34 @@ TEST(ParallelInferenceTest, DISABLED_BenchmarkCompleteHop) {
     return ordered[lo] +
            (at - static_cast<double>(lo)) * (ordered[hi] - ordered[lo]);
   };
-  std::cerr << std::fixed << std::setprecision(6)
-            << "STEMGENRT_PARALLEL_NATIVE schema=1 workers=" << workers
-            << " warmup_hops=" << warmup << " measured_hops=" << measured
-            << " failures=" << failures << " deadline_misses="
-            << std::accumulate(late.begin(), late.end(), 0) << " run_mean_us="
-            << std::accumulate(runs.begin(), runs.end(), 0.0) /
-                   static_cast<double>(count)
-            << " run_p99_us=" << quantile(.99)
-            << " run_max_us=" << ordered.back()
-            << " policy_initial=" << (initial ? 1 : 0)
-            << " policy_final=" << (final ? 1 : 0)
-            << " helper_drums_initial=" << runtime.auxiliaryInitialPolicy(0)
-            << " helper_vocals_initial=" << runtime.auxiliaryInitialPolicy(1)
-            << " helper_drums_final=" << runtime.auxiliaryFinalPolicy(0)
-            << " helper_vocals_final=" << runtime.auxiliaryFinalPolicy(1)
-            << " ort_threads_per_session="
-            << runtime.getConfiguredIntraOpThreadCount()
-            << " runtime=" << runtime.getRuntimeVersion()
-            << " plugin_callback_measured=0\n";
+  std::cerr
+      << std::fixed << std::setprecision(6)
+      << "STEMGENRT_PARALLEL_NATIVE schema=1 workers=" << workers
+      << " warmup_hops=" << warmup << " measured_hops=" << measured
+      << " failures=" << failures
+      << " deadline_misses=" << std::accumulate(late.begin(), late.end(), 0)
+      << " run_mean_us="
+      << std::accumulate(runs.begin(), runs.end(), 0.0) /
+             static_cast<double>(count)
+      << " run_p99_us=" << quantile(.99) << " run_max_us=" << ordered.back()
+      << " policy_initial=" << (initial ? 1 : 0)
+      << " policy_final=" << (final ? 1 : 0)
+      << " helper_drums_initial=" << runtime.auxiliaryInitialPolicy(0)
+      << " helper_vocals_initial=" << runtime.auxiliaryInitialPolicy(1)
+      << " helper_drums_final=" << runtime.auxiliaryFinalPolicy(0)
+      << " helper_vocals_final=" << runtime.auxiliaryFinalPolicy(1)
+      << " ort_threads_per_session="
+      << runtime.getConfiguredIntraOpThreadCount()
+      << " runtime=" << runtime.getRuntimeVersion() << " process_activity="
+      << (activity.isActive() ? "latency_critical" : "unsupported")
+#if defined(_WIN32)
+      << " policy_backend=windows_mmcss_pro_audio "
+         "host_clock_wait=high_resolution_timer windows_priority_initial=1"
+      << " windows_priority_final=" << (windowsPriorityFinal ? 1 : 0)
+#endif
+      << " plugin_callback_measured=0\n";
   EXPECT_EQ(failures, 0U);
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
   EXPECT_TRUE(final);
   if (workers == 3) {
     EXPECT_EQ(runtime.auxiliaryInitialPolicy(0), 1);

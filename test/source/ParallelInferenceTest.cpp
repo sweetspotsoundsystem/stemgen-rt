@@ -120,7 +120,7 @@ TEST(ParallelInferenceTest, HelpersRestartAcrossRealtimeAndOfflinePreparation) {
     EXPECT_FALSE(valid);
     runtime.stopAuxiliaryWorkers();
     for (size_t helper = 0; helper < 2; ++helper) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
       EXPECT_EQ(runtime.auxiliaryInitialPolicy(helper), 1);
       EXPECT_EQ(runtime.auxiliaryFinalPolicy(helper), 1);
 #else
@@ -156,5 +156,42 @@ TEST(ParallelInferenceTest, ProcessorModeMustBeSelectedBeforePreparation) {
   EXPECT_EQ(processor.getLatencySamples(), 256);
   EXPECT_FALSE(processor.setDiagnosticIndependentWorkers(1));
   processor.releaseResources();
+}
+
+TEST(ParallelInferenceTest, IdleHelpersStopAndRestartWithoutStaleCompletion) {
+  OnnxRuntime baseline, parallel;
+  juce::String error;
+  ASSERT_TRUE(parallel.setIndependentWorkerCount(3));
+  ASSERT_TRUE(baseline.loadModel(modelPath(), error, 1)) << error.toStdString();
+  ASSERT_TRUE(parallel.loadModel(modelPath(), error, 1)) << error.toStdString();
+  Buffers a, b;
+  for (int pass = 0; pass < 12; ++pass) {
+    SCOPED_TRACE(pass);
+    ASSERT_TRUE(baseline.prepareForInference(error));
+    ASSERT_TRUE(parallel.prepareForInference(error));
+    ASSERT_TRUE(parallel.startAuxiliaryWorkers(false, {nullptr, nullptr}));
+    // Include completely idle shutdowns and shutdowns immediately after the
+    // invalid pre-roll, as well as completed multi-hop trajectories.
+    for (int hop = 0; hop < pass % 4; ++hop) {
+      for (size_t ch = 0; ch < a.input.size(); ++ch)
+        for (size_t i = 0; i < a.input[ch].size(); ++i)
+          a.input[ch][i] =
+              .2f * std::sin(static_cast<float>(i + ch * 19U) * .04f +
+                             static_cast<float>(pass + hop));
+      b.input = a.input;
+      bool av = true, bv = true;
+      ASSERT_TRUE(baseline.runInference(a.input, a.output, a.aligned, av));
+      ASSERT_TRUE(parallel.runInference(b.input, b.output, b.aligned, bv));
+      EXPECT_EQ(av, bv);
+      EXPECT_EQ(bv, hop != 0);
+      for (size_t stem = 0; stem < a.output.size(); ++stem)
+        for (size_t ch = 0; ch < a.output[stem].size(); ++ch)
+          equalFloats(a.output[stem][ch], b.output[stem][ch]);
+      for (size_t state = 0; state < 13; ++state)
+        equalFloats(OnnxRuntimeTestPeer::states(baseline)[state],
+                    OnnxRuntimeTestPeer::states(parallel)[state]);
+    }
+    parallel.stopAuxiliaryWorkers();
+  }
 }
 }  // namespace

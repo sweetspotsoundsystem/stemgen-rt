@@ -1,12 +1,13 @@
-#include "StemgenRT/ParallelInference.h"
-#include "StemgenRT/MacThreadPolicy.h"
-#include "StemgenRT/ParallelModelContract.h"
-#include "StemgenRT/QualifiedModelContract.h"
 #include <juce_cryptography/juce_cryptography.h>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <thread>
-#include <algorithm>
+#include "StemgenRT/MacThreadPolicy.h"
+#include "StemgenRT/ParallelInference.h"
+#include "StemgenRT/ParallelModelContract.h"
+#include "StemgenRT/QualifiedModelContract.h"
+#include "StemgenRT/WindowsThreadPolicy.h"
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 #include <onnxruntime_c_api.h>
 #endif
@@ -126,25 +127,50 @@ struct ParallelInference::Impl {
       helper.final.store(3, std::memory_order_release);
       return;
     }
+#elif defined(_WIN32)
+    WindowsThreadPolicy windowsPolicy;
+    const bool applied = windowsPolicy.start(realtime);
+    helper.initial.store(static_cast<int>(windowsPolicy.status()),
+                         std::memory_order_release);
+    if (!applied) {
+      helper.final.store(3, std::memory_order_release);
+      return;
+    }
 #else
     helper.initial.store(2, std::memory_order_release);
 #endif
     if (helper.workgroup)
       helper.workgroup->workerStarted(realtime);
     while (!stopping.load(std::memory_order_acquire)) {
+#if defined(_WIN32)
+      // Only the inference worker publishes/notifies tasks. Value-based waits
+      // retain an early publication; stop also changes the value before waking.
+      helper.pending.wait(false, std::memory_order_acquire);
+      if (stopping.load(std::memory_order_acquire))
+        break;
+#endif
       if (helper.workgroup)
         helper.workgroup->poll();
       if (helper.pending.exchange(false, std::memory_order_acquire)) {
         helper.ok = runBranch(branchIndex);
         helper.done.store(true, std::memory_order_release);
+#if defined(_WIN32)
+        helper.done.notify_one();
+#endif
       } else {
+#if !defined(_WIN32)
         std::this_thread::sleep_for(std::chrono::microseconds(50));
+#endif
       }
     }
     if (helper.workgroup)
       helper.workgroup->workerStopped();
 #if defined(__APPLE__)
     helper.final.store(policy.finish() ? 1 : 3, std::memory_order_release);
+#elif defined(_WIN32)
+    const bool restored = windowsPolicy.finish();
+    helper.final.store(restored ? static_cast<int>(windowsPolicy.status()) : 3,
+                       std::memory_order_release);
 #else
     helper.final.store(2, std::memory_order_release);
 #endif
@@ -325,6 +351,14 @@ bool ParallelInference::start(bool realtime,
 }
 void ParallelInference::stop() {
   impl_->stopping.store(true, std::memory_order_release);
+#if defined(_WIN32)
+  // Lifecycle caller only, after the primary worker has gathered its last hop.
+  // A notification without a value change would not release atomic::wait.
+  for (auto& h : impl_->helpers) {
+    h.pending.store(true, std::memory_order_release);
+    h.pending.notify_one();
+  }
+#endif
   for (auto& h : impl_->helpers)
     if (h.thread.joinable())
       h.thread.join();
@@ -336,11 +370,19 @@ bool ParallelInference::run() {
   for (auto& h : impl_->helpers) {
     h.done.store(false, std::memory_order_relaxed);
     h.pending.store(true, std::memory_order_release);
+#if defined(_WIN32)
+    h.pending.notify_one();
+#endif
   }
   const bool bassOk = impl_->runBranch(1);
   for (auto& h : impl_->helpers)
-    while (!h.done.load(std::memory_order_acquire))
+    while (!h.done.load(std::memory_order_acquire)) {
+#if defined(_WIN32)
+      h.done.wait(false, std::memory_order_acquire);
+#else
       std::this_thread::sleep_for(std::chrono::microseconds(10));
+#endif
+    }
   return bassOk && impl_->helpers[0].ok && impl_->helpers[1].ok;
 }
 int ParallelInference::initialPolicy(size_t i) const noexcept {

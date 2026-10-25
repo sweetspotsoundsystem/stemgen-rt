@@ -2,8 +2,8 @@
 
 This branch changes the existing StemgenRT playback worker. It retains the
 released graph, weights, 13 states, controls, host IDs, residual Other and
-256-sample latency at 128 samples / 44.1 kHz. It is a candidate awaiting sustained
-physical-M4/M4 Pro and installed-AU/VST3 qualification.
+256-sample latency at 128 samples / 44.1 kHz. It remains an experimental candidate; see [platform evidence](docs/parallel-workers.md)
+for the tested hardware and limits.
 
 On macOS, a worker prepared for real-time playback requests a Mach
 time-constraint policy with a 128/44100-second period and 2.7 ms computation
@@ -11,8 +11,17 @@ estimate. Initial readback failure rejects worker startup during preparation.
 The final readback remains available after shutdown. An offline preparation
 uses user-interactive QoS. Changes to the host's offline flag take effect at the
 next preparation; they do not trigger an OS policy change from processBlock.
-Windows and Linux retain their existing priority mechanisms. ORT still uses
-one sequential worker with intra/inter-op counts of one and spinning disabled.
+Windows playback workers request MMCSS Pro Audio with HIGH relative priority,
+after verifying an ordinary highest-priority fallback. Offline preparation
+skips MMCSS. Each worker owns registration and cleanup on its own thread.
+Unavailable MMCSS is reported as unsupported; accepted requests are not native
+readbacks of dynamic OS scheduling. Helpers use atomic wait/notify for task
+dispatch and completion. The primary polls the callback's atomic queue with a
+worker-owned high-resolution timer; the callback performs no OS wake. Linux
+retains its existing scheduling path.
+ORT remains sequential inside each session with intra/inter-op counts of one
+and spinning disabled. The experimental three-worker build runs one independent
+stem session on each worker; the source build default remains one worker.
 
 The JUCE AU wrapper supplies changes through audioWorkgroupContextChanged.
 The callback retains the handle into one of eight preallocated slots and

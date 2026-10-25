@@ -16,6 +16,8 @@ set(SOURCE_FILES
   source/InferenceTimingTest.cpp
   source/ParallelInferenceTest.cpp
   source/ParallelBenchmarkTest.cpp
+  source/WindowsWorkerTimerTest.cpp
+  source/WindowsThreadPolicyTest.cpp
   source/WorkerWorkgroupTest.cpp
   source/MacWorkgroupTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
@@ -29,6 +31,11 @@ set(SOURCE_FILES
   source/TransportUnderrunE2ETest.cpp
   source/ProcessorLifecycleTest.cpp
 )
+if(APPLE)
+  list(APPEND SOURCE_FILES source/MacBenchmarkActivity.mm)
+  set_source_files_properties(source/MacBenchmarkActivity.mm PROPERTIES
+    LANGUAGE CXX COMPILE_FLAGS "-x objective-c++ -fobjc-arc")
+endif()
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   STEMGENRT_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")

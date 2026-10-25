@@ -1,7 +1,18 @@
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <StemgenRT/MacThreadPolicy.h>
 #include <StemgenRT/PluginProcessor.h>
+#include <StemgenRT/WindowsThreadPolicy.h>
+#include <StemgenRT/WindowsWorkerTimer.h>
 #include <gtest/gtest.h>
 
+#include "MacBenchmarkActivity.h"
+#include "PacedHostTiming.h"
 #include "PacedQualificationTrace.h"
 
 #include <algorithm>
@@ -312,6 +323,9 @@ bool configureAndVerifyCallbackThreadPriority() noexcept {
   const int getResult = pthread_get_qos_class_np(pthread_self(), &observedClass,
                                                  &relativePriority);
   return getResult == 0 && observedClass == QOS_CLASS_USER_INTERACTIVE;
+#elif defined(_WIN32)
+  return SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST) != 0 &&
+         GetThreadPriority(GetCurrentThread()) == THREAD_PRIORITY_HIGHEST;
 #else
   return false;
 #endif
@@ -452,6 +466,10 @@ TEST(RealtimeStemSanityTest, WorkerTraceMemoryBoundAdmitsThirtyMinutes) {
 // retained model source must become observably nonzero and distinct.
 TEST(RealtimeStemSanityTest,
      DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced) {
+  MacBenchmarkActivity activity;
+#if defined(__APPLE__)
+  ASSERT_TRUE(activity.isActive());
+#endif
   const int measureBlocks = qualificationCallbackCount();
   ASSERT_GE(measureBlocks, kMinimumQualificationCallbacks)
       << kQualificationCallbacksEnvironment
@@ -540,12 +558,23 @@ TEST(RealtimeStemSanityTest,
   const auto blockDurationTicks =
       std::chrono::duration_cast<std::chrono::steady_clock::duration>(
           blockDuration);
+#if defined(_WIN32)
+  audio_plugin::WindowsThreadPolicy callbackPolicy;
+#else
   audio_plugin::MacThreadPolicy callbackPolicy;
+#endif
   // The synthetic host does only input/output bookkeeping and processBlock.
   // Use 0.5 ms compute within a 1 ms constraint. XNU raises a smaller compute
   // estimate to constraint/2; this avoids an implicit policy adjustment.
+#if defined(_WIN32)
+  const bool callbackPolicyInitial =
+      callbackPolicy.start(callbackRealtime != 0, AVRT_PRIORITY_CRITICAL) &&
+      callbackPolicy.status() ==
+          audio_plugin::WindowsThreadPolicy::Status::Applied;
+#else
   const bool callbackPolicyInitial =
       callbackPolicy.start(callbackRealtime != 0, 500000, 1000000);
+#endif
   // One bounded bridge to Instruments' wall-clock timeline, outside callbacks.
   const auto anchorBefore = traceWorker != 0
                                 ? std::chrono::steady_clock::now()
@@ -556,6 +585,10 @@ TEST(RealtimeStemSanityTest,
   const auto anchorAfter = traceWorker != 0
                                ? std::chrono::steady_clock::now()
                                : std::chrono::steady_clock::time_point{};
+#if defined(_WIN32)
+  audio_plugin::WindowsWorkerTimer hostTimer;
+  ASSERT_TRUE(hostTimer.isValid());
+#endif
   auto scheduledCallbackStart = std::chrono::steady_clock::now();
   auto previousCallbackStart = scheduledCallbackStart;
   bool havePreviousCallbackStart = false;
@@ -563,6 +596,10 @@ TEST(RealtimeStemSanityTest,
   PacedQualificationTrace failureTrace(kWarmupBlocks);
   const double callbackDeadlineMicroseconds =
       1.0e6 * static_cast<double>(kBlockSize) / kSampleRate;
+  PacedHostTiming hostTiming(callbackDeadlineMicroseconds);
+  auto waitStarted = scheduledCallbackStart;
+  auto waitFinished = scheduledCallbackStart;
+  auto previousProcessFinished = scheduledCallbackStart;
 
   for (int b = 0; b < (kWarmupBlocks + measureBlocks); ++b) {
     buffer.clear();
@@ -585,6 +622,8 @@ TEST(RealtimeStemSanityTest,
     const auto processStarted = std::chrono::steady_clock::now();
     processor.processBlock(buffer, midiBuffer);
     const auto processFinished = std::chrono::steady_clock::now();
+    hostTiming.observe(b, scheduledCallbackStart, waitStarted, waitFinished,
+                       processStarted, previousProcessFinished);
     if (traceWorker != 0) {
       callbackTrace[static_cast<size_t>(b)] = {processStarted, processFinished,
                                                scheduledCallbackStart};
@@ -678,10 +717,34 @@ TEST(RealtimeStemSanityTest,
     // callback period to publish each request for the following boundary;
     // processBlock itself must never wait for inference.
     scheduledCallbackStart += blockDurationTicks;
+    previousProcessFinished = processFinished;
+    waitStarted = std::chrono::steady_clock::now();
+#if defined(_WIN32)
+    ASSERT_TRUE(hostTimer.waitUntil(scheduledCallbackStart));
+#else
     std::this_thread::sleep_until(scheduledCallbackStart);
+#endif
+    waitFinished = std::chrono::steady_clock::now();
   }
 
   const bool callbackPolicyFinal = callbackPolicy.finish();
+  std::cerr << std::fixed << std::setprecision(3)
+            << "STEMGENRT_PACED_HOST_TIMING process_activity="
+            << (activity.isActive() ? "latency_critical" : "unsupported")
+            << " delay_events=" << hostTiming.delayCount()
+            << " omitted_events=" << hostTiming.omittedEvents()
+            << " max_wait_overrun_us=" << hostTiming.maximumWaitOverrun()
+            << " max_preparation_us=" << hostTiming.maximumPreparation()
+            << " max_bookkeeping_us=" << hostTiming.maximumBookkeeping()
+            << '\n';
+  for (size_t index = 0; index < hostTiming.size(); ++index) {
+    const auto& event = hostTiming.events()[index];
+    std::cerr << "STEMGENRT_PACED_HOST_DELAY callback_index="
+              << event.callbackIndex
+              << " wait_overrun_us=" << event.waitOverrunMicroseconds
+              << " preparation_us=" << event.preparationMicroseconds
+              << " bookkeeping_us=" << event.bookkeepingMicroseconds << '\n';
+  }
   ASSERT_EQ(completeCallbackMicroseconds.size(),
             static_cast<size_t>(measureBlocks));
   ASSERT_EQ(callbackStartInterarrivalMicroseconds.size(),
@@ -758,6 +821,21 @@ TEST(RealtimeStemSanityTest,
   processor.releaseResources();
   const auto workerPolicyInitial = processor.getWorkerSchedulingInitialStatus();
   const auto workerPolicyFinal = processor.getWorkerSchedulingFinalStatus();
+#if defined(_WIN32)
+  // MMCSS acceptance and same-thread cleanup, not an Apple policy readback.
+  const int expectedHelperPolicy =
+      processor.getIndependentWorkerCount() == 3 ? 1 : 0;
+  const bool policiesVerified =
+      callbackPolicyInitial && callbackPolicyFinal && workerPriorityApplied &&
+      workerPolicyInitial ==
+          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied &&
+      workerPolicyFinal ==
+          audio_plugin::InferenceQueue::WorkerPriorityStatus::Applied &&
+      processor.getAuxiliaryInitialPolicy(0) == expectedHelperPolicy &&
+      processor.getAuxiliaryInitialPolicy(1) == expectedHelperPolicy &&
+      processor.getAuxiliaryFinalPolicy(0) == expectedHelperPolicy &&
+      processor.getAuxiliaryFinalPolicy(1) == expectedHelperPolicy;
+#else
   const bool policiesVerified =
       callbackPolicyInitial && callbackPolicyFinal &&
       workerPolicyInitial ==
@@ -769,6 +847,7 @@ TEST(RealtimeStemSanityTest,
         processor.getAuxiliaryInitialPolicy(1) == 1 &&
         processor.getAuxiliaryFinalPolicy(0) == 1 &&
         processor.getAuxiliaryFinalPolicy(1) == 1));
+#endif
   const bool retainedSourcesPresent =
       std::all_of(maxAbsRetainedStems.begin(), maxAbsRetainedStems.end(),
                   [](float peak) { return peak > 1.0e-3f; });
@@ -798,6 +877,14 @@ TEST(RealtimeStemSanityTest,
       << std::fixed << std::setprecision(3)
       << "STEMGENRT_QUALIFICATION_SUMMARY status="
       << (qualificationPassed ? "pass" : "fail")
+#if defined(_WIN32)
+      << " policy_backend=windows_mmcss_pro_audio "
+         "host_clock_wait=high_resolution_timer"
+#else
+      << " policy_backend=apple_time_constraint"
+#endif
+      << " process_activity="
+      << (activity.isActive() ? "latency_critical" : "unsupported")
       << " warmup_callbacks=" << kWarmupBlocks
       << " measured_callbacks=" << measureBlocks
       << " worker_trace=" << (traceWorker != 0 ? "enabled" : "disabled")

@@ -5,6 +5,8 @@
 #include "StemgenRT/InferenceQueue.h"
 #include "StemgenRT/MacThreadPolicy.h"
 #include "StemgenRT/OnnxRuntime.h"
+#include "StemgenRT/WindowsThreadPolicy.h"
+#include "StemgenRT/WindowsWorkerTimer.h"
 
 #include <algorithm>
 #include <chrono>
@@ -52,8 +54,10 @@ InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
 #elif defined(_WIN32)
   const BOOL result =
       SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-  return result != 0 ? InferenceQueue::WorkerPriorityStatus::Applied
-                     : InferenceQueue::WorkerPriorityStatus::Failed;
+  return result != 0 && GetThreadPriority(GetCurrentThread()) ==
+                            THREAD_PRIORITY_HIGHEST
+             ? InferenceQueue::WorkerPriorityStatus::Applied
+             : InferenceQueue::WorkerPriorityStatus::Failed;
 #elif defined(__linux__)
   const int maxPriority = sched_get_priority_max(SCHED_RR);
   if (maxPriority < 1) {
@@ -324,7 +328,7 @@ bool InferenceQueue::setDiagnosticScheduling(bool realtime) noexcept {
   if (isThreadRunning()) {
     return false;
   }
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_WIN32)
   if (realtime) {
     return false;
   }
@@ -343,7 +347,7 @@ bool InferenceQueue::setRealtimePlayback(bool realtime) noexcept {
 }
 
 bool InferenceQueue::isRealtimeSchedulingRequested() const noexcept {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
   return diagnosticScheduling_ ? diagnosticRealtime_ : realtimePlayback_;
 #else
   return false;
@@ -715,6 +719,19 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
     DBG("[InferenceQueue] Failed to raise inference worker priority");
   }
   MacThreadPolicy scheduling;
+#if defined(_WIN32)
+  WindowsWorkerTimer idleTimer;
+  WindowsThreadPolicy windowsPolicy;
+  bool idleWaitSucceeded = true;
+  if (!idleTimer.isValid() || priorityStatus != WorkerPriorityStatus::Applied ||
+      !windowsPolicy.start(isRealtimeSchedulingRequested())) {
+    schedulingInitialStatus_.store(WorkerPriorityStatus::Failed,
+                                   std::memory_order_release);
+    schedulingFinalStatus_.store(WorkerPriorityStatus::Failed,
+                                 std::memory_order_release);
+    return;
+  }
+#endif
 #if defined(__APPLE__)
   const bool applied =
       priorityStatus == WorkerPriorityStatus::Applied &&
@@ -729,6 +746,10 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   }
   schedulingInitialStatus_.store(WorkerPriorityStatus::Applied,
                                  std::memory_order_release);
+#elif defined(_WIN32)
+  schedulingInitialStatus_.store(
+      static_cast<WorkerPriorityStatus>(windowsPolicy.status()),
+      std::memory_order_release);
 #else
   schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
                                  std::memory_order_release);
@@ -801,7 +822,16 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         epochControl_.load(std::memory_order_acquire) != lastSeenEpochControl;
     if (!requestReady && !epochChanged &&
         !shouldStop_.load(std::memory_order_acquire)) {
+#if defined(_WIN32)
+      if (!idleTimer.waitFor(std::chrono::microseconds(100))) {
+        idleWaitSucceeded = false;
+        shouldStop_.store(true, std::memory_order_release);
+        workerPriorityStatus_.store(WorkerPriorityStatus::Failed,
+                                    std::memory_order_release);
+      }
+#else
       std::this_thread::sleep_for(std::chrono::microseconds(100));
+#endif
     }
 
     if (shouldStop_.load(std::memory_order_acquire)) {
@@ -981,6 +1011,16 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   const bool verified = scheduling.finish();
   schedulingFinalStatus_.store(
       verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
+      std::memory_order_release);
+#elif defined(_WIN32)
+  const bool priorityVerified = windowsPolicy.finish();
+  if (!priorityVerified)
+    workerPriorityStatus_.store(WorkerPriorityStatus::Failed,
+                                std::memory_order_release);
+  schedulingFinalStatus_.store(
+      idleWaitSucceeded && priorityVerified
+          ? static_cast<WorkerPriorityStatus>(windowsPolicy.status())
+          : WorkerPriorityStatus::Failed,
       std::memory_order_release);
 #else
   schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,

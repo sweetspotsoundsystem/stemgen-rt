@@ -83,6 +83,8 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/ParallelInference.h
   ${INCLUDE_DIR}/ParallelModelContract.h
   ${INCLUDE_DIR}/WorkerTimingTrace.h
+  ${INCLUDE_DIR}/WindowsWorkerTimer.h
+  ${INCLUDE_DIR}/WindowsThreadPolicy.h
   ${INCLUDE_DIR}/RealtimeContextMailbox.h
   ${INCLUDE_DIR}/WorkerWorkgroup.h
   ${INCLUDE_DIR}/StreamingSampleRateAdapter.h
@@ -96,6 +98,10 @@ target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${STEMGENRT_GENERATED_INCLUDE_DIR})
+
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} PUBLIC avrt)
+endif()
 
 # Links to all necessary dependencies. The present ones are recommended by JUCE.
 # If you use one of the additional modules, like the DSP module, you need to specify it here.

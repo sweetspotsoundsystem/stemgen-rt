@@ -252,7 +252,7 @@ TEST(InferenceQueueTest,
   FakeRuntime runtime;
   InferenceQueue queue;
   queue.allocate();
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_WIN32)
   EXPECT_FALSE(queue.setDiagnosticScheduling(true));
 #endif
   ASSERT_TRUE(queue.setDiagnosticScheduling(false));
@@ -275,7 +275,7 @@ TEST(InferenceQueueTest,
   ASSERT_NE(output, nullptr);
   queue.releaseOutputSlot();
   queue.stopThread();
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
   EXPECT_EQ(queue.getSchedulingInitialStatus(),
             InferenceQueue::WorkerPriorityStatus::Applied);
   EXPECT_EQ(queue.getSchedulingFinalStatus(),
@@ -295,7 +295,7 @@ TEST(InferenceQueueTest, PlaybackDefaultAndOfflinePolicySurviveWorkerRestarts) {
   queue.allocate();
   for (const bool realtime : {true, false, true}) {
     ASSERT_TRUE(queue.setRealtimePlayback(realtime));
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
     EXPECT_EQ(queue.isRealtimeSchedulingRequested(), realtime);
 #else
     EXPECT_FALSE(queue.isRealtimeSchedulingRequested());
@@ -313,6 +313,12 @@ TEST(InferenceQueueTest, PlaybackDefaultAndOfflinePolicySurviveWorkerRestarts) {
               InferenceQueue::WorkerPriorityStatus::Applied);
     EXPECT_EQ(queue.getSchedulingFinalStatus(),
               InferenceQueue::WorkerPriorityStatus::Applied);
+#elif defined(_WIN32)
+    const auto initial = queue.getSchedulingInitialStatus();
+    EXPECT_TRUE(initial == InferenceQueue::WorkerPriorityStatus::Applied ||
+                (realtime &&
+                 initial == InferenceQueue::WorkerPriorityStatus::Unsupported));
+    EXPECT_EQ(queue.getSchedulingFinalStatus(), initial);
 #else
     EXPECT_EQ(queue.getSchedulingInitialStatus(),
               InferenceQueue::WorkerPriorityStatus::Unsupported);
