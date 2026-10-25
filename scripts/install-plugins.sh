@@ -213,5 +213,5 @@ echo "  killall AudioComponentRegistrar"
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
     echo ""
     echo "Note: the installed plugins are ad-hoc signed for local use."
-    echo "A public release still requires Developer ID signing and notarization."
+    echo "Ad-hoc signing does not provide Developer ID trust or notarization."
 fi

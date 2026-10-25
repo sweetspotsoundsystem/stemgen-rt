@@ -313,6 +313,7 @@ printf '%s\n' "Running paced-async-10000 (10,000 measured callbacks plus warmup)
 unset STEMGENRT_PACED_WORKER_REALTIME
 env STEMGENRT_QUALIFICATION_CALLBACKS="$EXPECTED_CALLBACKS" \
     STEMGENRT_TRACE_WORKER=0 STEMGENRT_PACED_ORT_THREADS=0 \
+    STEMGENRT_PACED_INDEPENDENT_WORKERS=0 \
     STEMGENRT_PACED_CALLBACK_REALTIME=1 \
     "$TEST_BINARY" --gtest_also_run_disabled_tests \
     --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
@@ -353,7 +354,13 @@ PACED_SUMMARY="$(grep '^STEMGENRT_QUALIFICATION_SUMMARY ' "$PACED_LOG")"
 [[ "$PACED_SUMMARY" == *" ort_intra_op_threads_override=0 "* ]] ||
     fail "qualification must use the production automatic thread policy"
 [[ "$PACED_SUMMARY" == *" ort_intra_op_threads=1 "* ]] ||
-    fail "qualification requires exactly one ORT inference thread"
+    fail "qualification requires one ORT thread per session"
+[[ "$PACED_SUMMARY" == *" independent_workers=3 "* &&
+   "$PACED_SUMMARY" == *" helper_drums_policy_initial=1 "* &&
+   "$PACED_SUMMARY" == *" helper_vocals_policy_initial=1 "* &&
+   "$PACED_SUMMARY" == *" helper_drums_policy_final=1 "* &&
+   "$PACED_SUMMARY" == *" helper_vocals_policy_final=1 "* ]] ||
+    fail "qualification requires three workers with accepted helper policies and cleanup"
 [[ "$PACED_SUMMARY" == *" worker_scheduling_override=none "* &&
    "$PACED_SUMMARY" == *" worker_scheduling=realtime "* ]] ||
     fail "qualification requires the installed playback scheduling default"

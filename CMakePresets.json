@@ -21,7 +21,8 @@
       "binaryDir": "build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "STEMGENRT_REQUIRE_QUALIFIED_ORT": "ON"
+        "STEMGENRT_REQUIRE_QUALIFIED_ORT": "ON",
+        "STEMGENRT_DEFAULT_INDEPENDENT_WORKERS": "3"
       }
     },
     {

@@ -45,6 +45,9 @@ jobs:
       with:
         lfs: true
 
+    - name: Verify matching model and training source
+      run: python scripts/verify-training-source.py
+
     - name: Cache ONNX Runtime
       id: cache-onnxruntime
       uses: actions/cache@v4
@@ -68,7 +71,6 @@ jobs:
         -DCMAKE_OSX_ARCHITECTURES=arm64
         -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
         -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
-        -DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3
 
     - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'
@@ -76,7 +78,6 @@ jobs:
         cmake -S . -B ${{github.workspace}}/build
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
-        -DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }}
@@ -92,6 +93,11 @@ jobs:
     - name: Check scheduling evidence validation
       run: python -m unittest discover -s scripts/tests -v
 
+    - name: Check Windows installation and rollback
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: ./scripts/tests/test_windows_installer.ps1
+
     - name: Archive macOS bundles
       if: matrix.os == 'macos-15'
       run: |
@@ -101,7 +107,11 @@ jobs:
     - name: Archive Windows VST3
       if: matrix.os == 'windows-latest'
       shell: pwsh
-      run: Compress-Archive -LiteralPath "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3" -DestinationPath StemgenRT-Windows-VST3.zip -Force
+      run: |
+        . ./scripts/windows-install-utils.ps1
+        $bundle = "build/plugin/AudioPlugin_artefacts/Release/VST3/StemgenRT.vst3"
+        $null = Get-StemgenRTBundleInventory -Bundle $bundle -ProjectRoot $PWD.Path
+        Compress-Archive -LiteralPath $bundle -DestinationPath StemgenRT-Windows-VST3.zip -Force
 
     - name: Upload VST3 (macOS)
       if: matrix.os == 'macos-15'

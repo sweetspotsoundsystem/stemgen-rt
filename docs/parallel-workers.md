@@ -1,7 +1,8 @@
-# Experimental three-worker execution
+# Three-worker execution
 
-Build with `-DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3` to try one model per
-persistent inference worker. The source build default remains 1. Before model
+Source builds and CI artifacts default to one model per persistent inference
+worker (three total). `-DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=1` builds the
+single-worker diagnostic control. Before model
 loading, the paced harness can select 1 or 3 with
 `STEMGENRT_PACED_INDEPENDENT_WORKERS`; it records the actual configured count.
 The experiment preserves plugin identity, controls, raw levels, 13-state
@@ -87,8 +88,9 @@ python -m stemgenrt.partition_independent model/model.onnx model/parallel-new
 
 Review waveform and state parity before replacing `model/parallel`, then run
 `scripts/generate-parallel-contract.py`. CMake, bundle sealing and runtime load
-verify partition identities. This is a candidate experiment; CPU/CI correctness
-and a short benchmark do not qualify physical M4/M4 Pro or installed DAW timing.
+verify partition identities. The exporter verifies the exact residual arithmetic
+and history update before replacing them with the host formula. CPU/CI correctness
+and a short benchmark do not qualify other machines or installed DAW timing.
 
 ## Physical-machine evidence (2026-10-24)
 
@@ -112,6 +114,13 @@ recorded in the parallel trials. Retained stems were present and distinct,
 outputs were finite, and reconstruction passed. The remaining 224 missed
 results still fail qualification. This synthetic host supplies no audio driver
 or installed DAW evidence.
+
+An additional Windows diagnostic used a 256-sample host buffer and the same
+validated production library (model hop 128, PDC 384 samples / 8.707 ms).
+Across two trials totaling 20,200 callbacks including warmup, the due-boundary
+counter was zero but six underrun blocks occurred during measured playback.
+This setting also fails the zero-underrun gate; it is not a clean-buffer
+recommendation.
 
 The earlier Windows three-worker runtime averaged 3.753 ms and missed 40,396
 results across the same callback exposure. The intermediate atomic-wait/timer

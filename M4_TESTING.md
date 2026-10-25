@@ -1,9 +1,16 @@
-# Test StemgenRT 0.7.0 on M4
+# Test StemgenRT on Apple Silicon
 
 Use native arm64 macOS 14+, 44.1 kHz and the released independent-model graph
 (SHA-256 starts `0a49388dd2a4`). It has 13 states and a 128-sample hop. With a
 128-sample host buffer the graph-plus-worker latency is 256 samples. Previous
 model measurements do not establish this model's real-time performance.
+
+The 0.8.0 source default is three independent workers. Current M4 sustained,
+M1 Pro quick and Windows results are in [parallel-worker evidence](docs/parallel-workers.md).
+`scripts/qualify-macos.sh` checks the current three-worker default. The scheduling
+comparison below explicitly selects one worker to preserve its controlled
+comparison and schema-2 trace semantics. The October 20/23 results below are
+historical evidence for that single-worker path.
 
 ## Returned worker evidence
 
@@ -71,13 +78,13 @@ The worker requests 2.7 ms compute in each 2.902494 ms period. The synthetic
 callback requests 0.5 ms compute within a 1 ms constraint at the same period;
 XNU requires computation of at least half the constraint. Both threads verify
 their requested policy at the start and end. These are diagnostic controls;
-the released plugin continues to request its existing QoS policy.
+0.8.0 playback instead defaults to real-time policy on all three workers.
 
 Main comparisons have worker tracing disabled. Two separate traced diagnostics
 run last and save callback/worker timestamps to CSV after joining the worker.
 These instrumented runs help explain dispatch and compute delays and are kept
-separate from uninstrumented deadline measurements. The trace's CPU clock covers
-all process threads, not just inference. Every original zero-miss, zero-wait,
+separate from uninstrumented deadline measurements. Current schema-2 traces
+record calling-thread CPU separately from process CPU. Every original zero-miss, zero-wait,
 finite-output and reconstruction gate remains required. A completed comparison
 can contain failed timing gates; inspect `results.json` and each retained log.
 

@@ -22,9 +22,14 @@ fi
 }
 SOAK_TRACE=0
 SOAK_TRACE_NAME=disabled
+SOAK_WORKERS=3
+SOAK_WORKERS_OVERRIDE=0
 if [[ "${3:-}" == --trace ]]; then
     SOAK_TRACE=1
     SOAK_TRACE_NAME=enabled
+    # Schema-2 tracing measures a single ORT session, not three-worker CPU.
+    SOAK_WORKERS=1
+    SOAK_WORKERS_OVERRIDE=1
 fi
 [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || {
     echo "This measurement requires a native arm64 Mac; no timing test was run." >&2
@@ -78,6 +83,7 @@ git -C "$SOAK_SOURCE" rev-parse HEAD > "$SOAK_OUTPUT/source-commit.txt"
     sw_vers
     sysctl machdep.cpu.brand_string hw.physicalcpu hw.logicalcpu
     printf 'measured_callbacks_per_run=%s\nrepetitions=2\nworker_trace=%s\n' "$SOAK_CALLBACKS" "$SOAK_TRACE_NAME"
+    printf 'independent_workers=%s\n' "$SOAK_WORKERS"
     printf 'scope=synthetic_host_not_installed_AU_or_DAW\n'
 } > "$SOAK_OUTPUT/machine-and-scope.txt"
 (
@@ -99,6 +105,7 @@ for SOAK_REPETITION in 1 2; do
         cd "$SOAK_SOURCE"
         env STEMGENRT_QUALIFICATION_CALLBACKS="$SOAK_CALLBACKS" \
             STEMGENRT_TRACE_WORKER="$SOAK_TRACE" STEMGENRT_PACED_ORT_THREADS=0 \
+            STEMGENRT_PACED_INDEPENDENT_WORKERS="$SOAK_WORKERS_OVERRIDE" \
             "$SOAK_BINARY" --gtest_also_run_disabled_tests \
             --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \
             "--gtest_output=xml:$SOAK_PREFIX.xml"
@@ -115,6 +122,7 @@ for SOAK_REPETITION in 1 2; do
           "$SOAK_SUMMARY" != *" measured_callbacks=$SOAK_CALLBACKS "* ||
           "$SOAK_SUMMARY" != *" warmup_callbacks=100 "* ||
           "$SOAK_SUMMARY" != *" ort_intra_op_threads=1 "* ||
+          "$SOAK_SUMMARY" != *" independent_workers=$SOAK_WORKERS "* ||
           "$SOAK_SUMMARY" != *" ort_intra_op_threads_override=0 "* ||
           "$SOAK_SUMMARY" != *" worker_trace=$SOAK_TRACE_NAME "* ||
           "$SOAK_SUMMARY" != *" callback_samples=128 sample_rate=44100 pdc_samples=256 "* ||

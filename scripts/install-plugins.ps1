@@ -22,6 +22,7 @@ if ($Release) {
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
+. (Join-Path $ScriptDir 'windows-install-utils.ps1')
 $ArtefactsDir = Join-Path $ProjectRoot "$BuildDir\plugin\AudioPlugin_artefacts"
 
 # Plugin paths (MSBuild puts artifacts in a config subdirectory)
@@ -47,33 +48,9 @@ if ($isAdmin) {
     Write-Host "(Run as Administrator to install to $VST3DestSystem)" -ForegroundColor Gray
 }
 
-# Install VST3 plugin
-if (Test-Path $VST3Plugin) {
-    Write-Host "Installing VST3 plugin..."
-    
-    # Create destination directory if it doesn't exist
-    if (-not (Test-Path $VST3Dest)) {
-        New-Item -ItemType Directory -Path $VST3Dest -Force | Out-Null
-    }
-    
-    $DestPath = Join-Path $VST3Dest "StemgenRT.vst3"
-    
-    # Remove existing plugin
-    if (Test-Path $DestPath) {
-        Remove-Item -Path $DestPath -Recurse -Force
-    }
-    
-    # Copy the plugin (VST3 is a folder on Windows too)
-    Copy-Item -Path $VST3Plugin -Destination $DestPath -Recurse
-    
-    Write-Host "  [OK] Installed to $DestPath" -ForegroundColor Green
-} else {
-    Write-Host "  [X] VST3 plugin not found at $VST3Plugin" -ForegroundColor Red
-    Write-Host "      Make sure you've built the project first:" -ForegroundColor Gray
-    Write-Host "        cmake --preset release" -ForegroundColor Gray
-    Write-Host "        cmake --build --preset release --config $Config" -ForegroundColor Gray
-    Write-Host "      Or try a different config: .\install-plugins.ps1 -Config Debug" -ForegroundColor Gray
-}
+# Verify and stage the complete bundle before moving an existing installation.
+# A failed final rename restores the previous bundle from the same filesystem.
+Install-StemgenRTBundle -Source $VST3Plugin -DestinationDirectory $VST3Dest -ProjectRoot $ProjectRoot
 
 Write-Host ""
 Write-Host "Done! You may need to restart your DAW to detect the new plugins." -ForegroundColor Cyan

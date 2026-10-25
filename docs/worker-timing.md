@@ -1,5 +1,11 @@
 # Optional worker timing
 
+This schema is a single-worker diagnostic. Set
+`STEMGENRT_PACED_INDEPENDENT_WORKERS=1` when enabling `STEMGENRT_TRACE_WORKER=1`.
+Three-worker playback rejects this trace because one calling-thread CPU clock
+cannot account for both helper threads. Normal 0.8.0 playback uses three workers
+without tracing.
+
 `setWorkerTimingTrace` attaches bounded storage while the inference worker is stopped. Normal playback leaves it null. The worker samples clocks only with this diagnostic enabled; it performs no per-hop file I/O or allocation. The paced test writes CSV files after joining the worker. At 620157 measured callbacks plus warmup, callback and worker storage must fit the existing 128 MiB cap.
 
 Schema 2 adds calling-thread CPU nanoseconds and timestamps immediately around `OrtApi::Run`. macOS/Linux use `clock_gettime(CLOCK_THREAD_CPUTIME_ID)`; Windows uses `GetThreadTimes`. An unavailable reading is -1. Process CPU remains explicitly separate. Windows thread CPU can have coarse accounting resolution.

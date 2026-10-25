@@ -104,7 +104,7 @@ def parse_summary(log, case, callbacks, traced):
     callback_rt, worker_rt = CASES[case]
     expected = dict(warmup_callbacks='100', measured_callbacks=str(callbacks),
         worker_trace='enabled' if traced else 'disabled', ort_intra_op_threads_override='1',
-        ort_intra_op_threads='1', callback_samples='128', sample_rate='44100', pdc_samples='256',
+        ort_intra_op_threads='1', independent_workers='1', callback_samples='128', sample_rate='44100', pdc_samples='256',
         worker_scheduling='realtime' if worker_rt else 'qos',
         callback_scheduling='realtime' if callback_rt else 'qos',
         worker_computation_ns='2700000', callback_computation_ns='500000', callback_constraint_ns='1000000',
@@ -205,6 +205,7 @@ def run(args, output):
         callback_rt, worker_rt = CASES[case]
         env = dict(os.environ, STEMGENRT_PACED_CALLBACK_REALTIME=str(callback_rt),
             STEMGENRT_PACED_WORKER_REALTIME=str(worker_rt), STEMGENRT_TRACE_WORKER='1' if traced else '0',
+            STEMGENRT_PACED_INDEPENDENT_WORKERS='1',
             STEMGENRT_PACED_ORT_THREADS='1', STEMGENRT_QUALIFICATION_CALLBACKS=str(count))
         # Never inherit another run's diagnostic destination.
         env.pop('STEMGENRT_PACED_TRACE_PATH', None)

@@ -13,7 +13,7 @@ class SchedulingSummaryTest(unittest.TestCase):
     def setUp(self):
         self.case = 'callback_rt_worker_rt'
         self.row = dict(status='pass', warmup_callbacks='100', measured_callbacks='10000',
-            worker_trace='disabled', ort_intra_op_threads_override='1', ort_intra_op_threads='1',
+            worker_trace='disabled', ort_intra_op_threads_override='1', ort_intra_op_threads='1', independent_workers='1',
             callback_samples='128', sample_rate='44100', pdc_samples='256',
             worker_scheduling='realtime', callback_scheduling='realtime',
             worker_computation_ns='2700000', callback_computation_ns='500000', callback_constraint_ns='1000000',
@@ -52,7 +52,7 @@ class SchedulingSummaryTest(unittest.TestCase):
         for key,value in [('worker_scheduling','qos'), ('callback_scheduling','qos'),
                           ('worker_policy_final','failed'), ('callback_policy_initial','failed'),
                           ('worker_computation_ns','2000000'), ('pdc_samples','384'),
-                          ('ort_intra_op_threads','2'), ('worker_trace','enabled')]:
+                          ('ort_intra_op_threads','2'), ('worker_trace','enabled'), ('independent_workers','3')]:
             with self.subTest(key=key):
                 old=self.row[key]; self.row[key]=value
                 with self.assertRaises(ValueError): self.parse()
