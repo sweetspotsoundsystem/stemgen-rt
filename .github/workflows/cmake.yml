@@ -68,6 +68,7 @@ jobs:
         -DCMAKE_OSX_ARCHITECTURES=arm64
         -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
         -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
+        -DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3
 
     - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'
@@ -75,6 +76,7 @@ jobs:
         cmake -S . -B ${{github.workspace}}/build
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -DSTEMGENRT_REQUIRE_QUALIFIED_ORT=ON
+        -DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=3
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{ matrix.build_type }}

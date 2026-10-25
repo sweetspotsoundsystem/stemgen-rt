@@ -12,20 +12,20 @@
 namespace audio_plugin {
 
 class InferenceQueueTestPeer {
-public:
-  using RunCallback = bool (*)(void*, InferenceRequest&);
-  using ResetCallback = void (*)(void*);
+ public:
+   using RunCallback = bool (*)(void*, InferenceRequest&, InferenceRunTiming*);
+   using ResetCallback = void (*)(void*);
 
-  static void startThread(InferenceQueue& queue,
-                          void* context,
-                          RunCallback run,
-                          ResetCallback reset) {
-    InferenceQueue::WorkerCallbacks callbacks;
-    callbacks.context = context;
-    callbacks.run = run;
-    callbacks.reset = reset;
-    queue.startThreadWithCallbacks(callbacks);
-  }
+   static void startThread(InferenceQueue& queue,
+                           void* context,
+                           RunCallback run,
+                           ResetCallback reset) {
+     InferenceQueue::WorkerCallbacks callbacks;
+     callbacks.context = context;
+     callbacks.run = run;
+     callbacks.reset = reset;
+     queue.startThreadWithCallbacks(callbacks);
+   }
 };
 
 }  // namespace audio_plugin
@@ -78,10 +78,15 @@ InferenceRequest* waitForOutput(InferenceQueue& queue, uint32_t epoch) {
 }
 
 class FakeRuntime {
-public:
-  static bool runCallback(void* context, InferenceRequest& request) {
-    return static_cast<FakeRuntime*>(context)->process(request);
-  }
+ public:
+   std::atomic<bool> timingReceived{false};
+   static bool runCallback(void* context,
+                           InferenceRequest& request,
+                           audio_plugin::InferenceRunTiming* timing) {
+     auto* runtime = static_cast<FakeRuntime*>(context);
+     runtime->timingReceived.store(timing != nullptr);
+     return runtime->process(request);
+   }
 
   static void resetCallback(void* context) {
     static_cast<FakeRuntime*>(context)->resetState();
@@ -195,6 +200,9 @@ TEST(InferenceQueueTest, WorkerTimingIsStoppedOnlyAndPreservesBoundedEvidence) {
 #else
   EXPECT_EQ(sample.processCpuMicroseconds(), -1.0);
 #endif
+  EXPECT_TRUE(runtime.timingReceived.load());
+  EXPECT_GE(sample.threadCpuMicroseconds(), 0.0);
+  EXPECT_FALSE(sample.ort.observed);  // Fake runtime never calls ORT.
   EXPECT_TRUE(queue.setWorkerTimingTrace(nullptr));
 }
 
@@ -244,7 +252,7 @@ TEST(InferenceQueueTest,
   FakeRuntime runtime;
   InferenceQueue queue;
   queue.allocate();
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_WIN32)
   EXPECT_FALSE(queue.setDiagnosticScheduling(true));
 #endif
   ASSERT_TRUE(queue.setDiagnosticScheduling(false));
@@ -267,7 +275,7 @@ TEST(InferenceQueueTest,
   ASSERT_NE(output, nullptr);
   queue.releaseOutputSlot();
   queue.stopThread();
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
   EXPECT_EQ(queue.getSchedulingInitialStatus(),
             InferenceQueue::WorkerPriorityStatus::Applied);
   EXPECT_EQ(queue.getSchedulingFinalStatus(),
@@ -279,6 +287,59 @@ TEST(InferenceQueueTest,
             InferenceQueue::WorkerPriorityStatus::Unsupported);
 #endif
   EXPECT_TRUE(queue.setDiagnosticScheduling(false));
+}
+
+TEST(InferenceQueueTest, PlaybackDefaultAndOfflinePolicySurviveWorkerRestarts) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+  for (const bool realtime : {true, false, true}) {
+    ASSERT_TRUE(queue.setRealtimePlayback(realtime));
+#if defined(__APPLE__) || defined(_WIN32)
+    EXPECT_EQ(queue.isRealtimeSchedulingRequested(), realtime);
+#else
+    EXPECT_FALSE(queue.isRealtimeSchedulingRequested());
+#endif
+    InferenceQueueTestPeer::startThread(
+        queue, &runtime, FakeRuntime::runCallback, FakeRuntime::resetCallback);
+    ASSERT_TRUE(queue.isThreadRunning());
+    EXPECT_FALSE(queue.setRealtimePlayback(!realtime));
+    submit(queue, queue.getEpoch(), 0U);
+    ASSERT_NE(waitForOutput(queue, queue.getEpoch()), nullptr);
+    queue.releaseOutputSlot();
+    queue.stopThread();
+#if defined(__APPLE__)
+    EXPECT_EQ(queue.getSchedulingInitialStatus(),
+              InferenceQueue::WorkerPriorityStatus::Applied);
+    EXPECT_EQ(queue.getSchedulingFinalStatus(),
+              InferenceQueue::WorkerPriorityStatus::Applied);
+#elif defined(_WIN32)
+    const auto initial = queue.getSchedulingInitialStatus();
+    EXPECT_TRUE(initial == InferenceQueue::WorkerPriorityStatus::Applied ||
+                (realtime &&
+                 initial == InferenceQueue::WorkerPriorityStatus::Unsupported));
+    EXPECT_EQ(queue.getSchedulingFinalStatus(), initial);
+#else
+    EXPECT_EQ(queue.getSchedulingInitialStatus(),
+              InferenceQueue::WorkerPriorityStatus::Unsupported);
+#endif
+    queue.fullReset();
+  }
+}
+
+TEST(InferenceQueueTest, HostContextIsConsumedEvenWithoutAnAudioRequest) {
+  InferenceQueue queue;
+  queue.allocate();
+  queue.audioWorkgroupContextChanged({});
+  InferenceQueueTestPeer::startThread(queue, nullptr, nullptr, nullptr);
+  ASSERT_TRUE(
+      waitUntil([&] { return queue.getWorkgroupConsumedGeneration() == 1U; }));
+  queue.audioWorkgroupContextChanged({});
+  ASSERT_TRUE(
+      waitUntil([&] { return queue.getWorkgroupConsumedGeneration() == 2U; }));
+  queue.stopThread();
+  EXPECT_EQ(queue.getWorkgroupStatus(),
+            audio_plugin::WorkerWorkgroupStatus::Stopped);
 }
 
 #if defined(__APPLE__)
@@ -601,7 +662,7 @@ TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
   queue.allocate();
   InferenceQueueTestPeer::startThread(
       queue, nullptr,
-      [](void*, InferenceRequest& request) {
+      [](void*, InferenceRequest& request, audio_plugin::InferenceRunTiming*) {
         request.outputValid = true;
         request.hostOutputValid = true;
         return false;
@@ -616,4 +677,18 @@ TEST(InferenceQueueTest, FailedRunCannotPublishValidAudioOrSuccessfulWarmup) {
   EXPECT_FALSE(result->hostOutputValid);
   queue.releaseOutputSlot();
   queue.stopThread();
+}
+
+TEST(InferenceQueueTest, DisabledTracingPassesNoTimingPointer) {
+  FakeRuntime runtime;
+  InferenceQueue queue;
+  queue.allocate();
+  InferenceQueueTestPeer::startThread(queue, &runtime, FakeRuntime::runCallback,
+                                      FakeRuntime::resetCallback);
+  const auto epoch = queue.getEpoch();
+  submit(queue, epoch, 0);
+  ASSERT_NE(waitForOutput(queue, epoch), nullptr);
+  queue.releaseOutputSlot();
+  queue.stopThread();
+  EXPECT_FALSE(runtime.timingReceived.load());
 }

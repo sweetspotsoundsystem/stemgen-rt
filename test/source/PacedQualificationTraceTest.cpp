@@ -1,8 +1,72 @@
+#include "MacBenchmarkActivity.h"
+#include "PacedHostTiming.h"
 #include "PacedQualificationTrace.h"
 
 #include <gtest/gtest.h>
 
 namespace audio_plugin_test {
+
+namespace {
+PacedHostTiming::Clock::time_point atMicroseconds(int64_t value) {
+  return PacedHostTiming::Clock::time_point(std::chrono::microseconds(value));
+}
+}  // namespace
+
+TEST(PacedHostTimingTest, SeparatesSleepPreparationAndBookkeepingDelays) {
+  PacedHostTiming timing(2902.494);
+  timing.observe(1, atMicroseconds(3000), atMicroseconds(1000),
+                 atMicroseconds(316000), atMicroseconds(316020),
+                 atMicroseconds(900));
+  timing.observe(2, atMicroseconds(320000), atMicroseconds(316100),
+                 atMicroseconds(320010), atMicroseconds(620010),
+                 atMicroseconds(316050));
+  timing.observe(3, atMicroseconds(623000), atMicroseconds(920000),
+                 atMicroseconds(920001), atMicroseconds(920011),
+                 atMicroseconds(620020));
+
+  ASSERT_EQ(timing.size(), 3U);
+  EXPECT_DOUBLE_EQ(timing.events()[0].waitOverrunMicroseconds, 313000.0);
+  EXPECT_DOUBLE_EQ(timing.events()[0].preparationMicroseconds, 20.0);
+  EXPECT_DOUBLE_EQ(timing.events()[1].preparationMicroseconds, 300000.0);
+  EXPECT_DOUBLE_EQ(timing.events()[2].bookkeepingMicroseconds, 299980.0);
+  EXPECT_DOUBLE_EQ(timing.events()[2].waitOverrunMicroseconds, 1.0);
+  EXPECT_EQ(timing.delayCount(), 3U);
+}
+
+TEST(PacedHostTimingTest, CatchupDoesNotInventAnotherSleepOverrun) {
+  PacedHostTiming timing(2902.494);
+  timing.observe(1, atMicroseconds(3000), atMicroseconds(316000),
+                 atMicroseconds(316001), atMicroseconds(316021),
+                 atMicroseconds(315950));
+  EXPECT_EQ(timing.delayCount(), 0U);
+  EXPECT_DOUBLE_EQ(timing.maximumWaitOverrun(), 1.0);
+  EXPECT_DOUBLE_EQ(timing.maximumPreparation(), 20.0);
+  EXPECT_DOUBLE_EQ(timing.maximumBookkeeping(), 50.0);
+}
+
+TEST(PacedHostTimingTest, CountsEveryDelayWhenStorageIsFull) {
+  PacedHostTiming timing(2902.494);
+  for (int index = 0; index < 100; ++index) {
+    timing.observe(index, atMicroseconds(3000), atMicroseconds(1000),
+                   atMicroseconds(7000), atMicroseconds(7020),
+                   atMicroseconds(900));
+  }
+  EXPECT_EQ(timing.size(), PacedHostTiming::kCapacity);
+  EXPECT_EQ(timing.delayCount(), 100U);
+  EXPECT_EQ(timing.omittedEvents(), 36U);
+}
+
+#if defined(__APPLE__)
+TEST(MacBenchmarkActivityTest, NestedActivitiesRetainTheirOwnLifetime) {
+  MacBenchmarkActivity outer;
+  ASSERT_TRUE(outer.isActive());
+  {
+    MacBenchmarkActivity inner;
+    ASSERT_TRUE(inner.isActive());
+  }
+  EXPECT_TRUE(outer.isActive());
+}
+#endif
 
 TEST(PacedQualificationTraceTest, SeparatesWarmupMissAndLaterMeasuredDiscard) {
   PacedQualificationTrace trace(100);

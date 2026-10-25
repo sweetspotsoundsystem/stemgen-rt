@@ -7,9 +7,31 @@
 #include <thread>
 
 #include "AudioPluginProcessorTestPeer.h"
+#include "MacTestWorkgroup.h"
 #include "RealtimeAllocationGuard.h"
 
 namespace audio_plugin_test {
+
+TEST(RealtimeSafetyTest, HostWorkgroupUpdatesAndOverflowHaveNoCppHeapTraffic) {
+  audio_plugin::AudioPluginAudioProcessor processor;
+#if defined(__APPLE__)
+  MacTestWorkgroup host;
+  ASSERT_NE(host.get(), nullptr);
+  const auto context = host.context();
+#else
+  const juce::AudioWorkgroup context{};
+#endif
+  RealtimeAllocationGuard guard;
+  for (int update = 0; update < 100; ++update) {
+    processor.audioWorkgroupContextChanged(context);
+  }
+  const auto traffic = guard.finish();
+  EXPECT_EQ(traffic.allocations, 0U);
+  EXPECT_EQ(traffic.deallocations, 0U);
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  EXPECT_EQ(processor.getWorkerWorkgroupOverflowCount(), 92U);
+#endif
+}
 
 TEST(RealtimeSafetyTest,
      HeapProbeObservesAllocationAndDeletionOnCallingThread) {
@@ -27,7 +49,7 @@ TEST(RealtimeSafetyTest,
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
 namespace {
 class RealtimeTestPlayHead final : public juce::AudioPlayHead {
-public:
+ public:
   void setSample(int64_t sample) {
     position_.setIsPlaying(true);
     position_.setTimeInSamples(sample);
@@ -36,7 +58,7 @@ public:
     return position_;
   }
 
-private:
+ private:
   PositionInfo position_;
 };
 constexpr int kBlockSize = audio_plugin::kOutputChunkSize;

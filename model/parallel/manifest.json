@@ -1,0 +1,106 @@
+{
+  "schema": "stemgenrt-independent-partitions-v1",
+  "parent_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+  "branches": [
+    {
+      "schema": "stemgenrt-independent-partition-v1",
+      "source": "drums",
+      "parent_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+      "state_offset": 0,
+      "state_count": 5,
+      "operation_policy": "Original parent nodes and initializer bytes; one output Identity added",
+      "source_order": [
+        "drums",
+        "bass",
+        "vocals"
+      ],
+      "host_residual": "previous_input - ((drums + bass) + vocals)",
+      "path": "drums.onnx",
+      "input_names": [
+        "audio_chunk",
+        "drums_audio_history",
+        "drums_local_hidden",
+        "drums_global_hidden",
+        "drums_spectral_numerator_tail",
+        "drums_waveform_numerator_tail"
+      ],
+      "output_names": [
+        "separated_chunk",
+        "next_drums_audio_history",
+        "next_drums_local_hidden",
+        "next_drums_global_hidden",
+        "next_drums_spectral_numerator_tail",
+        "next_drums_waveform_numerator_tail"
+      ],
+      "sha256": "f2a3fc5dd90f45690536370f02d9b9377e6625ab08cb32b3e921371ad134d874",
+      "bytes": 12267886,
+      "nodes": 800
+    },
+    {
+      "schema": "stemgenrt-independent-partition-v1",
+      "source": "bass",
+      "parent_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+      "state_offset": 5,
+      "state_count": 4,
+      "operation_policy": "Original parent nodes and initializer bytes; one output Identity added",
+      "source_order": [
+        "drums",
+        "bass",
+        "vocals"
+      ],
+      "host_residual": "previous_input - ((drums + bass) + vocals)",
+      "path": "bass.onnx",
+      "input_names": [
+        "audio_chunk",
+        "bass_audio_history",
+        "bass_local_hidden",
+        "bass_global_hidden",
+        "bass_spectral_numerator_tail"
+      ],
+      "output_names": [
+        "separated_chunk",
+        "next_bass_audio_history",
+        "next_bass_local_hidden",
+        "next_bass_global_hidden",
+        "next_bass_spectral_numerator_tail"
+      ],
+      "sha256": "1187b414f22344028035caba0a763d2211d13fe8bfce366c5f6b7ee4af77df40",
+      "bytes": 8660860,
+      "nodes": 1156
+    },
+    {
+      "schema": "stemgenrt-independent-partition-v1",
+      "source": "vocals",
+      "parent_sha256": "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7",
+      "state_offset": 9,
+      "state_count": 4,
+      "operation_policy": "Original parent nodes and initializer bytes; one output Identity added",
+      "source_order": [
+        "drums",
+        "bass",
+        "vocals"
+      ],
+      "host_residual": "previous_input - ((drums + bass) + vocals)",
+      "path": "vocals.onnx",
+      "input_names": [
+        "audio_chunk",
+        "vocals_audio_history",
+        "vocals_local_hidden",
+        "vocals_global_hidden",
+        "vocals_spectral_numerator_tail"
+      ],
+      "output_names": [
+        "separated_chunk",
+        "next_vocals_audio_history",
+        "next_vocals_local_hidden",
+        "next_vocals_global_hidden",
+        "next_vocals_spectral_numerator_tail"
+      ],
+      "sha256": "f29a3d8fa596ce4672dd4dc77ccf224f2538389940264aad46ab8168311c2148",
+      "bytes": 11019332,
+      "nodes": 769
+    }
+  ],
+  "weights_and_training_unchanged": true,
+  "timing_qualified": false
+}

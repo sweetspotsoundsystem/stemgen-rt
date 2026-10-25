@@ -5,6 +5,8 @@
 #include "StemgenRT/InferenceQueue.h"
 #include "StemgenRT/MacThreadPolicy.h"
 #include "StemgenRT/OnnxRuntime.h"
+#include "StemgenRT/WindowsThreadPolicy.h"
+#include "StemgenRT/WindowsWorkerTimer.h"
 
 #include <algorithm>
 #include <chrono>
@@ -52,8 +54,10 @@ InferenceQueue::WorkerPriorityStatus configureCurrentThreadPriority() noexcept {
 #elif defined(_WIN32)
   const BOOL result =
       SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
-  return result != 0 ? InferenceQueue::WorkerPriorityStatus::Applied
-                     : InferenceQueue::WorkerPriorityStatus::Failed;
+  return result != 0 && GetThreadPriority(GetCurrentThread()) ==
+                            THREAD_PRIORITY_HIGHEST
+             ? InferenceQueue::WorkerPriorityStatus::Applied
+             : InferenceQueue::WorkerPriorityStatus::Failed;
 #elif defined(__linux__)
   const int maxPriority = sched_get_priority_max(SCHED_RR);
   if (maxPriority < 1) {
@@ -228,20 +232,37 @@ bool InferenceQueue::convertOutputToHost(InferenceRequest& request) noexcept {
 }
 
 bool InferenceQueue::startThread(OnnxRuntime* runtime) {
+  if (thread_ && thread_->joinable())
+    return true;
+  if (runtime && runtime->getIndependentWorkerCount() == 3 &&
+      workerTimingTrace_)
+    return false;
+  auxiliaryEnabled_ = runtime && runtime->getIndependentWorkerCount() == 3;
+  if (runtime && !runtime->startAuxiliaryWorkers(
+                     isRealtimeSchedulingRequested(),
+                     {&auxiliaryWorkgroups_[0], &auxiliaryWorkgroups_[1]}))
+    return false;
+  activeRuntime_ = runtime;
   WorkerCallbacks callbacks;
   callbacks.context = runtime;
   if (runtime != nullptr) {
-    callbacks.run = [](void* context, InferenceRequest& request) {
+    callbacks.run = [](void* context, InferenceRequest& request,
+                       InferenceRunTiming* timing) {
       auto* onnxRuntime = static_cast<OnnxRuntime*>(context);
       return onnxRuntime->runInference(request.inputChunk, request.outputChunk,
                                        request.alignedInput,
-                                       request.outputValid);
+                                       request.outputValid, timing);
     };
     callbacks.reset = [](void* context) {
       static_cast<OnnxRuntime*>(context)->resetStreamingState();
     };
   }
-  return startThreadWithCallbacks(callbacks);
+  const bool started = startThreadWithCallbacks(callbacks);
+  if (!started && activeRuntime_) {
+    activeRuntime_->stopAuxiliaryWorkers();
+    activeRuntime_ = nullptr;
+  }
+  return started;
 }
 
 bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
@@ -256,6 +277,7 @@ bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
                                  std::memory_order_release);
   schedulingFinalStatus_.store(WorkerPriorityStatus::NotAttempted,
                                std::memory_order_release);
+  threadRunning_.store(true, std::memory_order_release);
   try {
     thread_ = std::make_unique<std::thread>(
         &InferenceQueue::inferenceThreadFunc, this, callbacks);
@@ -264,7 +286,19 @@ bool InferenceQueue::startThreadWithCallbacks(WorkerCallbacks callbacks) {
     threadRunning_.store(false, std::memory_order_release);
     return false;
   }
-  threadRunning_.store(true, std::memory_order_release);
+  // Lifecycle only: report a rejected scheduling policy before admitting
+  // audio. The worker publishes its readback before touching model state.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  while (getSchedulingInitialStatus() == WorkerPriorityStatus::NotAttempted &&
+         std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  if (getSchedulingInitialStatus() == WorkerPriorityStatus::NotAttempted ||
+      getSchedulingInitialStatus() == WorkerPriorityStatus::Failed) {
+    stopThread();
+    return false;
+  }
   return true;
 }
 
@@ -275,6 +309,10 @@ void InferenceQueue::stopThread() {
     thread_->join();
   }
   thread_.reset();
+  if (activeRuntime_) {
+    activeRuntime_->stopAuxiliaryWorkers();
+    activeRuntime_ = nullptr;
+  }
   threadRunning_.store(false, std::memory_order_release);
 }
 
@@ -290,7 +328,7 @@ bool InferenceQueue::setDiagnosticScheduling(bool realtime) noexcept {
   if (isThreadRunning()) {
     return false;
   }
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_WIN32)
   if (realtime) {
     return false;
   }
@@ -298,6 +336,22 @@ bool InferenceQueue::setDiagnosticScheduling(bool realtime) noexcept {
   diagnosticScheduling_ = true;
   diagnosticRealtime_ = realtime;
   return true;
+}
+
+bool InferenceQueue::setRealtimePlayback(bool realtime) noexcept {
+  if (isThreadRunning()) {
+    return false;
+  }
+  realtimePlayback_ = realtime;
+  return true;
+}
+
+bool InferenceQueue::isRealtimeSchedulingRequested() const noexcept {
+#if defined(__APPLE__) || defined(_WIN32)
+  return diagnosticScheduling_ ? diagnosticRealtime_ : realtimePlayback_;
+#else
+  return false;
+#endif
 }
 
 InferenceRequest* InferenceQueue::getWriteSlot() {
@@ -655,23 +709,52 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   // Keep subnormal arithmetic from imposing unpredictable per-hop CPU cost.
   const juce::ScopedNoDenormals noDenormals;
   auto* const timingTrace = workerTimingTrace_;
+  if (activeRuntime_ && activeRuntime_->getIndependentWorkerCount() == 3)
+    juce::Thread::setCurrentThreadName("StemgenRT bass");
+  else if (timingTrace != nullptr)
+    juce::Thread::setCurrentThreadName("StemgenRT inference");
   const WorkerPriorityStatus priorityStatus = configureCurrentThreadPriority();
   workerPriorityStatus_.store(priorityStatus, std::memory_order_release);
   if (priorityStatus == WorkerPriorityStatus::Failed) {
     DBG("[InferenceQueue] Failed to raise inference worker priority");
   }
   MacThreadPolicy scheduling;
-  if (diagnosticScheduling_) {
-#if defined(__APPLE__)
-    const bool applied = scheduling.start(diagnosticRealtime_, 2700000);
-    schedulingInitialStatus_.store(
-        applied ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
-        std::memory_order_release);
-#else
-    schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
+#if defined(_WIN32)
+  WindowsWorkerTimer idleTimer;
+  WindowsThreadPolicy windowsPolicy;
+  bool idleWaitSucceeded = true;
+  if (!idleTimer.isValid() || priorityStatus != WorkerPriorityStatus::Applied ||
+      !windowsPolicy.start(isRealtimeSchedulingRequested())) {
+    schedulingInitialStatus_.store(WorkerPriorityStatus::Failed,
                                    std::memory_order_release);
-#endif
+    schedulingFinalStatus_.store(WorkerPriorityStatus::Failed,
+                                 std::memory_order_release);
+    return;
   }
+#endif
+#if defined(__APPLE__)
+  const bool applied =
+      priorityStatus == WorkerPriorityStatus::Applied &&
+      scheduling.start(isRealtimeSchedulingRequested(), 2700000);
+  if (!applied) {
+    static_cast<void>(scheduling.finish());
+    schedulingFinalStatus_.store(WorkerPriorityStatus::Failed,
+                                 std::memory_order_release);
+    schedulingInitialStatus_.store(WorkerPriorityStatus::Failed,
+                                   std::memory_order_release);
+    return;
+  }
+  schedulingInitialStatus_.store(WorkerPriorityStatus::Applied,
+                                 std::memory_order_release);
+#elif defined(_WIN32)
+  schedulingInitialStatus_.store(
+      static_cast<WorkerPriorityStatus>(windowsPolicy.status()),
+      std::memory_order_release);
+#else
+  schedulingInitialStatus_.store(WorkerPriorityStatus::Unsupported,
+                                 std::memory_order_release);
+#endif
+  workgroup_.workerStarted(isRealtimeSchedulingRequested());
   DBG("[InferenceQueue] Thread running");
 
   uint64_t lastSeenEpochControl = epochControl_.load(std::memory_order_acquire);
@@ -725,6 +808,7 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
   };
 
   while (!shouldStop_.load(std::memory_order_acquire)) {
+    workgroup_.poll();
     synchronizeEpoch();
 
     // Audio-thread publication is atomic-only. When idle, the worker owns the
@@ -738,7 +822,16 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
         epochControl_.load(std::memory_order_acquire) != lastSeenEpochControl;
     if (!requestReady && !epochChanged &&
         !shouldStop_.load(std::memory_order_acquire)) {
+#if defined(_WIN32)
+      if (!idleTimer.waitFor(std::chrono::microseconds(100))) {
+        idleWaitSucceeded = false;
+        shouldStop_.store(true, std::memory_order_release);
+        workerPriorityStatus_.store(WorkerPriorityStatus::Failed,
+                                    std::memory_order_release);
+      }
+#else
       std::this_thread::sleep_for(std::chrono::microseconds(100));
+#endif
     }
 
     if (shouldStop_.load(std::memory_order_acquire)) {
@@ -754,6 +847,8 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       if (shouldStop_.load(std::memory_order_acquire)) {
         break;
       }
+
+      workgroup_.poll();
 
       const uint64_t currentEpochControl = synchronizeEpoch();
       const uint32_t currentEpoch = epochFromControl(currentEpochControl);
@@ -827,15 +922,19 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
       // arrives concurrently.
       if (timingTrace != nullptr) {
         timing.processCpuStarted = processCpuClock();
+        timing.threadCpuStarted = currentThreadCpuNanoseconds();
         timing.runStarted = WorkerTimingSample::Clock::now();
       }
       if (epochControl_.load(std::memory_order_acquire) ==
               currentEpochControl &&
           callbacks.run != nullptr) {
-        inferenceOk = callbacks.run(callbacks.context, *request);
+        inferenceOk =
+            callbacks.run(callbacks.context, *request,
+                          timingTrace != nullptr ? &timing.ort : nullptr);
       }
       if (timingTrace != nullptr) {
         timing.runFinished = WorkerTimingSample::Clock::now();
+        timing.threadCpuFinished = currentThreadCpuNanoseconds();
         timing.processCpuFinished = processCpuClock();
       }
 
@@ -906,17 +1005,27 @@ void InferenceQueue::inferenceThreadFunc(WorkerCallbacks callbacks) {
     }
   }
 
-  if (diagnosticScheduling_) {
+  // The workgroup token must leave on this thread, before policy restoration.
+  workgroup_.workerStopped();
 #if defined(__APPLE__)
-    const bool verified = scheduling.finish();
-    schedulingFinalStatus_.store(
-        verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
-        std::memory_order_release);
+  const bool verified = scheduling.finish();
+  schedulingFinalStatus_.store(
+      verified ? WorkerPriorityStatus::Applied : WorkerPriorityStatus::Failed,
+      std::memory_order_release);
+#elif defined(_WIN32)
+  const bool priorityVerified = windowsPolicy.finish();
+  if (!priorityVerified)
+    workerPriorityStatus_.store(WorkerPriorityStatus::Failed,
+                                std::memory_order_release);
+  schedulingFinalStatus_.store(
+      idleWaitSucceeded && priorityVerified
+          ? static_cast<WorkerPriorityStatus>(windowsPolicy.status())
+          : WorkerPriorityStatus::Failed,
+      std::memory_order_release);
 #else
-    schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,
-                                 std::memory_order_release);
+  schedulingFinalStatus_.store(WorkerPriorityStatus::Unsupported,
+                               std::memory_order_release);
 #endif
-  }
   DBG("[InferenceQueue] Thread exiting");
 }
 

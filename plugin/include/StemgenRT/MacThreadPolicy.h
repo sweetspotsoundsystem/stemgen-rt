@@ -11,12 +11,12 @@
 
 namespace audio_plugin {
 
-// Measurement-only policy guard. Construct, start, finish and destroy on the
-// same thread. The caller establishes QoS before start. No callback calls this
-// guard: the synthetic host configures its policy outside the measured loop.
+// Worker-owned policy guard. Construct, start, finish and destroy on the same
+// thread. The caller establishes QoS before start. No audio callback calls
+// this guard. Synthetic host diagnostics also use it outside the measured loop.
 // A passing readback does not establish deadlines or host-workgroup membership.
 class MacThreadPolicy {
-public:
+ public:
   MacThreadPolicy() = default;
   MacThreadPolicy(const MacThreadPolicy&) = delete;
   MacThreadPolicy& operator=(const MacThreadPolicy&) = delete;
@@ -88,7 +88,7 @@ public:
 #endif
   }
 
-private:
+ private:
   bool restore() noexcept {
 #if defined(__APPLE__)
     if (needsRestore_) {

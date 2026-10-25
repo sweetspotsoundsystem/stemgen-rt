@@ -1,16 +1,16 @@
 #include "StemgenRT/PluginProcessor.h"
-#include "StemgenRT/PluginEditor.h"
-#include "StemgenRT/ModelOutputScheduler.h"
 #include <algorithm>
-#include <vector>
-#include <cstdint>
-#include <cmath>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <limits>
 #include <stdexcept>
 #include <thread>
+#include <vector>
+#include "StemgenRT/ModelOutputScheduler.h"
+#include "StemgenRT/PluginEditor.h"
 
 namespace audio_plugin {
 
@@ -32,6 +32,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   // Initialize the environment early so availability is visible before the
   // host starts playback. Model loading still happens in prepareToPlay().
   onnxRuntime_ = std::make_unique<OnnxRuntime>();
+  static_cast<void>(onnxRuntime_->setIndependentWorkerCount(
+      STEMGENRT_DEFAULT_INDEPENDENT_WORKERS));
 #endif
 }
 
@@ -309,6 +311,42 @@ bool AudioPluginAudioProcessor::setDiagnosticWorkerScheduling(
 #endif
 }
 
+bool AudioPluginAudioProcessor::isRealtimeWorkerSchedulingRequested()
+    const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.isRealtimeSchedulingRequested();
+#else
+  return false;
+#endif
+}
+
+void AudioPluginAudioProcessor::audioWorkgroupContextChanged(
+    const juce::AudioWorkgroup& workgroup) {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  inferenceQueue_.audioWorkgroupContextChanged(workgroup);
+#else
+  juce::ignoreUnused(workgroup);
+#endif
+}
+
+WorkerWorkgroupStatus AudioPluginAudioProcessor::getWorkerWorkgroupStatus()
+    const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.getWorkgroupStatus();
+#else
+  return WorkerWorkgroupStatus::Disabled;
+#endif
+}
+
+uint64_t AudioPluginAudioProcessor::getWorkerWorkgroupOverflowCount()
+    const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return inferenceQueue_.getWorkgroupOverflowCount();
+#else
+  return 0;
+#endif
+}
+
 InferenceQueue::WorkerPriorityStatus
 AudioPluginAudioProcessor::getWorkerSchedulingInitialStatus() const noexcept {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
@@ -331,6 +369,42 @@ int AudioPluginAudioProcessor::getConfiguredOrtIntraOpThreads() const noexcept {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   return onnxRuntime_ ? onnxRuntime_->getConfiguredIntraOpThreadCount() : 0;
 #else
+  return 0;
+#endif
+}
+
+bool AudioPluginAudioProcessor::setDiagnosticIndependentWorkers(
+    int count) noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return !inferenceQueue_.isThreadRunning() && onnxRuntime_ &&
+         onnxRuntime_->setIndependentWorkerCount(count);
+#else
+  juce::ignoreUnused(count);
+  return false;
+#endif
+}
+int AudioPluginAudioProcessor::getIndependentWorkerCount() const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->getIndependentWorkerCount() : 0;
+#else
+  return 0;
+#endif
+}
+int AudioPluginAudioProcessor::getAuxiliaryInitialPolicy(
+    size_t index) const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->auxiliaryInitialPolicy(index) : 0;
+#else
+  juce::ignoreUnused(index);
+  return 0;
+#endif
+}
+int AudioPluginAudioProcessor::getAuxiliaryFinalPolicy(
+    size_t index) const noexcept {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  return onnxRuntime_ ? onnxRuntime_->auxiliaryFinalPolicy(index) : 0;
+#else
+  juce::ignoreUnused(index);
   return 0;
 #endif
 }
@@ -549,6 +623,7 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
   maximumSameCallbackWaitMicroseconds_.store(0, std::memory_order_release);
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   inferenceQueue_.stopThread();
+  static_cast<void>(inferenceQueue_.setRealtimePlayback(!isNonRealtime()));
   // Every prepare attempt starts a new stream generation, including attempts
   // that later fail closed for sample rate, runtime, or model validation.
   // This prevents stale output and snapshot telemetry from surviving a host

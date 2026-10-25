@@ -5,6 +5,11 @@ using three independently trained models. Other is the input minus those three
 estimates. The plug-in retains the **StemgenRT** name, host IDs and controls.
 This release replaces the previous joint separation model.
 
+This development branch adds [three independent inference workers](docs/parallel-workers.md)
+and [platform scheduling](RUNTIME_SCHEDULING.md) to the existing plugin. CI
+candidate bundles select three workers; ordinary source builds default to one.
+The model weights, streaming interface and latency are unchanged.
+
 [Download the release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.7.0)
 for Apple Silicon macOS 14+ (AU/VST3) or Windows x86-64 (VST3). The model and ONNX
 Runtime 1.26.0 are bundled. macOS packages are ad-hoc signed, not notarized.
@@ -20,12 +25,18 @@ buffers include their additional scheduling reserve in reported latency.
 
 The listening comparison favored cleaner vocals, better silence behavior and
 less vocal bleed in drums and bass. Other can contain stronger residual errors.
-The returned M4 worker probe missed 7.21% of deadlines in its five-minute
-released-graph trial. A later complete plugin-path comparison observed zero
-misses over four short trials and one five-minute trial with both synthetic
-callback and worker on real-time policy (145,000 measured callbacks). With the
-same callback policy, the QoS worker had seven measured misses. Longer playback
-and installed-DAW qualification remain pending; production keeps QoS scheduling.
+The three-worker candidate measured 0.694 ms per complete inference hop on the
+M4, versus 2.304 ms with one worker. Its balanced sustained standalone test
+recorded no missed results or underruns across 60 measured minutes per mode.
+The M1 Pro quick comparison measured 1.060 ms versus 2.244 ms, with no missed
+results across 40,000 measured plugin callbacks per mode. These are separate
+machine results; the M1 Pro has not received the same endurance test. The user
+also reports stable playback in Ableton on the M4, without a separately inspected
+DAW timing trace. On the Ryzen 5 5500, the Windows candidate improved average
+parallel inference from 3.753 to 1.525 ms, but still missed 224 results across
+40,400 callbacks. It does not yet pass the 128-sample playback gate. See
+[platform evidence](docs/parallel-workers.md) for exposure and comparison limits.
+The published 0.7.0 release bundles precede this experimental runtime work.
 Correctness tests and algorithmic latency do not establish the CPU deadline.
 The audio callback never waits for inference; missed output uses aligned fallback.
 See [model details](model/README.md) and [M4 testing](M4_TESTING.md).
@@ -78,8 +89,8 @@ python3 scripts/compare-paced-scheduling-macos.py \
 Allow about 20 minutes after building. Return the result ZIP. Initial and final
 Mach policy readbacks, callback timing, queue misses, underruns and reconstruction
 must all pass their existing gates. Failed timing trials are retained while the
-comparison continues. Production scheduling remains unchanged; these controls
-do not install a plugin or qualify a DAW. See [the protocol](M4_TESTING.md).
+comparison continues. These explicit controls do not install a plugin or qualify
+a DAW. See [the protocol](M4_TESTING.md).
 
 For the next qualification stage, use `--protocol long-soak`. It runs two
 separate 30-minute real-time-worker trials with a 30-minute QoS-worker control

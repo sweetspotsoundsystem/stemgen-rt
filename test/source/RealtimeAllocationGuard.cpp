@@ -6,6 +6,14 @@
 #include <malloc.h>
 #endif
 
+// libc++ omits these declarations when sized deallocation is disabled.
+#if defined(_LIBCPP_VERSION) && !defined(__cpp_sized_deallocation)
+void operator delete(void*, size_t) noexcept;
+void operator delete[](void*, size_t) noexcept;
+void operator delete(void*, size_t, std::align_val_t) noexcept;
+void operator delete[](void*, size_t, std::align_val_t) noexcept;
+#endif
+
 namespace {
 thread_local audio_plugin_test::HeapTraffic* activeTraffic = nullptr;
 

@@ -13,6 +13,13 @@ set(SOURCE_FILES
   source/CroppedModelParityTest.cpp
   source/AudioProcessorTest.cpp
   source/InferenceQueueTest.cpp
+  source/InferenceTimingTest.cpp
+  source/ParallelInferenceTest.cpp
+  source/ParallelBenchmarkTest.cpp
+  source/WindowsWorkerTimerTest.cpp
+  source/WindowsThreadPolicyTest.cpp
+  source/WorkerWorkgroupTest.cpp
+  source/MacWorkgroupTest.cpp
   source/StreamingSampleRateAdapterTest.cpp
   source/ModelOutputSchedulerTest.cpp
   source/OverlapAddProcessorTest.cpp
@@ -24,6 +31,11 @@ set(SOURCE_FILES
   source/TransportUnderrunE2ETest.cpp
   source/ProcessorLifecycleTest.cpp
 )
+if(APPLE)
+  list(APPEND SOURCE_FILES source/MacBenchmarkActivity.mm)
+  set_source_files_properties(source/MacBenchmarkActivity.mm PROPERTIES
+    LANGUAGE CXX COMPILE_FLAGS "-x objective-c++ -fobjc-arc")
+endif()
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   STEMGENRT_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
@@ -55,6 +67,16 @@ set_source_files_properties(${REALTIME_SAFETY_SOURCES} PROPERTIES
 # Enables strict C++ warnings and treats warnings as errors.
 # This needs to be set up only for your projects, not 3rd party
 set_source_files_properties(${SOURCE_FILES} PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS_CXX}")
+
+if(APPLE)
+  # JUCE's native workgroup factory is compiled as Objective-C++. Apple's
+  # os_workgroup_t has a different C++ type in that language mode, so test
+  # sources constructing native contexts must use the same mode to link it.
+  set_source_files_properties(
+    source/MacWorkgroupTest.cpp
+    source/RealtimeSafetyTest.cpp
+    PROPERTIES COMPILE_FLAGS "-x objective-c++")
+endif()
 
 # Adds googletest-specific CMake commands at our disposal.
 include(GoogleTest)
@@ -89,6 +111,7 @@ if(WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${MODEL_SOURCE_DIR}/model.onnx"
       "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_SOURCE_DIR}/parallel" "${MODEL_DEST_DIR}/parallel"
     COMMENT "Copying verified ONNX model for tests"
     VERBATIM
   )
@@ -100,6 +123,7 @@ else()
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${MODEL_SOURCE_DIR}/model.onnx"
       "${MODEL_DEST_DIR}/model.onnx"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_SOURCE_DIR}/parallel" "${MODEL_DEST_DIR}/parallel"
     COMMENT "Linking verified ONNX model for tests"
     VERBATIM
   )

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "InferenceTiming.h"
+#include "ParallelInference.h"
+
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -93,12 +96,27 @@ public:
       std::array<std::array<std::vector<float>, kNumChannels>, kNumStems>&
           outputChunks,
       std::array<std::vector<float>, kNumChannels>& alignedInput,
-      bool& outputValid);
+      bool& outputValid,
+      InferenceRunTiming* timing = nullptr);
+
+  // Experimental deployment choice; configure before loading. One or three
+  // inference workers; the three-worker path owns the same thirteen states.
+  bool setIndependentWorkerCount(int count) noexcept;
+  int getIndependentWorkerCount() const noexcept { return independentWorkers_; }
+  bool startAuxiliaryWorkers(bool realtime,
+                             std::array<WorkerWorkgroup*, 2> groups);
+  void stopAuxiliaryWorkers();
+  int auxiliaryInitialPolicy(size_t i) const noexcept;
+  int auxiliaryFinalPolicy(size_t i) const noexcept;
 
   // Get a status string suitable for display
   juce::String getStatusString() const;
 
 private:
+  friend class OnnxRuntimeTestPeer;
+  int independentWorkers_{1};
+  std::unique_ptr<ParallelInference> parallel_;
+
   // Custom deleters for ORT handles
   struct OrtEnvDeleter {
     void operator()(OrtEnv* p) const noexcept;

@@ -53,12 +53,21 @@ else()
   set(HAS_LOGO_ASSET FALSE)
 endif()
 
+set(STEMGENRT_DEFAULT_INDEPENDENT_WORKERS "1" CACHE STRING "Experimental stem workers: 1 or 3")
+if(NOT STEMGENRT_DEFAULT_INDEPENDENT_WORKERS MATCHES "^(1|3)$")
+  message(FATAL_ERROR "Independent workers must be 1 or 3")
+endif()
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+  STEMGENRT_DEFAULT_INDEPENDENT_WORKERS=${STEMGENRT_DEFAULT_INDEPENDENT_WORKERS})
+
 # Sets the source files of the plugin project.
 set(SOURCE_FILES
   source/PluginEditor.cpp
   source/PluginProcessor.cpp
   source/OnnxRuntime.cpp
   source/InferenceQueue.cpp
+  source/InferenceTiming.cpp
+  source/ParallelInference.cpp
   source/StreamingSampleRateAdapter.cpp
   source/OverlapAddProcessor.cpp
   source/OutputWriter.cpp
@@ -70,6 +79,14 @@ set(HEADER_FILES
   ${INCLUDE_DIR}/Constants.h
   ${INCLUDE_DIR}/OnnxRuntime.h
   ${INCLUDE_DIR}/InferenceQueue.h
+  ${INCLUDE_DIR}/InferenceTiming.h
+  ${INCLUDE_DIR}/ParallelInference.h
+  ${INCLUDE_DIR}/ParallelModelContract.h
+  ${INCLUDE_DIR}/WorkerTimingTrace.h
+  ${INCLUDE_DIR}/WindowsWorkerTimer.h
+  ${INCLUDE_DIR}/WindowsThreadPolicy.h
+  ${INCLUDE_DIR}/RealtimeContextMailbox.h
+  ${INCLUDE_DIR}/WorkerWorkgroup.h
   ${INCLUDE_DIR}/StreamingSampleRateAdapter.h
   ${INCLUDE_DIR}/ModelOutputScheduler.h
   ${INCLUDE_DIR}/OverlapAddProcessor.h
@@ -81,6 +98,10 @@ target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${STEMGENRT_GENERATED_INCLUDE_DIR})
+
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} PUBLIC avrt)
+endif()
 
 # Links to all necessary dependencies. The present ones are recommended by JUCE.
 # If you use one of the additional modules, like the DSP module, you need to specify it here.
@@ -313,6 +334,18 @@ endif()
 # Bundle the immutable, single-file ONNX model into each plugin's Resources folder.
 set(MODEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../model")
 set(MODEL_ONNX "${MODEL_DIR}/model.onnx")
+include("${CMAKE_SOURCE_DIR}/cmake/ParallelModelContract.cmake")
+foreach(stem IN ITEMS drums bass vocals)
+  string(TOUPPER "${stem}" upper)
+  set(path "${MODEL_DIR}/parallel/${stem}.onnx")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${path}")
+  file(SHA256 "${path}" digest)
+  file(SIZE "${path}" bytes)
+  if(NOT digest STREQUAL STEMGENRT_PARALLEL_${upper}_SHA256 OR
+     NOT bytes EQUAL STEMGENRT_PARALLEL_${upper}_BYTES)
+    message(FATAL_ERROR "Experimental partition differs: ${path}")
+  endif()
+endforeach()
 
 if(NOT EXISTS "${MODEL_ONNX}")
   message(FATAL_ERROR "Required ONNX model not found: ${MODEL_ONNX}")
@@ -366,6 +399,7 @@ foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${P
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
         COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_DIR}/parallel" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/parallel"
         COMMAND ${CMAKE_COMMAND}
           "-DSTEMGENRT_BUNDLE_PATH=$<TARGET_BUNDLE_DIR:${_fmt_target}>"
           "-DSTEMGENRT_SIGN_IDENTITY=${STEMGENRT_MACOS_SIGN_IDENTITY}"
@@ -379,6 +413,7 @@ foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${P
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
         COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_DIR}/parallel" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/parallel"
         COMMENT "Bundling verified ONNX model into ${_fmt_target}"
         VERBATIM
       )
