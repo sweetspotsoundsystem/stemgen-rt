@@ -1,16 +1,16 @@
 # StemgenRT
 
-**StemgenRT 0.7.0** separates stereo audio into Drums, Bass, Vocals and Other
+**StemgenRT** separates stereo audio into Drums, Bass, Vocals and Other
 using three independently trained models. Other is the input minus those three
 estimates. The plug-in retains the **StemgenRT** name, host IDs and controls.
-This release replaces the previous joint separation model.
+The independent model was introduced in 0.7.0.
 
-This development branch adds [three independent inference workers](docs/parallel-workers.md)
-and [platform scheduling](RUNTIME_SCHEDULING.md) to the existing plugin. CI
-candidate bundles select three workers; ordinary source builds default to one.
+This checkout prepares **0.8.0**, adding [three independent inference workers](docs/parallel-workers.md)
+and [platform scheduling](RUNTIME_SCHEDULING.md) to the existing plugin. Source
+builds and CI bundles select three workers by default.
 The model weights, streaming interface and latency are unchanged.
 
-[Download the release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.7.0)
+[Download the previous 0.7.0 release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.7.0)
 for Apple Silicon macOS 14+ (AU/VST3) or Windows x86-64 (VST3). The model and ONNX
 Runtime 1.26.0 are bundled. macOS packages are ad-hoc signed, not notarized.
 Close the DAW before replacing the complete plug-in bundle, then restart it.
@@ -25,7 +25,7 @@ buffers include their additional scheduling reserve in reported latency.
 
 The listening comparison favored cleaner vocals, better silence behavior and
 less vocal bleed in drums and bass. Other can contain stronger residual errors.
-The three-worker candidate measured 0.694 ms per complete inference hop on the
+The three-worker runtime measured 0.694 ms per complete inference hop on the
 M4, versus 2.304 ms with one worker. Its balanced sustained standalone test
 recorded no missed results or underruns across 60 measured minutes per mode.
 The M1 Pro quick comparison measured 1.060 ms versus 2.244 ms, with no missed
@@ -36,7 +36,7 @@ DAW timing trace. On the Ryzen 5 5500, the Windows candidate improved average
 parallel inference from 3.753 to 1.525 ms, but still missed 224 results across
 40,400 callbacks. It does not yet pass the 128-sample playback gate. See
 [platform evidence](docs/parallel-workers.md) for exposure and comparison limits.
-The published 0.7.0 release bundles precede this experimental runtime work.
+The published 0.7.0 release bundles precede these runtime improvements.
 Correctness tests and algorithmic latency do not establish the CPU deadline.
 The audio callback never waits for inference; missed output uses aligned fallback.
 See [model details](model/README.md) and [M4 testing](M4_TESTING.md).
@@ -54,9 +54,24 @@ ctest --preset release
 ./scripts/install-plugins.sh --release
 ```
 
-The installer replaces complete bundles and signs embedded libraries before the
-outer bundle. For Windows, use `scripts/download-onnxruntime.ps1`, configure with
-CMake/Visual Studio, build and test Release, then use `scripts/install-plugins.ps1`.
+The macOS installer replaces complete bundles and signs embedded libraries before
+the outer bundle. For Windows x64 (Windows 10 version 1803 or later), use a Visual
+Studio developer shell with Ninja and the x64 Visual C++ runtime installed:
+
+```powershell
+git lfs pull
+./scripts/download-onnxruntime.ps1
+cmake --preset release
+cmake --build --preset release --parallel 4
+ctest --preset release
+./scripts/install-plugins.ps1 -Release
+```
+
+The Windows installer validates all four models and required binaries, verifies
+the staged copy, and preserves the previous installation until replacement
+succeeds. Close the DAW before installing. Keep `onnxruntime.dll` beside the VST3
+binary and retain the complete Resources directory. Single-worker diagnostic
+builds can set `-DSTEMGENRT_DEFAULT_INDEPENDENT_WORKERS=1` during configuration.
 The source contains the actual model via Git LFS and independent PyTorch fixtures.
 
 ## Model and training code
@@ -68,14 +83,16 @@ The full interface and authenticated EMA identities are under `model/`.
 Matching model, training, objectives, data augmentation, optimizer/EMA recovery,
 evaluation and export code is maintained in
 [StemgenRT-5.8](https://github.com/sweetspotsoundsystem/StemgenRT-5.8), with a
-matching source archive at `model/training-source/stemgenrt-0.7.0.tar.gz`.
+matching source archive at `model/training-source/stemgenrt-0.8.0.tar.gz`.
 Private experiment archives and draft papers are excluded from this release.
 
 ## Scheduling diagnostics
 
-The optional macOS comparison independently controls synthetic callback and
-worker scheduling while retaining this exact graph and the production ORT
-configuration. It runs four balanced short rounds, two five-minute endurance
+The optional single-worker macOS comparison independently controls synthetic
+callback and worker scheduling while retaining this exact graph and the
+production ORT configuration. It explicitly selects one worker in both traced
+and untraced trials; it does not measure the three-worker default. It runs four
+balanced short rounds, two five-minute endurance
 trials with a real-time synthetic callback, then separate worker traces:
 
 ```sh

@@ -65,6 +65,7 @@ for threads in 2 1 2; do
     printf 'Trial %s: %s ORT thread(s), 30,000 measured callbacks...\n' \
         "$trial" "$threads"
     if env STEMGENRT_TRACE_WORKER=1 STEMGENRT_PACED_ORT_THREADS="$threads" \
+        STEMGENRT_PACED_INDEPENDENT_WORKERS=1 \
         STEMGENRT_QUALIFICATION_CALLBACKS=30000 \
         "$test_binary" --gtest_also_run_disabled_tests --gtest_color=no \
         --gtest_filter=RealtimeStemSanityTest.DISABLED_StemsAreNotAllIdenticalWhenAsyncRealtimePaced \

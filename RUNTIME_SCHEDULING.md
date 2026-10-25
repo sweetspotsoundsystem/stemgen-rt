@@ -1,8 +1,8 @@
-# Runtime scheduling candidate
+# Runtime scheduling
 
-This branch changes the existing StemgenRT playback worker. It retains the
+StemgenRT 0.8.0 uses three persistent inference workers. It retains the
 released graph, weights, 13 states, controls, host IDs, residual Other and
-256-sample latency at 128 samples / 44.1 kHz. It remains an experimental candidate; see [platform evidence](docs/parallel-workers.md)
+256-sample latency at 128 samples / 44.1 kHz. See [platform evidence](docs/parallel-workers.md)
 for the tested hardware and limits.
 
 On macOS, a worker prepared for real-time playback requests a Mach
@@ -20,8 +20,8 @@ dispatch and completion. The primary polls the callback's atomic queue with a
 worker-owned high-resolution timer; the callback performs no OS wake. Linux
 retains its existing scheduling path.
 ORT remains sequential inside each session with intra/inter-op counts of one
-and spinning disabled. The experimental three-worker build runs one independent
-stem session on each worker; the source build default remains one worker.
+and spinning disabled. Source and CI builds run one independent stem session on
+each of three workers by default. Single-worker builds remain diagnostic.
 
 The JUCE AU wrapper supplies changes through audioWorkgroupContextChanged.
 The callback retains the handle into one of eight preallocated slots and
@@ -50,5 +50,6 @@ QoS/real-time overrides, and the summary distinguishes them. `qualify-macos.sh`
 requires the default worker path and a real-time synthetic callback. The older
 comparison/long-soak runner intentionally requests explicit diagnostic policies.
 Neither synthetic callback tests nor test-created workgroups qualify installed
-DAW behavior. Long playback, offline rendering, transport changes, multiple
-instances, actual AU host membership and sustained deadlines remain release gates.
+DAW behavior. The retained M4 sustained and M1 Pro quick results, the M4 Ableton
+user report, and the remaining Windows misses are documented separately.
+Multiple-instance contention and broader host coverage remain follow-up work.

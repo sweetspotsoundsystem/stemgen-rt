@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # Version is needed by JUCE.
-project(AudioPlugin VERSION 0.7.0)
+project(AudioPlugin VERSION 0.8.0)
 
 # Adding a directory with the library/application name as a subfolder of the
 # include folder is a good practice. It helps avoid name clashes later on.
@@ -53,7 +53,7 @@ else()
   set(HAS_LOGO_ASSET FALSE)
 endif()
 
-set(STEMGENRT_DEFAULT_INDEPENDENT_WORKERS "1" CACHE STRING "Experimental stem workers: 1 or 3")
+set(STEMGENRT_DEFAULT_INDEPENDENT_WORKERS "3" CACHE STRING "Independent stem workers: 1 or 3 (1 is diagnostic)")
 if(NOT STEMGENRT_DEFAULT_INDEPENDENT_WORKERS MATCHES "^(1|3)$")
   message(FATAL_ERROR "Independent workers must be 1 or 3")
 endif()
@@ -258,6 +258,11 @@ if(STEMGENRT_REQUIRE_QUALIFIED_ORT)
     message(FATAL_ERROR
       "Qualified packaging requires ONNX Runtime ${STEMGENRT_QUALIFIED_ORT_VERSION}, got '${_ORT_LOCAL_VERSION}'")
   endif()
+  foreach(_notice IN ITEMS LICENSE ThirdPartyNotices.txt)
+    if(NOT EXISTS "${_ORT_LOCAL_DIR}/${_notice}")
+      message(FATAL_ERROR "The official ONNX Runtime SDK notice is missing: ${_notice}")
+    endif()
+  endforeach()
   if(WIN32 AND (NOT EXISTS "${ONNXRUNTIME_LIBRARY}"
                 OR NOT EXISTS "${ONNXRUNTIME_DLL}"))
     message(FATAL_ERROR
@@ -384,6 +389,16 @@ set(_stemgenrt_apple_format_targets "")
 foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${PROJECT_NAME}_AU ${PROJECT_NAME}_AAX)
   if(TARGET ${_fmt_target})
     set(_bundle_model_target "${_fmt_target}_BundleModel")
+    set(_bundle_notice_commands "")
+    if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
+      list(APPEND _bundle_notice_commands
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${_ORT_LOCAL_DIR}/LICENSE"
+                "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/ONNXRuntime-LICENSE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${_ORT_LOCAL_DIR}/ThirdPartyNotices.txt"
+                "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/ONNXRuntime-ThirdPartyNotices.txt")
+    endif()
     if(APPLE)
       set(_bundle_ort_refresh_commands "")
       if(_ORT_FOUND AND _ORT_SOURCE STREQUAL "local")
@@ -397,6 +412,7 @@ foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${P
       add_custom_target(${_bundle_model_target} ALL
         ${_bundle_ort_refresh_commands}
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
+        ${_bundle_notice_commands}
         COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_DIR}/parallel" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/parallel"
@@ -411,6 +427,7 @@ foreach(_fmt_target IN ITEMS ${PROJECT_NAME}_Standalone ${PROJECT_NAME}_VST3 ${P
     else()
       add_custom_target(${_bundle_model_target} ALL
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources"
+        ${_bundle_notice_commands}
         COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx.data"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${MODEL_ONNX}" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/model.onnx"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${MODEL_DIR}/parallel" "$<TARGET_FILE_DIR:${_fmt_target}>/../Resources/parallel"
