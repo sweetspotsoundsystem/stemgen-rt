@@ -120,9 +120,14 @@ TEST(ParallelInferenceTest, HelpersRestartAcrossRealtimeAndOfflinePreparation) {
     EXPECT_FALSE(valid);
     runtime.stopAuxiliaryWorkers();
     for (size_t helper = 0; helper < 2; ++helper) {
-#if defined(__APPLE__) || defined(_WIN32)
+#if defined(__APPLE__)
       EXPECT_EQ(runtime.auxiliaryInitialPolicy(helper), 1);
       EXPECT_EQ(runtime.auxiliaryFinalPolicy(helper), 1);
+#elif defined(_WIN32)
+      const int initial = runtime.auxiliaryInitialPolicy(helper);
+      // Offline priority must apply; playback may report unavailable MMCSS.
+      EXPECT_TRUE(initial == 1 || (pass % 2 == 0 && initial == 2));
+      EXPECT_EQ(runtime.auxiliaryFinalPolicy(helper), initial);
 #else
       EXPECT_EQ(runtime.auxiliaryInitialPolicy(helper), 2);
       EXPECT_EQ(runtime.auxiliaryFinalPolicy(helper), 2);
