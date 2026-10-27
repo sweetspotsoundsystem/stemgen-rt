@@ -20,7 +20,10 @@ third-party permissions.
 
 The legacy v0.6.x models have a different lineage, including additional
 third-party audio with incompletely documented provenance and pseudo-labels.
-This notice does not relicense or clear those artifacts. They remain identified
-as historical research baselines; their continued distribution requires a rights
-review. The v0.7 independent models were trained from scratch without that
+This notice does not relicense or clear those artifacts. The v0.6.x plugin release
+attachments and the model downloader's v0.6.2 link have been withdrawn pending
+provenance and rights review. Historical baseline descriptions, checksums and
+local compatibility remain. This withdrawal does not erase Git/LFS history,
+existing copies or third-party mirrors, and does not revoke valid prior grants.
+The v0.7 independent models were trained from scratch without that
 additional audio or teacher initialization.

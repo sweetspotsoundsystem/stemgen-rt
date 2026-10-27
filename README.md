@@ -105,6 +105,12 @@ evaluation and export code is maintained in
 matching source archive at `model/training-source/stemgenrt-0.8.0.tar.gz`.
 Private experiment archives and draft papers are excluded from this release.
 
+Legacy v0.6.1/v0.6.2 release attachments and CI downloads from before the v0.7
+independent models have been withdrawn pending provenance and rights review.
+Historical source tags and research baseline descriptions remain. Git/LFS
+history and existing copies are not erased by this withdrawal. See the
+[weights notice](licenses/WEIGHTS-LICENSE.md).
+
 ## Scheduling diagnostics
 
 The optional single-worker macOS comparison independently controls synthetic
