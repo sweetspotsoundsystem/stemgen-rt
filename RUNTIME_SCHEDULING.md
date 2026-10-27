@@ -38,7 +38,7 @@ provide no workgroup, including the VST3 path, use the real-time policy alone.
 Offline workers retain context changes but do not join a group.
 
 Workgroup status reports `JoinRequested`, not verified native membership:
-JUCE 8.0.6 exposes token-provider presence even when a native join fails. Native
+JUCE 8.0.11 still exposes token-provider presence even when a native join fails. Native
 macOS lifecycle tests independently probe attachment and detachment, cancellation,
 restart and separate instances. The callback allocation guard counts C++
 new/delete; it does not intercept allocations inside system libraries. Host

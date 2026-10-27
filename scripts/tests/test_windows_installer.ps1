@@ -31,7 +31,7 @@ function Assert-True($condition, $message) {
 if (Test-Path -LiteralPath $TestRoot) { throw 'Use a new test allocation' }
 New-Item -ItemType Directory -Path $TestRoot | Out-Null
 try {
-    foreach ($case in @('fresh', 'upgrade', 'missing_bundle', 'missing_runtime', 'missing_notice', 'corrupt_model', 'copy', 'staged_binary', 'promotion', 'rollback')) {
+    foreach ($case in @('fresh', 'upgrade', 'missing_bundle', 'missing_runtime', 'missing_notice', 'missing_juce_notice', 'corrupt_model', 'copy', 'staged_binary', 'promotion', 'rollback')) {
         $script:FaultMode = ''
         $root = Join-Path $TestRoot $case
         $source = Join-Path $root 'source/StemgenRT.vst3'
@@ -44,6 +44,10 @@ try {
         Set-Content -LiteralPath (Join-Path $source 'Contents/x86_64-win/onnxruntime.dll') -Value 'runtime'
         Set-Content -LiteralPath (Join-Path $source 'Contents/Resources/ONNXRuntime-LICENSE.txt') -Value 'runtime license'
         Set-Content -LiteralPath (Join-Path $source 'Contents/Resources/ONNXRuntime-ThirdPartyNotices.txt') -Value 'runtime notices'
+        New-Item -ItemType Directory -Path (Join-Path $source 'Contents/Resources/licenses') | Out-Null
+        foreach ($notice in @('StemgenRT-MIT.txt', 'AGPL-3.0.txt', 'JUCE-NOTICES.txt', 'WEIGHTS-LICENSE.md', 'CC-BY-NC-SA-4.0.txt', 'README.txt')) {
+            Set-Content -LiteralPath (Join-Path $source ('Contents/Resources/licenses/' + $notice)) -Value 'notice fixture'
+        }
         $records = @()
         foreach ($stem in @('model', 'drums', 'bass', 'vocals')) {
             $relative = if ($stem -eq 'model') { 'model.onnx' } else { 'parallel/' + $stem + '.onnx' }
@@ -60,6 +64,7 @@ try {
         if ($case -eq 'missing_bundle') { Remove-Item -LiteralPath $source -Recurse -Force }
         if ($case -eq 'missing_runtime') { Remove-Item -LiteralPath (Join-Path $source 'Contents/x86_64-win/onnxruntime.dll') }
         if ($case -eq 'missing_notice') { Remove-Item -LiteralPath (Join-Path $source 'Contents/Resources/ONNXRuntime-ThirdPartyNotices.txt') }
+        if ($case -eq 'missing_juce_notice') { Remove-Item -LiteralPath (Join-Path $source 'Contents/Resources/licenses/JUCE-NOTICES.txt') }
         if ($case -eq 'corrupt_model') { Set-Content -LiteralPath (Join-Path $source 'Contents/Resources/parallel/drums.onnx') -Value 'bad weights' }
         $script:FaultMode = $case
         $failed = $false

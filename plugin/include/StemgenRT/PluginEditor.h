@@ -21,6 +21,8 @@ private:
 
   AudioPluginAudioProcessor& processorRef;
 
+  juce::Label statusLabel;
+
 #if HAS_LOGO_ASSET
   juce::Image logoImage;
 #endif

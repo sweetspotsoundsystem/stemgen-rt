@@ -445,6 +445,16 @@ OnnxRuntime::OnnxRuntime() : api_(getSafeOrtApi()) {
         api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "StemgenRT", &rawEnv);
     if (status == nullptr) {
       ortEnv_.reset(rawEnv);
+      // Official Windows ORT builds can collect telemetry. Disable it before
+      // creating any sessions; failure must not silently enable collection.
+      status = api->DisableTelemetryEvents(rawEnv);
+      if (status != nullptr) {
+        DBG("[ORT] Could not disable telemetry: "
+            << api->GetErrorMessage(status));
+        api->ReleaseStatus(status);
+        ortEnv_.reset();
+        return;
+      }
       {
         std::lock_guard<std::mutex> lock(statusMutex_);
         ortInitialized_.store(true, std::memory_order_release);

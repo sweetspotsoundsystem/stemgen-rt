@@ -50,7 +50,9 @@ if(EXISTS
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/ParallelModelContract.cmake")
-foreach(_notice IN ITEMS ONNXRuntime-LICENSE.txt ONNXRuntime-ThirdPartyNotices.txt)
+foreach(_notice IN ITEMS ONNXRuntime-LICENSE.txt ONNXRuntime-ThirdPartyNotices.txt
+    licenses/StemgenRT-MIT.txt licenses/AGPL-3.0.txt licenses/JUCE-NOTICES.txt
+    licenses/WEIGHTS-LICENSE.md licenses/CC-BY-NC-SA-4.0.txt licenses/README.txt)
   set(_notice_path "${STEMGENRT_BUNDLE_PATH}/Contents/Resources/${_notice}")
   if(NOT EXISTS "${_notice_path}")
     message(FATAL_ERROR "Bundled ONNX Runtime notice is missing: ${_notice_path}")
@@ -228,12 +230,16 @@ if(NOT STEMGENRT_VERIFY_ONLY)
 
   # Resource copying and install_name_tool both invalidate signatures. Sign
   # embedded code first, then seal the outer bundle after every mutation.
+  set(_stemgenrt_sign_options "")
+  if(NOT STEMGENRT_SIGN_IDENTITY STREQUAL "-")
+    list(APPEND _stemgenrt_sign_options --timestamp --options runtime)
+  endif()
   file(GLOB_RECURSE _stemgenrt_nested_dylibs LIST_DIRECTORIES FALSE
        "${STEMGENRT_BUNDLE_PATH}/Contents/Frameworks/*.dylib")
   foreach(_stemgenrt_dylib IN LISTS _stemgenrt_nested_dylibs)
     execute_process(
       COMMAND "${STEMGENRT_CODESIGN_EXECUTABLE}" --force --sign
-              "${STEMGENRT_SIGN_IDENTITY}" "${_stemgenrt_dylib}"
+              "${STEMGENRT_SIGN_IDENTITY}" ${_stemgenrt_sign_options} "${_stemgenrt_dylib}"
       RESULT_VARIABLE _stemgenrt_sign_result
       OUTPUT_VARIABLE _stemgenrt_sign_output
       ERROR_VARIABLE _stemgenrt_sign_error)
@@ -245,7 +251,7 @@ if(NOT STEMGENRT_VERIFY_ONLY)
 
   execute_process(
     COMMAND "${STEMGENRT_CODESIGN_EXECUTABLE}" --force --sign
-            "${STEMGENRT_SIGN_IDENTITY}" "${STEMGENRT_BUNDLE_PATH}"
+            "${STEMGENRT_SIGN_IDENTITY}" ${_stemgenrt_sign_options} "${STEMGENRT_BUNDLE_PATH}"
     RESULT_VARIABLE _stemgenrt_sign_result
     OUTPUT_VARIABLE _stemgenrt_sign_output
     ERROR_VARIABLE _stemgenrt_sign_error)
