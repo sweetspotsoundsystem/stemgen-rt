@@ -4,7 +4,7 @@
   "public_source_tree": "0f72bec3e04de471d8f8a9b1970d9562217bb4ea",
   "public_source_repository": "https://github.com/sweetspotsoundsystem/StemgenRT-5.8",
   "release": "v0.8.0",
-  "source_date_epoch": 1792947600,
+  "source_date_epoch": 1580601600,
   "build_tools": {
     "build": "1.6.1",
     "hatchling": "1.32.4"
