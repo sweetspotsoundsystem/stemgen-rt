@@ -10,11 +10,13 @@ and [platform scheduling](RUNTIME_SCHEDULING.md) to the existing plugin. Source
 builds and CI bundles select three workers by default.
 The model weights, streaming interface and latency are unchanged.
 
-[Download the previous 0.7.0 release](https://github.com/sweetspotsoundsystem/stemgen-rt/releases/tag/v0.7.0)
-for Apple Silicon macOS 14+ (AU/VST3) or Windows x86-64 (VST3). The model and ONNX
-Runtime 1.26.0 are bundled. macOS packages are ad-hoc signed, not notarized.
-Close the DAW before replacing the complete plug-in bundle, then restart it.
-Existing projects will use the new model after updating.
+The 0.8.0 launch candidate targets **Apple Silicon macOS 14+, 44.1 kHz**
+(AU/VST3). **Windows x86-64 is experimental** and still has measured underruns.
+The old 0.7.0 binaries predate the runtime fixes and are retained as historical
+artifacts; use the current candidate for qualification. A new official release
+has not been tagged. Current macOS CI packages are ad-hoc signed and unnotarized.
+See [installation/signing](docs/mac-installation.md) and
+[the final M4 DAW checks](docs/m4-final-daw-checks.md).
 
 ## Audio and performance
 
@@ -22,6 +24,17 @@ Use **44.1 kHz**. Output buses are Main, Drums, Bass, Other, Vocals; Main is the
 complete delayed input. A 128-sample host buffer gives **256 samples / 5.805 ms**
 of graph-plus-worker latency, excluding hardware latency. Larger or irregular
 buffers include their additional scheduling reserve in reported latency.
+At unsupported sample rates the release UI explicitly requests 44.1 kHz.
+
+| Host buffer (samples) | 64 | 128 | 256 | 512 | 1024 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Reported PDC (samples) | 320 | 256 | 384 | 640 | 1152 |
+| Reported PDC (ms) | 7.26 | 5.80 | 8.71 | 14.51 | 26.12 |
+
+Model synthesis-frame latency is separately 256 samples / 5.805 ms; adding the
+asynchronous queue under that convention gives 384 samples / 8.707 ms at a
+128-sample host buffer. Reported PDC and synthesis-frame latency use different
+reference points. Neither is device round-trip latency.
 
 The listening comparison favored cleaner vocals, better silence behavior and
 less vocal bleed in drums and bass. Other can contain stronger residual errors.
@@ -33,7 +46,7 @@ results across 40,000 measured plugin callbacks per mode. These are separate
 machine results; the M1 Pro has not received the same endurance test. The user
 also reports stable playback in Ableton on the M4, without a separately inspected
 DAW timing trace. On the Ryzen 5 5500, the Windows candidate improved average
-parallel inference from 3.753 to 1.525 ms, but still missed 224 results across
+inference from 3.246 ms with one worker to 1.525 ms with three, but still missed 224 results across
 40,400 callbacks. It does not yet pass the 128-sample playback gate. See
 [platform evidence](docs/parallel-workers.md) for exposure and comparison limits.
 The published 0.7.0 release bundles precede these runtime improvements.
@@ -56,7 +69,13 @@ ctest --preset release
 
 The macOS installer replaces complete bundles and signs embedded libraries before
 the outer bundle. For Windows x64 (Windows 10 version 1803 or later), use a Visual
-Studio developer shell with Ninja and the x64 Visual C++ runtime installed:
+Studio developer shell with Ninja and the x64 Visual C++ runtime installed ([official Microsoft download](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)).
+This is also a prerequisite for prebuilt Windows ZIPs; install the x64 v14
+redistributable, including `MSVCP140_ATOMIC_WAIT.dll`. Windows ZIPs are unsigned.
+[Host validation and crash evidence](docs/windows-debugging.md) remain necessary
+for the Ableton insertion report; the synthetic restart regression is fixed.
+
+Build with:
 
 ```powershell
 git lfs pull
@@ -115,3 +134,18 @@ between them, all with a real-time synthetic callback and tracing disabled.
 Allow about 90 minutes after compilation. The plan records every trial and its
 exact exposure before measurement; all original correctness and timing gates
 remain required.
+
+## Licences and source
+
+Original code is MIT. The JUCE-linked open-source binary uses AGPLv3 terms;
+JUCE 8.0.11 embeds the MIT VST3 SDK 3.8. See [bundled notices](licenses/README.txt).
+Distribute each binary with its matching `StemgenRT-Source.tar.gz` CI artifact,
+which includes plugin code, pinned JUCE source and the matching model/training
+package. Rebuild with the supplied JUCE source using `-DCPM_JUCE_SOURCE=/path/to/JUCE`.
+Downloaded ORT and build dependencies retain their own terms. ONNX Runtime
+telemetry is disabled before sessions are created.
+
+[Weights have separate non-commercial terms](licenses/WEIGHTS-LICENSE.md).
+Those terms do not establish third-party dataset rights or commercial clearance.
+The [model card and quality results](https://github.com/sweetspotsoundsystem/StemgenRT-5.8/blob/main/MODEL_CARD.md)
+report the vocal gain and residual Other regression. The manuscript remains private.

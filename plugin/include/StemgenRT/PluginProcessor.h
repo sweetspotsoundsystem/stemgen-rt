@@ -26,6 +26,8 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor {
   // Returns a short user-facing status string for ONNX Runtime availability
   // and initialization state, suitable for the editor to display.
   juce::String getOrtStatusString() const;
+  // Short, actionable status for the release editor; called on the UI thread.
+  juce::String getSeparationStatusText() const;
 
   // Returns the current plugin latency in samples.
   // The graph emits the previous hop. With 128-sample host blocks, the worker

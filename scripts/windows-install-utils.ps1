@@ -10,7 +10,10 @@ function Get-StemgenRTBundleInventory {
         throw 'Parent and partition manifests disagree'
     }
     foreach ($relative in @('Contents/x86_64-win/StemgenRT.vst3', 'Contents/x86_64-win/onnxruntime.dll',
-                           'Contents/Resources/ONNXRuntime-LICENSE.txt', 'Contents/Resources/ONNXRuntime-ThirdPartyNotices.txt')) {
+                           'Contents/Resources/ONNXRuntime-LICENSE.txt', 'Contents/Resources/ONNXRuntime-ThirdPartyNotices.txt',
+                           'Contents/Resources/licenses/StemgenRT-MIT.txt', 'Contents/Resources/licenses/AGPL-3.0.txt',
+                           'Contents/Resources/licenses/JUCE-NOTICES.txt', 'Contents/Resources/licenses/WEIGHTS-LICENSE.md',
+                           'Contents/Resources/licenses/CC-BY-NC-SA-4.0.txt', 'Contents/Resources/licenses/README.txt')) {
         $path = Join-Path $Bundle $relative
         if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -eq 0) {
             throw "Required plugin/runtime file or notice missing or empty: $path"

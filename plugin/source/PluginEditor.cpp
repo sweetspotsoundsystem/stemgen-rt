@@ -16,6 +16,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p) {
   setSize(300, 300);
+  statusLabel.setComponentID("separationStatus");
+  statusLabel.setJustificationType(juce::Justification::centred);
+  statusLabel.setFont(juce::FontOptions(12.0f));
+  addAndMakeVisible(statusLabel);
+  timerCallback();
 
 #if HAS_LOGO_ASSET
   logoImage = juce::ImageCache::getFromMemory(BinaryData::logo_png,
@@ -31,7 +36,9 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::black);
   auto area = getLocalBounds().reduced(20);
-  auto readout = area.removeFromBottom(36);
+  auto readout = area.removeFromBottom(92);
+  readout.removeFromTop(
+      56);  // The status label is a visible, accessible child.
   area.removeFromBottom(12);
 
 #if HAS_LOGO_ASSET
@@ -59,9 +66,21 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
                    readout, juce::Justification::centred, 1);
 }
 
-void AudioPluginAudioProcessorEditor::resized() {}
+void AudioPluginAudioProcessorEditor::resized() {
+  statusLabel.setBounds(
+      getLocalBounds().reduced(20).removeFromBottom(92).removeFromTop(52));
+}
 
 void AudioPluginAudioProcessorEditor::timerCallback() {
+  auto status = processorRef.getSeparationStatusText();
+#if JUCE_WINDOWS
+  status = "Windows experimental\n" + status;
+#endif
+  statusLabel.setText(status, juce::dontSendNotification);
+  const bool ready = processorRef.getLatencySamples() > 0 &&
+                     !processorRef.isRealtimeCallbackTimingUnsafe();
+  statusLabel.setColour(juce::Label::textColourId,
+                        ready ? juce::Colours::white : juce::Colours::orange);
   repaint();
 }
 

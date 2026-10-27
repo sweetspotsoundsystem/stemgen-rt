@@ -1,4 +1,5 @@
 #include <StemgenRT/PluginProcessor.h>
+#include <StemgenRT/BuildConfig.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -90,7 +91,129 @@ public:
     return position;
   }
 };
+
+class LatencyRestartHost final : private juce::AudioProcessorListener {
+public:
+  explicit LatencyRestartHost(juce::AudioProcessor& processor)
+      : processor_(processor) {
+    processor_.addListener(this);
+  }
+
+  ~LatencyRestartHost() override { processor_.removeListener(this); }
+
+  int settle(double sampleRate, int blockSize) {
+    int restarts = 0;
+    // Model a host that services latency notifications by deactivating and
+    // reactivating the plugin. Bound the simulation so a regression fails
+    // instead of hanging the test runner.
+    while (restartPending_ && restarts < 4) {
+      restartPending_ = false;
+      processor_.releaseResources();
+      processor_.prepareToPlay(sampleRate, blockSize);
+      ++restarts;
+    }
+    return restarts;
+  }
+
+  bool restartPending() const { return restartPending_; }
+  int latencyChanges() const { return latencyChanges_; }
+
+private:
+  void audioProcessorParameterChanged(juce::AudioProcessor*,
+                                      int,
+                                      float) override {}
+
+  void audioProcessorChanged(juce::AudioProcessor*,
+                             const ChangeDetails& details) override {
+    if (details.latencyChanged) {
+      restartPending_ = true;
+      ++latencyChanges_;
+    }
+  }
+
+  juce::AudioProcessor& processor_;
+  bool restartPending_ = false;
+  int latencyChanges_ = 0;
+};
 }  // namespace
+
+class LatencyRestartTest : public ::testing::TestWithParam<int> {};
+
+TEST_P(LatencyRestartTest, SettlesAfterLatencyChangeAndHostReactivation) {
+  const int blockSize = GetParam();
+  AudioPluginAudioProcessor processor;
+  // VST3 queries the JUCE base class's non-virtual latency getter, rather
+  // than StemgenRT's separate active-engine status getter.
+  auto& hostProcessor = static_cast<juce::AudioProcessor&>(processor);
+  LatencyRestartHost host(hostProcessor);
+  processor.prepareToPlay(44100.0, blockSize);
+  ASSERT_EQ(hostProcessor.getLatencySamples(),
+            audio_plugin::calculatePluginLatencySamples(blockSize))
+      << processor.getOrtStatusString();
+  EXPECT_EQ(host.settle(44100.0, blockSize), 1);
+  ASSERT_FALSE(host.restartPending());
+  EXPECT_EQ(host.latencyChanges(), 1);
+
+  // Ordinary suspension must not tell the host to rebuild delay compensation.
+  processor.releaseResources();
+  EXPECT_EQ(processor.getLatencySamples(), 0);
+  EXPECT_EQ(hostProcessor.getLatencySamples(),
+            audio_plugin::calculatePluginLatencySamples(blockSize));
+  EXPECT_FALSE(host.restartPending());
+  processor.prepareToPlay(44100.0, blockSize);
+  EXPECT_EQ(host.settle(44100.0, blockSize), 0);
+
+  // A real buffer change still reports its new reserve exactly once.
+  const int changedBlockSize = blockSize == 128 ? 4096 : 128;
+  processor.releaseResources();
+  processor.prepareToPlay(44100.0, changedBlockSize);
+  EXPECT_EQ(hostProcessor.getLatencySamples(),
+            audio_plugin::calculatePluginLatencySamples(changedBlockSize));
+  EXPECT_EQ(host.settle(44100.0, changedBlockSize), 1);
+  ASSERT_FALSE(host.restartPending());
+  EXPECT_EQ(host.latencyChanges(), 2);
+
+  // Disabled configurations must clear the advertised latency and also settle.
+  processor.releaseResources();
+  processor.prepareToPlay(48000.0, changedBlockSize);
+  EXPECT_EQ(hostProcessor.getLatencySamples(), 0);
+  EXPECT_EQ(host.settle(48000.0, changedBlockSize), 1);
+  EXPECT_FALSE(host.restartPending());
+  EXPECT_EQ(host.latencyChanges(), 3);
+  processor.releaseResources();
+}
+
+INSTANTIATE_TEST_SUITE_P(HostBuffers,
+                         LatencyRestartTest,
+                         ::testing::Values(128, 4096));
+
+#if !STEMGENRT_DEBUG_UI
+TEST(ProcessorLifecycleTest, ReleaseEditorExplainsUnsupportedRateAndRecovery) {
+  AudioPluginAudioProcessor processor;
+  processor.prepareToPlay(48000.0, 128);
+  EXPECT_EQ(processor.getLatencySamples(), 0);
+  {
+    std::unique_ptr<juce::AudioProcessorEditor> editor(
+        processor.createEditor());
+    ASSERT_NE(editor, nullptr);
+    auto* label =
+        dynamic_cast<juce::Label*>(editor->findChildWithID("separationStatus"));
+    ASSERT_NE(label, nullptr);
+    EXPECT_TRUE(label->isVisible());
+    EXPECT_GT(label->getWidth(), 0);
+    EXPECT_GT(label->getHeight(), 0);
+    EXPECT_TRUE(label->getText().contains("Separation unavailable"));
+    EXPECT_TRUE(label->getText().contains("44.1 kHz"));
+  }
+  processor.releaseResources();
+  processor.prepareToPlay(44100.0, 128);
+  ASSERT_EQ(processor.getLatencySamples(), 256)
+      << processor.getOrtStatusString();
+  EXPECT_EQ(processor.getSeparationStatusText(), "44.1 kHz separation active");
+  processor.releaseResources();
+  EXPECT_TRUE(processor.getSeparationStatusText().contains("inactive"));
+}
+#endif
 
 class BypassLifecycleTest : public ::testing::TestWithParam<int> {};
 

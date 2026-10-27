@@ -155,6 +155,29 @@ juce::String AudioPluginAudioProcessor::getOrtStatusString() const {
 #endif
 }
 
+juce::String AudioPluginAudioProcessor::getSeparationStatusText() const {
+#if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
+  if (!sampleRateSupported_.load(std::memory_order_acquire)) {
+    return "Separation unavailable. Use a 44.1 kHz session and a buffer of "
+           "1 to 65536 samples.";
+  }
+  if (!onnxRuntime_ || !onnxRuntime_->isInitialized() ||
+      !onnxRuntime_->isModelLoaded() || !onnxRuntime_->isReadyForInference()) {
+    return "Separation unavailable. Reinstall the complete plug-in bundle.";
+  }
+  if (activeLatencySamples_.load(std::memory_order_acquire) == 0) {
+    return "Separation inactive. Start playback in a 44.1 kHz session.";
+  }
+  if (isRealtimeCallbackTimingUnsafe()) {
+    return "Audio buffer changed. Restart the audio engine to restore "
+           "separation.";
+  }
+  return "44.1 kHz separation active";
+#else
+  return "Separation unavailable. Reinstall the complete plug-in bundle.";
+#endif
+}
+
 int AudioPluginAudioProcessor::getLatencySamples() const {
 #if defined(STEMGENRT_USE_ONNXRUNTIME) && STEMGENRT_USE_ONNXRUNTIME
   if (!sampleRateSupported_.load(std::memory_order_acquire) || !onnxRuntime_ ||
@@ -840,7 +863,9 @@ void AudioPluginAudioProcessor::releaseResources() {
   // Stop the inference thread
   inferenceQueue_.stopThread();
   activeLatencySamples_.store(0, std::memory_order_release);
-  setLatencySamples(0);
+  // Retain the host's PDC while deactivated. Some hosts restart the processor
+  // after a latency notification; clearing it here causes a restart loop.
+  // prepareToPlay() publishes a new value when the configuration changes.
 #endif
   preparedHostBlockSize_.store(0, std::memory_order_release);
   lastHostBlockSize_.store(0, std::memory_order_release);

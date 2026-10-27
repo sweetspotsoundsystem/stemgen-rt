@@ -2,6 +2,15 @@
 
 ## 0.8.0 (unreleased)
 
+- Show actionable 44.1 kHz and runtime-status messages in the release UI; label
+  Windows experimental. Preserve host PDC through deactivation to avoid repeated
+  host restarts after a latency notification, with 128/4096-sample regressions.
+- Upgrade to JUCE 8.0.11 / MIT VST3 SDK 3.8, disable ORT telemetry before sessions,
+  bundle code/JUCE/weights notices and generate matching complete source archives.
+- Add packaged Windows pluginval checks and separate crash symbols; prepare
+  Developer ID/notarization tooling and final M4 real-DAW instructions.
+  Actual notarization and the affected Windows Ableton reproduction remain open.
+
 - Run Bass on the existing queue worker and Drums/Vocals on two persistent
   helpers by default, both in source builds and CI packages. Keep one ORT thread
   per session and retain the single-worker diagnostic control.
