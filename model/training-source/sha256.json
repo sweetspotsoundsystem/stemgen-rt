@@ -1,7 +1,7 @@
 {
-  "stemgenrt-0.8.0.tar.gz": "742c4a2fa295efef55eda8fe3d973c5c4eb0591e3bf5a26a660cc53d0b53c9b0",
-  "public_source_commit": "c287a39a21c53afee9a4c85b3bd9977d6e436320",
-  "public_source_tree": "0f72bec3e04de471d8f8a9b1970d9562217bb4ea",
+  "stemgenrt-0.8.0.tar.gz": "06a1b0ee033354b4ae978541aaac1defb51f0333c442b8c8ecb556e65ca6be1c",
+  "public_source_commit": "029c3254fcc252e8d9dfde32cff46bb3cbb8fae2",
+  "public_source_tree": "53759fd09a4af5e9ca03c6ae164201955f22c8d7",
   "public_source_repository": "https://github.com/sweetspotsoundsystem/StemgenRT-5.8",
   "release": "v0.8.0",
   "source_date_epoch": 1580601600,
